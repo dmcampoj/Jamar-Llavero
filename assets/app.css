@@ -3634,3 +3634,18 @@ body.dark .guideSalesScope78 span{background:#343b46;border-color:#4a5260}
 .guideSalesTable78 td.guideSalesExtra78:nth-last-child(1){width:150px!important}
 .guideSalesCell78 .guideTrend78{display:inline-flex!important;margin-bottom:3px}
 @media(max-width:760px){.guideFloorTableV50.guideSalesTable78{min-width:1580px!important}}
+
+
+/* ===== LLAVERO V86 · gráficos de ambientes ajustados al total real de tienda ===== */
+.guideFloorTableV50.guideSalesTable78{min-width:1700px!important}
+.guideSalesTable78 th.guideSalesExtra78:nth-last-child(4),
+.guideSalesTable78 td.guideSalesExtra78:nth-last-child(4){width:145px!important}
+.guideSalesTable78 th.guideSalesExtra78:nth-last-child(3),
+.guideSalesTable78 td.guideSalesExtra78:nth-last-child(3){width:190px!important}
+.guideSalesTable78 th.guideSalesExtra78:nth-last-child(2),
+.guideSalesTable78 td.guideSalesExtra78:nth-last-child(2){width:145px!important}
+.guideSalesTable78 th.guideSalesExtra78:nth-last-child(1),
+.guideSalesTable78 td.guideSalesExtra78:nth-last-child(1){width:150px!important}
+.guideSalesCard78 .guideMonthBars78{min-width:150px;justify-content:center;margin:2px auto 0}
+.guideEstimateHint86{display:block;margin-top:4px;color:var(--mut);font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.35px}
+@media(max-width:760px){.guideFloorTableV50.guideSalesTable78{min-width:1630px!important}}
