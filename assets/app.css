@@ -3516,3 +3516,30 @@ button:focus-visible,[role="button"]:focus-visible,a:focus-visible,input:focus-v
   table{min-width:760px}
 }
 @media(min-width:1800px){.content{max-width:1900px!important}.main{font-size:15px}}
+
+
+/* ===== LLAVERO V82 · ESTABILIDAD, GRAFICOS Y CONTROLES UNICOS ===== */
+.ageFilterRow,.ageFilterBar79,.v80AgeBar{display:none!important}
+.v82AgeBar{display:flex;align-items:center;gap:7px;overflow-x:auto;white-space:nowrap;padding:10px 2px 12px;scrollbar-width:thin}
+.v82AgeBar>span{font-size:10px;font-weight:900;text-transform:uppercase;color:var(--mut);margin-right:4px}
+.v82AgeBar button{border:1px solid var(--line2);background:var(--card);color:var(--ink2);border-radius:9px;padding:7px 11px;font:inherit;font-size:10.5px;font-weight:850;cursor:pointer;flex:none}
+.v82AgeBar button:hover,.v82AgeBar button.on{background:var(--jamar);border-color:var(--jamar);color:#fff}
+.v82ClassGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 16px}
+.v82ClassCard{border:1px solid var(--line);background:var(--card);border-radius:13px;padding:13px;text-align:left;cursor:pointer;min-width:0;color:var(--ink);box-shadow:var(--sh)}
+.v82ClassCard:hover{transform:translateY(-1px);box-shadow:var(--sh2)}
+.v82ClassCard.core{border-top:4px solid var(--jamar)}.v82ClassCard.comp{border-top:4px solid var(--brand)}.v82ClassCard.none{border-top:4px solid #7657d6}
+.v82ClassHead{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:950;letter-spacing:.5px}.v82ClassHead b{font-size:17px}.v82ClassCard>strong{display:block;font-size:20px;margin:7px 0 10px}
+.v82ClassMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.v82ClassMetrics span{background:rgba(120,130,150,.08);border-radius:8px;padding:7px;min-width:0}.v82ClassMetrics small{display:block;color:var(--mut);font-size:8.5px;text-transform:uppercase;font-weight:850}.v82ClassMetrics b{display:block;margin-top:3px;font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.v82ChartsGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 16px}
+.v82ChartCard{border:1px solid var(--line);background:var(--card);border-radius:13px;padding:14px;min-width:0}.v82ChartCard h4{margin:0;color:var(--ink);font-size:13px}.v82ChartCard p{margin:3px 0 12px;color:var(--mut);font-size:10.5px}
+.v82Bars{height:205px;display:grid;grid-template-columns:repeat(7,minmax(42px,1fr));gap:7px;align-items:end;overflow-x:auto;padding-top:22px}.v82BarGroup{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;min-width:42px}.v82BarGroup>b{font-size:9px;color:var(--ink2)}.v82BarGroup>span{font-size:8.5px;color:var(--ink2);font-weight:800;white-space:nowrap}.v82BarGroup>small{font-size:8px;color:var(--mut);white-space:nowrap}.v82BarWell{height:130px;width:76%;display:flex;align-items:flex-end;justify-content:center;background:rgba(120,130,150,.08);border-radius:8px 8px 3px 3px;overflow:hidden}.v82Bar{border:0;min-height:4px;width:100%;cursor:pointer;border-radius:7px 7px 2px 2px}.v82Bar.total{background:linear-gradient(180deg,var(--rot),var(--evac))}.v82BarPair{height:130px;width:86%;display:flex;align-items:flex-end;justify-content:center;gap:3px;background:rgba(120,130,150,.08);border-radius:8px 8px 3px 3px;padding:0 3px}.v82BarPair .v82Bar{width:50%}.v82Bar.core{background:var(--jamar)}.v82Bar.comp{background:var(--brand)}.v82ChartLegend{display:flex;gap:14px;margin-top:8px;font-size:10px;color:var(--ink2);font-weight:800}.v82ChartLegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}.v82ChartLegend .core{background:var(--jamar)}.v82ChartLegend .comp{background:var(--brand)}
+.v79DailyMetric,.trendPoint79,.v80TrendPoint{cursor:pointer!important}.trendPoint79 *,.v80TrendPoint *{pointer-events:all}
+.v79DailyMetric:hover{outline:2px solid rgba(229,43,47,.25);transform:translateY(-1px)}
+.view{animation:none!important}.bar .col{transition:none!important}
+@media(max-width:1000px){.v82ChartsGrid{grid-template-columns:1fr}.v82ClassGrid{grid-template-columns:repeat(3,minmax(200px,1fr));overflow-x:auto}.v82ClassCard{min-width:200px}}
+@media(max-width:620px){.v82AgeBar{margin-inline:-4px}.v82ChartsGrid{gap:10px}.v82ChartCard{padding:11px}.v82Bars{grid-template-columns:repeat(7,52px);height:190px}.v82ClassGrid{grid-template-columns:repeat(3,210px)}.v82ClassCard>strong{font-size:17px}}
+
+/* V82: ocultar el área de contenido durante la estabilización inicial evita que los
+   parches heredados produzcan gráficos o controles visibles de forma intermitente. */
+html.v82-stabilizing #content{visibility:hidden!important}
+html:not(.v82-stabilizing) #content{visibility:visible}
