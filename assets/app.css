@@ -3620,3 +3620,17 @@ html:not(.v82-stabilizing) #content{visibility:visible}
   .guideSalesScope78{display:grid;grid-template-columns:1fr}
 }
 body.dark .guideSalesScope78 span{background:#343b46;border-color:#4a5260}
+
+
+/* ===== LLAVERO V85 · detalle comercial de ambientes coherente ===== */
+.guideFloorTableV50.guideSalesTable78{min-width:1660px!important}
+.guideSalesTable78 th.guideSalesExtra78:nth-last-child(4),
+.guideSalesTable78 td.guideSalesExtra78:nth-last-child(4){width:145px!important}
+.guideSalesTable78 th.guideSalesExtra78:nth-last-child(3),
+.guideSalesTable78 td.guideSalesExtra78:nth-last-child(3){width:150px!important}
+.guideSalesTable78 th.guideSalesExtra78:nth-last-child(2),
+.guideSalesTable78 td.guideSalesExtra78:nth-last-child(2){width:155px!important}
+.guideSalesTable78 th.guideSalesExtra78:nth-last-child(1),
+.guideSalesTable78 td.guideSalesExtra78:nth-last-child(1){width:150px!important}
+.guideSalesCell78 .guideTrend78{display:inline-flex!important;margin-bottom:3px}
+@media(max-width:760px){.guideFloorTableV50.guideSalesTable78{min-width:1580px!important}}

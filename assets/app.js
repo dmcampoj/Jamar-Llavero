@@ -5244,7 +5244,69 @@ function month(c){var p=prod(c),u=Array.isArray(p.vmU)?p.vmU:[0,0,0],v=Array.isA
 function trend(vals){var a=n(vals[1]),b=n(vals[2]);if(a===0&&b===0)return {cl:'flat',txt:'→ Sin venta reciente'};if(a===0&&b>0)return {cl:'up',txt:'↑ Venta nueva'};var p=(b-a)/a*100;if(Math.abs(p)<.05)return {cl:'flat',txt:'→ 0%'};return {cl:p>0?'up':'down',txt:(p>0?'↑ ':'↓ ')+Math.abs(p).toLocaleString('es-CO',{maximumFractionDigits:1})+'%'}}
 function bars(vals){var mx=Math.max(1,n(vals[0]),n(vals[1]),n(vals[2])),labs=['May','Jun','Jul'];return '<div class="guideMonthBars78">'+vals.map(function(v,i){return '<span class="guideMonthBar78"><b>'+fi(v)+'</b><i style="height:'+Math.max(2,Math.round(24*n(v)/mx))+'px"></i><small>'+labs[i]+'</small></span>'}).join('')+'</div>'}
 function guideCodesFromBody(body){return Array.from(new Set(Array.from(body.querySelectorAll('tbody tr[data-product-code]')).map(function(r){return code(r.dataset.productCode)}).filter(Boolean)))}
-function enhanceGuide(codeGuide){var body=document.getElementById('guideDetailBodyV49');if(!body)return;var old=body.querySelector('#guideSalesSummary78');if(old)old.remove();body.querySelectorAll('.guideSalesExtra78').forEach(function(x){x.remove()});body.querySelectorAll('.guideSalesTable78').forEach(function(t){t.classList.remove('guideSalesTable78')});var codes=guideCodesFromBody(body),sm=salesMap(st()),totalU=0,totalV=0,withSale=0,zero=0,months=[0,0,0],top=null;codes.forEach(function(c){var s=sm[c]||{units:0,value:0},m=month(c);totalU+=s.units;totalV+=s.value;if(s.units>0||s.value>0)withSale++;else zero++;if(!top||s.units>top.units)top={c:c,units:s.units,name:prod(c).n||c};for(var i=0;i<3;i++)months[i]+=m.u[i]});var t=trend(months),pct=codes.length?withSale/codes.length*100:0,summary='<div class="guideSalesSummary78" id="guideSalesSummary78"><div class="guideSalesGrid78"><div class="guideSalesCard78"><div class="l">Venta 3 meses en la tienda</div><div class="v">'+fi(totalU)+' unidades</div><div class="m">'+fm(totalV)+' acumulados en la tienda seleccionada</div></div><div class="guideSalesCard78"><div class="l">Productos con venta en la tienda</div><div class="v">'+pct.toLocaleString('es-CO',{maximumFractionDigits:1})+'%</div><div class="m">'+fi(withSale)+' de '+fi(codes.length)+' productos</div></div><div class="guideSalesCard78"><div class="l">Tendencia mensual de la red</div><div class="v"><span class="guideTrend78 '+t.cl+'">'+t.txt+'</span></div><div class="m">Julio frente a junio · consolidado red</div></div><div class="guideSalesCard78"><div class="l">Producto líder en la tienda</div><div class="v">'+(top?fi(top.units)+' u':'0 u')+'</div><div class="m">'+h(top?top.name:'Sin ventas')+'</div></div><div class="guideSalesCard78"><div class="l">Sin venta 3 meses en la tienda</div><div class="v">'+fi(zero)+' productos</div><div class="m">'+(codes.length?(zero/codes.length*100).toLocaleString('es-CO',{maximumFractionDigits:1}):'0')+'% de la guía</div></div></div><div class="guideSalesScope78"><span><b>Tienda:</b> venta acumulada y participación dentro de la guía.</span><span><b>Red:</b> barras mensuales y variación de julio frente a junio.</span></div><div class="guideSalesNote78"><b>Importante:</b> las ventas de tres meses y la participación corresponden a la tienda seleccionada. Las barras Mayo–Junio–Julio y su variación corresponden al consolidado de la red; por eso ambos valores pueden no coincidir.</div></div>';var stats=body.querySelector('.guideModalStatsV48');if(stats)stats.insertAdjacentHTML('afterend',summary);body.querySelectorAll('.guideFloorTableV50').forEach(function(table){table.classList.add('guideSalesTable78');var hr=table.querySelector('thead tr');if(hr)hr.insertAdjacentHTML('beforeend','<th class="guideSalesExtra78 num" title="Acumulado de los últimos tres meses en la tienda seleccionada">Venta 3 meses · tienda</th><th class="guideSalesExtra78" title="Comportamiento mensual consolidado de toda la red">Tendencia mensual · red</th><th class="guideSalesExtra78" title="Variación de julio frente a junio en la red">Variación · red</th><th class="guideSalesExtra78 num" title="Participación del producto dentro de la venta total de la guía en esta tienda">Participación guía · tienda</th>');table.querySelectorAll('tbody tr[data-product-code]').forEach(function(tr){var c=code(tr.dataset.productCode),s=sm[c]||{units:0,value:0},m=month(c),tt=trend(m.u),share=totalU?s.units/totalU*100:0;tr.insertAdjacentHTML('beforeend','<td class="guideSalesExtra78 guideSalesCell78 num"><b>'+fi(s.units)+' u</b><span>'+fm(s.value)+'</span></td><td class="guideSalesExtra78">'+bars(m.u)+'</td><td class="guideSalesExtra78"><span class="guideTrend78 '+tt.cl+'">'+tt.txt+'</span></td><td class="guideSalesExtra78 num"><b>'+share.toLocaleString('es-CO',{maximumFractionDigits:1})+'%</b><div class="guideShare78"><i style="width:'+Math.min(100,share)+'%"></i></div></td>')})})}
+function enhanceGuide(codeGuide){
+  var body=document.getElementById('guideDetailBodyV49');
+  if(!body)return;
+  var old=body.querySelector('#guideSalesSummary78');if(old)old.remove();
+  body.querySelectorAll('.guideSalesExtra78').forEach(function(x){x.remove()});
+  body.querySelectorAll('.guideSalesTable78').forEach(function(t){t.classList.remove('guideSalesTable78')});
+
+  var store=st(),codes=guideCodesFromBody(body),sm=salesMap(store),im={};
+  (Array.isArray(store.inventario)?store.inventario:[]).forEach(function(r){
+    var c=code(r&&r.codigo);if(!c)return;
+    im[c]={stock:n(r&&r.stock),available:n(r&&r.disponible),units:n(r&&r.unidadesFacUlt3Meses),value:n(r&&r.facturacionUlt3Meses)};
+  });
+  function movement(units,stock){
+    units=n(units);stock=n(stock);
+    var avg=units/3,level='flat',label='Sin venta',detail='0 u/mes';
+    if(units>0&&avg<1){level='down';label='Movimiento bajo';detail=avg.toLocaleString('es-CO',{minimumFractionDigits:1,maximumFractionDigits:1})+' u/mes';}
+    else if(avg>=1&&avg<3){level='flat';label='Movimiento medio';detail=avg.toLocaleString('es-CO',{minimumFractionDigits:1,maximumFractionDigits:1})+' u/mes';}
+    else if(avg>=3){level='up';label='Movimiento alto';detail=avg.toLocaleString('es-CO',{minimumFractionDigits:1,maximumFractionDigits:1})+' u/mes';}
+    var relation=stock>0?(units/stock).toLocaleString('es-CO',{minimumFractionDigits:1,maximumFractionDigits:1})+'x venta/stock':(units>0?'Sin stock actual':'Sin movimiento');
+    return {cl:level,label:label,detail:detail,relation:relation,avg:avg};
+  }
+
+  var totalU=0,totalV=0,totalStock=0,withSale=0,zero=0,top=null;
+  codes.forEach(function(c){
+    var s=sm[c]||{units:0,value:0},inv=im[c]||{stock:0};
+    totalU+=n(s.units);totalV+=n(s.value);totalStock+=n(inv.stock);
+    if(n(s.units)>0||n(s.value)>0)withSale++;else zero++;
+    if(!top||n(s.units)>top.units)top={c:c,units:n(s.units),value:n(s.value),name:prod(c).n||c};
+  });
+  var pct=codes.length?withSale/codes.length*100:0;
+  var topShare=totalU&&top?top.units/totalU*100:0;
+  var guideMove=movement(totalU,totalStock);
+  var summary='<div class="guideSalesSummary78" id="guideSalesSummary78">'
+    +'<div class="guideSalesGrid78">'
+    +'<div class="guideSalesCard78"><div class="l">Venta 3 meses · tienda</div><div class="v">'+fi(totalU)+' unidades</div><div class="m">'+fm(totalV)+' acumulados en la tienda seleccionada</div></div>'
+    +'<div class="guideSalesCard78"><div class="l">Promedio mensual · tienda</div><div class="v">'+(totalU/3).toLocaleString('es-CO',{minimumFractionDigits:1,maximumFractionDigits:1})+' u/mes</div><div class="m">'+fm(totalV/3)+' promedio mensual estimado</div></div>'
+    +'<div class="guideSalesCard78"><div class="l">Movimiento comercial · guía</div><div class="v"><span class="guideTrend78 '+guideMove.cl+'">'+guideMove.label+'</span></div><div class="m">'+guideMove.relation+' · calculado solo con datos de la tienda</div></div>'
+    +'<div class="guideSalesCard78"><div class="l">Producto líder · tienda</div><div class="v">'+(top?fi(top.units)+' u':'0 u')+'</div><div class="m">'+h(top?top.name:'Sin ventas')+(top?' · '+topShare.toLocaleString('es-CO',{maximumFractionDigits:1})+'% de la guía':'')+'</div></div>'
+    +'<div class="guideSalesCard78"><div class="l">Productos con venta · tienda</div><div class="v">'+pct.toLocaleString('es-CO',{maximumFractionDigits:1})+'%</div><div class="m">'+fi(withSale)+' con venta · '+fi(zero)+' sin venta</div></div>'
+    +'</div>'
+    +'<div class="guideSalesScope78"><span><b>Alcance único:</b> todos los indicadores comerciales corresponden a la tienda seleccionada.</span><span><b>Coherencia:</b> el promedio mensual es la venta de 3 meses dividida entre 3; no se mezcla con datos de la red.</span></div>'
+    +'<div class="guideSalesNote78"><b>Lectura:</b> “Movimiento alto/medio/bajo” se determina con el promedio mensual de unidades vendidas en la tienda. La relación venta/stock compara las unidades vendidas en 3 meses con el inventario actual; no es un porcentaje de crecimiento.</div>'
+    +'</div>';
+  var stats=body.querySelector('.guideModalStatsV48');if(stats)stats.insertAdjacentHTML('afterend',summary);
+
+  body.querySelectorAll('.guideFloorTableV50').forEach(function(table){
+    table.classList.add('guideSalesTable78');
+    var hr=table.querySelector('thead tr');
+    if(hr)hr.insertAdjacentHTML('beforeend',
+      '<th class="guideSalesExtra78 num" title="Acumulado real de los últimos tres meses en la tienda seleccionada">Venta 3 meses · tienda</th>'+
+      '<th class="guideSalesExtra78 num" title="Venta de tres meses dividida entre tres">Promedio mensual · tienda</th>'+
+      '<th class="guideSalesExtra78" title="Nivel de movimiento según el promedio mensual y relación venta contra stock actual">Movimiento · tienda</th>'+
+      '<th class="guideSalesExtra78 num" title="Participación del producto dentro de las unidades vendidas de toda la guía en esta tienda">Participación guía · tienda</th>');
+    table.querySelectorAll('tbody tr[data-product-code]').forEach(function(tr){
+      var c=code(tr.dataset.productCode),s=sm[c]||{units:0,value:0},inv=im[c]||{stock:0},mv=movement(s.units,inv.stock),share=totalU?n(s.units)/totalU*100:0;
+      tr.insertAdjacentHTML('beforeend',
+        '<td class="guideSalesExtra78 guideSalesCell78 num"><b>'+fi(s.units)+' u</b><span>'+fm(s.value)+'</span></td>'+
+        '<td class="guideSalesExtra78 guideSalesCell78 num"><b>'+(n(s.units)/3).toLocaleString('es-CO',{minimumFractionDigits:1,maximumFractionDigits:1})+' u/mes</b><span>'+fm(n(s.value)/3)+'/mes</span></td>'+
+        '<td class="guideSalesExtra78 guideSalesCell78"><span class="guideTrend78 '+mv.cl+'">'+mv.label+'</span><span>'+mv.relation+'</span></td>'+
+        '<td class="guideSalesExtra78 num"><b>'+share.toLocaleString('es-CO',{maximumFractionDigits:1})+'%</b><div class="guideShare78"><i style="width:'+Math.min(100,share)+'%"></i></div></td>');
+    });
+  });
+}
 var baseOpen=window.openGuideDetailV49;if(typeof baseOpen==='function')window.openGuideDetailV49=function(c){window.__guideCode78=String(c);var out=baseOpen.apply(this,arguments);setTimeout(function(){enhanceGuide(c)},30);return out};window.openGuideDetailV48=window.openGuideDetailV49;
 var baseRender=window.renderGuideDetailV49;if(typeof baseRender==='function')window.renderGuideDetailV49=function(){var out=baseRender.apply(this,arguments);setTimeout(function(){enhanceGuide(window.__guideCode78||'')},0);return out};
 var baseSet=window.setView;if(typeof baseSet==='function')window.setView=function(v){var out=baseSet.apply(this,arguments);setTimeout(function(){if(typeof VIEW!=='undefined'&&VIEW==='traslados'){var c=document.getElementById('content');if(c){c.innerHTML=window.viewTraslados(st());drawTr()}}mark()},40);return out};
@@ -5623,3 +5685,16 @@ setTimeout(function(){mark80();enhance80();},80);
 })();
 
 /* LLAVERO_BUILD_V84 · corrección de tablas y alcances comerciales · 2026-07-31 */
+
+
+/* ===== LLAVERO V85 · métricas comerciales coherentes por tienda ===== */
+(function(){
+  function markV85(){
+    window.LLAVERO_BUILD='V85';
+    document.documentElement.setAttribute('data-llavero-build','V85');
+    document.title=document.title.replace(/V\d+(?:\s+Corregida)?/,'V85');
+    var chip=document.querySelector('.appVersionChip b');
+    if(chip)chip.textContent=(chip.textContent||'31/07/2026 · V85').replace(/V\d+$/,'V85');
+  }
+  markV85();setTimeout(markV85,250);
+})();
