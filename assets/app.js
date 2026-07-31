@@ -5464,8 +5464,8 @@ setTimeout(function(){mark80();enhance80();},80);
 /* ===== LLAVERO V82 · RENDER ESTABLE, SIN DUPLICADOS Y CLICS FUNCIONALES ===== */
 (function llaveroV82StableRuntime(){
   'use strict';
-  window.LLAVERO_BUILD='V82';
-  document.documentElement.setAttribute('data-llavero-build','V82');
+  window.LLAVERO_BUILD='V83';
+  document.documentElement.setAttribute('data-llavero-build','V83');
   document.documentElement.setAttribute('data-llavero-app-version','V82');
 
   /* El historial oficial proviene de data/historial.json. No se usa localStorage como
@@ -5534,17 +5534,22 @@ setTimeout(function(){mark80();enhance80();},80);
   function ensureSummaryPanel82(){
     if(typeof VIEW==='undefined'||VIEW!=='resumen'||typeof window.storeDailyManagementPanel!=='function')return;
     var content=document.getElementById('content');if(!content)return;
-    var current=content.querySelector('.v79StoreTrendCard');if(current)return;
+    var current=content.querySelector('.v79StoreTrendCard');
+    if(current){
+      var currentCard=current.closest('.card'),trackingNow=content.querySelector('#storeTrackingPanel');
+      if(currentCard&&trackingNow&&currentCard.nextElementSibling!==trackingNow)currentCard.insertAdjacentElement('afterend',trackingNow);
+      return;
+    }
     var cards=Array.from(content.querySelectorAll('.card'));
     var oldCard=cards.find(function(card){var tt=card.querySelector('.tt');return tt&&s82(tt.textContent).trim().toLowerCase()==='seguimiento diario de gestión';});
-    /* La vista histórica anterior insertaba una tabla completa con cientos de filas en el
-       resumen. El detalle ahora se abre bajo demanda desde las tarjetas, por lo que se
-       elimina ese bloque pesado para acelerar la carga de la tienda. */
-    cards.forEach(function(card){var tt=card.querySelector('.tt'),label=tt&&s82(tt.textContent).trim().toLowerCase();if(label==='seguimiento frente al corte')card.remove();});
+    /* V83: se conserva Seguimiento frente al corte. La optimizacion no debe retirar
+       graficas ni comparativos que el usuario ya utilizaba en el Resumen de tienda. */
     var html='';try{html=window.storeDailyManagementPanel(CUR)||'';}catch(err){console.warn('V82: no se pudo construir el seguimiento diario',err);}
     if(!html)return;
     var box=document.createElement('div');box.innerHTML=html;var next=box.firstElementChild;if(!next)return;
     if(oldCard)oldCard.replaceWith(next);else content.insertAdjacentElement('afterbegin',next);
+    var tracking=content.querySelector('#storeTrackingPanel');
+    if(tracking)next.insertAdjacentElement('afterend',tracking);
   }
   function wireSummary82(){
     ensureSummaryPanel82();
@@ -5562,7 +5567,7 @@ setTimeout(function(){mark80();enhance80();},80);
 
   function summaryHtml82(st){
     var html=viewResumen(st),tpl=document.createElement('template');tpl.innerHTML=html;
-    tpl.content.querySelectorAll('#storeTrackingPanel').forEach(function(x){x.remove();});
+    /* V83: conservar el comparativo historico del Resumen de tienda. */
     return tpl.innerHTML;
   }
   function directSetView82(v){
@@ -5601,7 +5606,7 @@ setTimeout(function(){mark80();enhance80();},80);
   /* Los botones V82 usan un único manejador directo; se evita la doble captura global. */
   document.addEventListener('keydown',function(ev){if(ev.key!=='Enter'&&ev.key!==' ')return;var card=ev.target.closest&&ev.target.closest('.v82ClassCard,.v79DailyMetric,.trendPoint79,.v80TrendPoint');if(card){ev.preventDefault();card.click();}},true);
 
-  function mark82(){document.title=document.title.replace(/V\d+(?:(?: Optimizado)|(?: Estable))*/,'V82 Estable');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=s82(chip.textContent).replace(/V\d+(?: Estable)?$/,'V82');window.LLAVERO_BUILD='V82';document.documentElement.setAttribute('data-llavero-build','V82');document.documentElement.setAttribute('data-llavero-app-version','V82');}
+  function mark82(){document.title=document.title.replace(/V\d+(?:(?: Optimizado)|(?: Estable))*/,'V83 Estable');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=s82(chip.textContent).replace(/V\d+(?: Estable)?$/,'V83');window.LLAVERO_BUILD='V83';document.documentElement.setAttribute('data-llavero-build','V83');document.documentElement.setAttribute('data-llavero-app-version','V83');}
   document.documentElement.classList.add('v82-stabilizing');
   mark82();
   /* Los parches históricos programaban ajustes entre 0 y 120 ms. V82 espera a que
