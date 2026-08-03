@@ -5457,7 +5457,33 @@ window.trendSvg=function(){return trendSvg80('exposure')};window.managementTrend
 function aggregateRows80(module){var st=store80(typeof CUR!=='undefined'?CUR:''),rows=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,st):[],s=state[module]||(state[module]={q:'',f:'all',sort:'units',dir:-1}),q=text(s.q).toLowerCase(),age=text(s.age80||s.age79||'all');rows=rows.filter(function(r){if(s.f==='core'&&r.cc!=='CORE')return false;if(s.f==='comp'&&r.cc!=='COMPLEMENTO')return false;if(s.f==='none'&&(r.cc==='CORE'||r.cc==='COMPLEMENTO'))return false;if(s.f==='sr'&&num(r.cendis)>0)return false;if(s.f==='cr'&&num(r.cendis)<=0)return false;if(s.f==='crit'&&![3,4,5,6].some(function(k){return num(r.ranges&&r.ranges[k])>0}))return false;if(s.f==='a360'&&num(r.ranges&&r.ranges[6])<=0)return false;if(s.f==='novta'&&num(r.sales)>0)return false;if(age!=='all'&&num(r.ranges&&r.ranges[Number(age)])<=0)return false;if(q&&(r.c+' '+r.p.n+' '+r.p.cat+' '+r.p.lin+' '+r.p.sub+' '+r.cc).toLowerCase().indexOf(q)<0)return false;return true});var key=s.sort||'units',dir=num(s.dir)||-1;rows.sort(function(a,b){if(module==='evac'){var a360=num(a.ranges&&a.ranges[6])>0,b360=num(b.ranges&&b.ranges[6])>0;if(a360!==b360)return a360?-1:1;var asr=num(a.cendis)<=0,bsr=num(b.cendis)<=0;if(asr!==bsr)return asr?-1:1}var av=key==='c'?a.c:key==='p'?a.p.n:key==='cendis'?a.cendis:key==='value'||key==='v'?a.value:key==='sales'?a.sales:key==='age'?Math.max.apply(null,Object.keys(a.ranges||{}).filter(function(k){return num(a.ranges[k])>0}).map(Number).concat([-1])):a.units,bv=key==='c'?b.c:key==='p'?b.p.n:key==='cendis'?b.cendis:key==='value'||key==='v'?b.value:key==='sales'?b.sales:key==='age'?Math.max.apply(null,Object.keys(b.ranges||{}).filter(function(k){return num(b.ranges[k])>0}).map(Number).concat([-1])):b.units;if(typeof av==='string')return av.localeCompare(text(bv))*dir;return (num(av)-num(bv))*dir});return rows}
 function thumb80(c){var p=product80(c),src=p.img||'';return '<span class="v80Thumb">'+(src?'<img src="'+esc80(src)+'" alt="">':'<span class="fallback">▧</span>')+'</span>'}
 function ranges80(r){var h=Object.keys(r||{}).filter(function(k){return num(r[k])>0}).map(function(k){return '<span class="v79RangeChip">'+int80(r[k])+' u · '+ageLabel80(k)+'</span>'}).join('');return h||'<span class="v71AgeEmpty">Sin unidades 91+ días</span>'}
-function renderModule80(module){var rows=aggregateRows80(module),all=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,store80(CUR)):[],body=rows.map(function(r,i){return '<tr data-code="'+esc80(r.c)+'"><td class="v80RankCell">'+(module==='evac'?'<span class="v80Rank '+(num(r.ranges&&r.ranges[6])>0?'hot':'')+'">'+(i+1)+'</span>':'')+'</td><td class="v80ImageCell">'+thumb80(r.c)+'</td><td><span class="code">'+esc80(r.c)+'</span></td><td class="productCell"><b>'+esc80(r.p.n)+'</b></td><td>'+ccBadge80(r.c)+'</td><td class="productCell">'+esc80(r.p.cat)+'<br><small>'+esc80(r.p.lin+' · '+r.p.sub)+'</small></td><td>'+ranges80(r.ranges)+'</td><td class="num"><b>'+int80(r.units)+'</b></td><td class="num">'+(num(r.cendis)>0?'<span class="tag cr">'+int80(r.cendis)+' u</span>':'<span class="tag sr">SIN RESPALDO</span>')+'</td><td class="num">'+money80(r.value)+'</td><td class="num">'+int80(r.sales)+'</td></tr>'}).join(''),el=document.getElementById(module+'-tbl');if(el){el.innerHTML='<div class="v80TableWrap"><table class="v80Table v80ModuleTable"><thead><tr><th>#</th><th>Imagen</th><th data-k="c">Código</th><th data-k="p">Producto</th><th>Clasificación</th><th>Jerarquía</th><th data-k="age">Unidades por rango</th><th class="num" data-k="units">Uds.</th><th class="num" data-k="cendis">CENDIS</th><th class="num" data-k="value">Valor</th><th class="num" data-k="sales">Venta 3m</th></tr></thead><tbody>'+body+'</tbody></table></div>';wireModule80(module,el)}var cnt=document.getElementById(module+'-cnt');if(cnt)cnt.textContent='Mostrando '+int80(rows.length)+' de '+int80(all.length)+' productos · '+(module==='evac'?'prioridad +360 días y sin respaldo CENDIS':'rango '+(AGE80.find(function(a){return a.k===text((state[module]&&state[module].age80)||'all')})||AGE80[0]).l);ensureAge80(module)}
+function renderModule80(module){
+  var rows=aggregateRows80(module),
+      all=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,store80(CUR)):[],
+      body=rows.map(function(r,i){
+        var rank=module==='evac'?'<span class="v80Rank '+(num(r.ranges&&r.ranges[6])>0?'hot':'')+'">'+(i+1)+'</span>':'',
+            visual='<div class="v88VisualStack">'+rank+thumb80(r.c)+'</div>',
+            product='<div class="v88ProductMain"><span class="code">'+esc80(r.c)+'</span><b>'+esc80(r.p.n)+'</b></div>',
+            hierarchy='<div class="v88ClassHierarchy">'+ccBadge80(r.c)+'<div class="v88HierarchyText"><strong>'+esc80(r.p.cat)+'</strong><span>'+esc80(r.p.lin)+' · '+esc80(r.p.sub)+'</span></div></div>';
+        return '<tr data-code="'+esc80(r.c)+'">'+
+          '<td class="v88ProductCell"><div class="v88ProductWrap">'+visual+product+'</div></td>'+
+          '<td class="v88MetaCell">'+hierarchy+'</td>'+
+          '<td class="v88RangesCell">'+ranges80(r.ranges)+'</td>'+
+          '<td class="num"><b>'+int80(r.units)+'</b></td>'+
+          '<td class="num">'+(num(r.cendis)>0?'<span class="tag cr">'+int80(r.cendis)+' u</span>':'<span class="tag sr">SIN RESPALDO</span>')+'</td>'+
+          '<td class="num v88Money">'+money80(r.value)+'</td>'+
+          '<td class="num"><b>'+int80(r.sales)+'</b></td>'+
+        '</tr>';
+      }).join(''),
+      el=document.getElementById(module+'-tbl');
+  if(el){
+    el.innerHTML='<div class="v80TableWrap v88ModuleTableWrap"><table class="v80Table v80ModuleTable v88CompactModuleTable"><thead><tr><th data-k="p">Producto</th><th>Clasificación / jerarquía</th><th data-k="age">Unidades por rango</th><th class="num" data-k="units">Uds.</th><th class="num" data-k="cendis">CENDIS</th><th class="num" data-k="value">Valor</th><th class="num" data-k="sales">Venta 3m</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+    wireModule80(module,el)
+  }
+  var cnt=document.getElementById(module+'-cnt');
+  if(cnt)cnt.textContent='Mostrando '+int80(rows.length)+' de '+int80(all.length)+' productos · '+(module==='evac'?'prioridad +360 días y sin respaldo CENDIS':'rango '+(AGE80.find(function(a){return a.k===text((state[module]&&state[module].age80)||'all')})||AGE80[0]).l);
+  ensureAge80(module)
+}
 function wireModule80(module,root){root.querySelectorAll('tbody tr[data-code]').forEach(function(r){r.onclick=function(){if(typeof openInventoryProduct==='function')openInventoryProduct(r.dataset.code)}});root.querySelectorAll('th[data-k]').forEach(function(th){th.onclick=function(){var s=state[module],k=th.dataset.k;if(s.sort===k)s.dir*=-1;else{s.sort=k;s.dir=-1}renderModule80(module)}});document.querySelectorAll('.chip.filt[data-q="'+module+'"]').forEach(function(ch){ch.classList.toggle('on',(state[module].f||'all')===ch.dataset.f);ch.onclick=function(){state[module].f=ch.dataset.f;renderModule80(module)}})}
 function ensureAge80(module){var root=document.getElementById(module+'-tbl'),cbody=root&&root.closest('.cbody');if(!cbody)return;var bar=cbody.querySelector('.v80AgeBar[data-module="'+module+'"]');if(!bar){cbody.querySelectorAll('.ageFilterBar79').forEach(function(x){x.remove()});bar=document.createElement('div');bar.className='v80AgeBar';bar.dataset.module=module;bar.innerHTML='<span>Rango de antigüedad</span>'+AGE80.map(function(a){return '<button type="button" data-age="'+a.k+'">'+a.l+'</button>'}).join('');var tb=cbody.querySelector('.tbar');cbody.insertBefore(bar,tb||root);bar.querySelectorAll('button').forEach(function(b){b.onclick=function(){window.setAgeFilter80(module,b.dataset.age)}})}var cur=text((state[module]&&state[module].age80)||'all');bar.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.age===cur)})}
 window.setAgeFilter80=window.setAgeFilter79=function(module,age){state[module]=state[module]||{};state[module].age80=age;state[module].age79=age;renderModule80(module)};window.drawRot=drawRot=function(){renderModule80('rot')};window.drawEvac=drawEvac=function(){renderModule80('evac')};
@@ -5707,4 +5733,150 @@ setTimeout(function(){mark80();enhance80();},80);
     if(chip)chip.textContent=(chip.textContent||'31/07/2026 · V86').replace(/V\d+$/,'V86');
   }
   markV86();setTimeout(markV86,250);
+})();
+
+
+/* ===== LLAVERO V89 · pila jerárquica de modales ===== */
+(function(){
+  'use strict';
+  var HIDDEN='v89-modal-parent-hidden';
+  var pendingParent=null;
+  var seq=0;
+  var scheduled=false;
+  var knownOpen=new Set();
+
+  function markBuild89(){
+    window.LLAVERO_BUILD='V89';
+    document.documentElement.setAttribute('data-llavero-build','V89');
+    document.title=document.title.replace(/V\d+(?:\s+Corregida)?/,'V89');
+    var chip=document.querySelector('.appVersionChip b');
+    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+$/,'V89');
+  }
+  function modalId89(el){
+    if(!el.id)el.id='llaveroModalV89_'+(++seq);
+    return el.id;
+  }
+  function scrollNode89(modal){
+    return modal.querySelector('.guideDetailScrollV49,.modalBody,.inventoryDetailBody,.guideKpiBody65,#rangeModalBody')||modal.querySelector('.modal');
+  }
+  function visibleOpen89(){
+    return Array.from(document.querySelectorAll('.modalBack.on')).filter(function(x){return !x.classList.contains(HIDDEN);});
+  }
+  function depth89(el){return Number(el.dataset.v89Depth||0)||0;}
+  function topModal89(){
+    var arr=visibleOpen89();
+    arr.sort(function(a,b){return depth89(a)-depth89(b)||(Number(a.style.zIndex)||0)-(Number(b.style.zIndex)||0);});
+    return arr[arr.length-1]||null;
+  }
+  function closeModal89(modal){
+    if(!modal)return;
+    var close=modal.querySelector('.modalClose:not(.v89ModalBackButton),[data-modal-close]');
+    if(close){close.click();return;}
+    modal.classList.remove('on');
+  }
+  function removeBack89(modal){
+    var b=modal.querySelector('.v89ModalBackButton');
+    if(b)b.remove();
+  }
+  function addBack89(modal){
+    var head=modal.querySelector('.modalHead');
+    if(!head||head.querySelector('.v89ModalBackButton'))return;
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.className='v89ModalBackButton';
+    btn.setAttribute('aria-label','Volver a la vista anterior');
+    btn.innerHTML='<span aria-hidden="true">←</span><span class="v89BackText">Volver</span>';
+    btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();closeModal89(modal);});
+    var x=head.querySelector('.modalClose');
+    if(x)head.insertBefore(btn,x);else head.appendChild(btn);
+  }
+  function setPending89(target){
+    if(!target||!target.closest)return;
+    if(target.closest('.modalClose,.v89ModalBackButton'))return;
+    var parent=target.closest('.modalBack.on');
+    if(!parent||parent.classList.contains(HIDDEN))return;
+    var sc=scrollNode89(parent);
+    pendingParent={el:parent,id:modalId89(parent),at:Date.now(),scroll:sc?sc.scrollTop:0};
+  }
+  function link89(child,parentInfo){
+    var parent=parentInfo&&parentInfo.el;
+    if(!parent||child===parent||!document.body.contains(parent))return false;
+    modalId89(child);modalId89(parent);
+    parent.classList.add('on');
+    parent.classList.add(HIDDEN);
+    parent.dataset.v89Child=child.id;
+    parent.dataset.v89SavedScroll=String(parentInfo.scroll||0);
+    child.dataset.v89Parent=parent.id;
+    child.dataset.v89Depth=String(depth89(parent)+1);
+    child.style.zIndex=String(260+depth89(child)*20);
+    addBack89(child);
+    document.body.style.overflow='hidden';
+    return true;
+  }
+  function restoreParent89(child){
+    var pid=child.dataset.v89Parent;
+    if(!pid)return;
+    var parent=document.getElementById(pid);
+    delete child.dataset.v89Parent;
+    delete child.dataset.v89Depth;
+    child.style.zIndex='';
+    removeBack89(child);
+    if(!parent)return;
+    delete parent.dataset.v89Child;
+    parent.classList.add('on');
+    parent.classList.remove(HIDDEN);
+    document.body.style.overflow='hidden';
+    var sc=scrollNode89(parent),saved=Number(parent.dataset.v89SavedScroll||0)||0;
+    delete parent.dataset.v89SavedScroll;
+    if(sc)requestAnimationFrame(function(){sc.scrollTop=saved;});
+    requestAnimationFrame(function(){
+      var f=parent.querySelector('.modalClose,.v89ModalBackButton,button,input,select,[tabindex]');
+      if(f&&typeof f.focus==='function')f.focus({preventScroll:true});
+    });
+  }
+  function opened89(modal){
+    if(modal.classList.contains(HIDDEN))return;
+    var candidate=pendingParent&&Date.now()-pendingParent.at<1800?pendingParent:null;
+    if(candidate&&candidate.el!==modal){
+      if(link89(modal,candidate))pendingParent=null;
+    }else{
+      delete modal.dataset.v89Parent;
+      delete modal.dataset.v89Depth;
+      modal.style.zIndex='';
+      removeBack89(modal);
+    }
+  }
+  function closed89(modal){
+    restoreParent89(modal);
+    if(!document.querySelector('.modalBack.on'))document.body.style.overflow='';
+  }
+  function reconcile89(){
+    scheduled=false;
+    var now=new Set(Array.from(document.querySelectorAll('.modalBack.on')));
+    Array.from(knownOpen).forEach(function(x){if(!now.has(x))closed89(x);});
+    Array.from(now).forEach(function(x){if(!knownOpen.has(x))opened89(x);});
+    knownOpen=new Set(Array.from(document.querySelectorAll('.modalBack.on')));
+  }
+  function schedule89(){if(scheduled)return;scheduled=true;queueMicrotask(reconcile89);}
+
+  window.addEventListener('pointerdown',function(e){setPending89(e.target);},true);
+  window.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){
+      var top=topModal89();
+      if(top){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();closeModal89(top);}
+      return;
+    }
+    if(e.key==='Enter'||e.key===' ')setPending89(e.target);
+  },true);
+
+  var observer=new MutationObserver(function(mutations){
+    if(mutations.some(function(m){return m.type==='attributes'&&m.attributeName==='class'||m.type==='childList';}))schedule89();
+  });
+  function start89(){
+    markBuild89();
+    knownOpen=new Set(Array.from(document.querySelectorAll('.modalBack.on')));
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start89,{once:true});else start89();
+  setTimeout(markBuild89,300);
 })();
