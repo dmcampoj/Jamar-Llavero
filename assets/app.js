@@ -5959,93 +5959,24 @@ setTimeout(function(){mark80();enhance80();},80);
 
 (function(){window.LLAVERO_BUILD='V93';document.documentElement.setAttribute('data-llavero-build','V93');document.documentElement.setAttribute('data-llavero-app-version','V93');})();
 
-
-/* ===== LLAVERO V94 · TABLAS ROT/EVAC ESTILO PROX + IMAGENES ===== */
-(function v94RotEvRefresh(){
-  'use strict';
-  function productImg94(code){
-    try{
-      var p=(typeof product80==='function'?product80(code):((window.P||{})[code]||{}))||{};
-      return p.img||p.image||p.imagen||'';
-    }catch(_){return ''}
-  }
-  function imgCell94(code){
-    var src=productImg94(code), name='';
-    try{ var p=(typeof product80==='function'?product80(code):((window.P||{})[code]||{}))||{}; name=p.n||code||''; }catch(_){ name=code||''; }
-    if(!src){
-      return '<span class="v94Thumb noimg" title="Sin imagen disponible"><span class="v94ThumbFallback">Sin foto</span></span>';
-    }
-    var e = (typeof esc80==='function'?esc80:function(x){return String(x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})});
-    return '<button class="v94ThumbBtn" type="button" onclick="event.stopPropagation();if(window.openImageModal){openImageModal('+JSON.stringify(src)+','+JSON.stringify(name)+')}" title="Ampliar imagen">'
-      +'<span class="v94Thumb">'
-      +'<img loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" src="'+e(src)+'" alt="'+e(name)+'" '
-      +'onerror="this.style.display=\'none\';var p=this.closest(\'.v94Thumb\');if(p){p.classList.add(\'noimg\');p.innerHTML=\'<span class=\\\'v94ThumbFallback\\\'>Sin foto</span>\';}">'
-      +'</span></button>';
-  }
-  function rangeChips94(ranges){
-    var keys=[1,2,3,4,5,6], out=[];
-    for(var i=0;i<keys.length;i++){
-      var k=keys[i], v=Number(ranges&&ranges[k]||0);
-      if(v>0){
-        var lbl=(window.AGE80||window.AGE79||[]).find(function(a){return Number(a.k)===k;});
-        out.push('<span class="v94RangeChip age'+k+'"><b>'+ (typeof int80==='function'?int80(v):v) +'</b><small>'+ (lbl?lbl.l:('R'+k)) +'</small></span>');
-      }
-    }
-    return out.length?'<div class="v94RangeWrap">'+out.join('')+'</div>':'<span class="mut">Sin antigüedad crítica</span>';
-  }
-  function buildTable94(module, rows){
-    var e=typeof esc80==='function'?esc80:function(x){return x}, cc=typeof ccBadge80==='function'?ccBadge80:function(x){return x}, money=typeof money80==='function'?money80:function(x){return x}, intf=typeof int80==='function'?int80:function(x){return x};
-    var body=(rows||[]).map(function(r,i){
-      var hierarchy = '<div class="v94Hierarchy"><b>'+e(r.p.cat||'—')+'</b><small>'+e((r.p.lin||'—')+' · '+(r.p.sub||'—'))+'</small></div>';
-      var cendis = Number(r.cendis||0)>0 ? '<span class="tag cr">'+intf(r.cendis)+' u</span>' : '<span class="tag sr">Sin respaldo</span>';
-      var rank = module==='evac' ? '<span class="v94Rank '+(Number(r.ranges&&r.ranges[6]||0)>0?'hot':'')+'">'+(i+1)+'</span>' : '<span class="v94Rank blank">•</span>';
-      return '<tr data-code="'+e(r.c)+'">'
-        +'<td class="v94ColRank">'+rank+'</td>'
-        +'<td class="v94ColImg">'+imgCell94(r.c)+'</td>'
-        +'<td class="v94ColCode"><span class="code">'+e(r.c)+'</span></td>'
-        +'<td class="v94ColProd"><div class="v94ProdName">'+e(r.p.n||r.c)+'</div></td>'
-        +'<td class="v94ColClass">'+cc(r.c)+'</td>'
-        +'<td class="v94ColHier">'+hierarchy+'</td>'
-        +'<td class="v94ColAge">'+rangeChips94(r.ranges||{})+'</td>'
-        +'<td class="num v94ColUnits"><b>'+intf(r.units)+'</b></td>'
-        +'<td class="num v94ColCendis">'+cendis+'</td>'
-        +'<td class="num v94ColValue">'+money(r.value)+'</td>'
-        +'<td class="num v94ColSales">'+intf(r.sales)+'</td>'
-        +'</tr>';
-    }).join('');
-    if(!body) body='<tr><td colspan="11"><div class="empty">No hay productos para este filtro.</div></td></tr>';
-    return '<div class="twrap v94ModuleWrap"><table class="v94ModuleTable"><colgroup>'
-      +'<col class="w-rank"><col class="w-img"><col class="w-code"><col class="w-prod"><col class="w-class"><col class="w-hier"><col class="w-age"><col class="w-units"><col class="w-cendis"><col class="w-value"><col class="w-sales">'
-      +'</colgroup><thead><tr>'
-      +'<th>#</th><th>Imagen</th><th data-k="c">Código</th><th data-k="p">Producto</th><th>Clasificación</th><th>Jerarquía</th><th data-k="age">Rangos de antigüedad</th><th class="num" data-k="units">Uds.</th><th class="num" data-k="cendis">CENDIS</th><th class="num" data-k="value">Valor</th><th class="num" data-k="sales">Venta 3m</th>'
-      +'</tr></thead><tbody>'+body+'</tbody></table></div>';
-  }
-  window.renderModule80 = function(module){
-    var rows = typeof aggregateRows80==='function'?aggregateRows80(module):[];
-    var all = typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,(typeof store80==='function'?store80(CUR):{})):rows;
-    var el = document.getElementById(module+'-tbl');
-    if(el){
-      el.innerHTML = buildTable94(module,rows);
-      if(typeof wireModule80==='function') wireModule80(module,el);
-    }
-    var cnt=document.getElementById(module+'-cnt');
-    if(cnt){
-      var ageActive='';
-      try{ var ageCfg=(window.AGE80||[]).find(function(a){return a.k===String((state[module]&&state[module].age80)||'all')}); ageActive=ageCfg?ageCfg.l:'Todos'; }catch(_){ ageActive='Todos'; }
-      cnt.textContent='Mostrando '+(typeof int80==='function'?int80(rows.length):rows.length)+' de '+(typeof int80==='function'?int80(all.length):all.length)+' productos · '+(module==='evac'?'vista priorizada por sin respaldo y +360 días':'rango '+ageActive);
-    }
-    if(typeof ensureAge80==='function') ensureAge80(module);
-  };
-  window.drawRot = function(){ window.renderModule80('rot'); };
-  window.drawEvac = function(){ window.renderModule80('evac'); };
-  function apply94(){
-    window.LLAVERO_BUILD='V94';
-    document.documentElement.setAttribute('data-llavero-build','V94');
-    var chip=document.querySelector('.appVersionChip b'); if(chip) chip.textContent=(chip.textContent||'').replace(/V\d+/,'V94');
-    if(typeof VIEW!=='undefined' && VIEW==='rot') window.drawRot();
-    if(typeof VIEW!=='undefined' && VIEW==='evac') window.drawEvac();
-  }
-  var baseRefresh=window.refresh; if(typeof baseRefresh==='function') window.refresh=function(){ var out=baseRefresh.apply(this,arguments); setTimeout(apply94,80); return out; };
-  var baseSetView=window.setView; if(typeof baseSetView==='function') window.setView=function(v){ var out=baseSetView.apply(this,arguments); setTimeout(function(){ if(v==='rot') window.drawRot(); if(v==='evac') window.drawEvac(); apply94(); },100); return out; };
-  setTimeout(apply94,120);
+/* ===== LLAVERO V94 · mejora Rotación/Evacuación e imágenes ===== */
+(function(){
+'use strict';
+function N(v){var n=Number(v);return Number.isFinite(n)?n:0}function T(v,f){var s=v==null?'':String(v).trim();return s||(f||'')}function E(v){try{return typeof esc==='function'?esc(v):String(v==null?'':v).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}catch(e){return String(v==null?'':v)}}function C(v){try{return typeof safeCode==='function'?safeCode(v):T(v)}catch(e){return T(v)}}function I(v){try{return typeof fInt==='function'?fInt(N(v)):Math.round(N(v)).toLocaleString('es-CO')}catch(e){return String(Math.round(N(v)))}}function M(v){try{return typeof fMoneyCOP==='function'?fMoneyCOP(N(v)):'$ '+Math.round(N(v)).toLocaleString('es-CO')}catch(e){return '$ '+Math.round(N(v)).toLocaleString('es-CO')}}
+function store(){try{return(S&&S[CUR])||{}}catch(e){return{}}}function product(c){c=C(c);var r={},p={};try{r=(P&&P[c])||{};p=typeof productInfo==='function'?productInfo(c):r}catch(e){p=r}return{n:T(p.n||r.n,'Producto '+c),cat:T(p.cat||r.cat,'SIN CLASIFICAR'),lin:T(p.lin||r.lin,'SIN LÍNEA'),sub:T(p.sub||r.sub,'SIN SUBLÍNEA')}}function cls(c){var x='';try{x=T(P&&P[C(c)]&&P[C(c)].cc).toUpperCase()}catch(e){}return x==='CORE'?'CORE':x==='COMPLEMENTO'?'COMPLEMENTO':'SIN CLASIFICACIÓN'}function clsBadge(c){var x=cls(c),k=x==='CORE'?'core':x==='COMPLEMENTO'?'comp':'none';return'<span class="ccBadge68 '+k+'">'+E(x)+'</span>'}
+function imageUrl(c){c=C(c);var p={};try{p=(P&&P[c])||{}}catch(e){}var a=[p.img,p.imagen,p.image,p.imageUrl,p.imageURL,p.urlImagen,p.url_imagen,p.foto,p.photo,p.src];for(var i=0;i<a.length;i++){var u=T(a[i]);if(!u)continue;if(/^\/\//.test(u))return(location.protocol==='file:'?'https:':location.protocol)+u;if(/^(https?:|data:|blob:|file:)/i.test(u))return u;if(/^(\.\.?\/|\/)/.test(u))return u;if(/^www\./i.test(u))return'https://'+u;if(/^[a-z0-9.-]+\.[a-z]{2,}(?:\/|$)/i.test(u))return'https://'+u;return u}return''}
+window.productImageUrl=imageUrl;window.openProductImage94=function(url,title){if(!url)return;var m=document.getElementById('imageModal'),im=document.getElementById('imageModalImg'),tt=document.getElementById('imageModalTitle');if(!m||!im)return;if(tt)tt.textContent=title||'Imagen del producto';im.src=url;im.alt=title||'Producto';m.classList.add('on')};window.productImageError94=function(im){var b=im&&im.closest?im.closest('.v94Thumb'):null;if(!b)return;b.classList.add('noImage');b.title='Imagen no disponible';b.innerHTML='▧';b.onclick=function(e){e.stopPropagation()}};
+function thumb(c){var u=imageUrl(c),p=product(c);if(!u)return'<span class="v94Thumb noImage" title="Sin imagen disponible">▧</span>';return'<button type="button" class="v94Thumb" data-img="'+E(u)+'" data-title="'+E(p.n)+'" onclick="event.stopPropagation();openProductImage94(this.dataset.img,this.dataset.title)" title="Ampliar imagen"><img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="'+E(u)+'" alt="'+E(p.n)+'" onerror="productImageError94(this)"></button>'}window.imageThumb=function(c){return thumb(c)};
+var AG=['91–120','121–150','151–180','181–210','211–240','241–360','+360'];function ageHTML(r){var h=[];Object.keys(r||{}).map(Number).sort(function(a,b){return b-a}).forEach(function(k){var u=N(r[k]);if(u>0)h.push('<span class="v94AgeChip '+(k>=6?'critical':'')+'"><b>'+I(u)+' u</b><span>'+E(AG[k]||'Sin rango')+'</span></span>')});return h.length?'<div class="v94AgeList">'+h.join('')+'</div>':'<span class="v94AgeEmpty">Sin unidades en rangos de 91 días o más</span>'}function maxAge(r){var a=Object.keys(r||{}).filter(function(k){return N(r[k])>0}).map(Number);return a.length?Math.max.apply(null,a):-1}
+function allRows(mod){var a=[];try{a=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(mod,store()):[]}catch(e){}return a.map(function(r){var c=C(r.c),p=r.p||product(c);return{c:c,p:{n:T(p.n,'Producto '+c),cat:T(p.cat,'SIN CLASIFICAR'),lin:T(p.lin,'SIN LÍNEA'),sub:T(p.sub,'SIN SUBLÍNEA')},cc:r.cc||cls(c),units:N(r.units),value:N(r.value),cendis:N(r.cendis),sales:N(r.sales),ranges:r.ranges||{}}})}
+function rows(mod){var s=state[mod]||(state[mod]={}),q=T(s.q).toLowerCase(),age=T(s.age94||s.age80||s.age79||'all','all'),a=allRows(mod).filter(function(r){if(s.f==='core'&&r.cc!=='CORE')return false;if(s.f==='comp'&&r.cc!=='COMPLEMENTO')return false;if(s.f==='none'&&(r.cc==='CORE'||r.cc==='COMPLEMENTO'))return false;if(s.f==='sr'&&r.cendis>0)return false;if(s.f==='cr'&&r.cendis<=0)return false;if(s.f==='crit'&&maxAge(r)<3)return false;if(s.f==='a360'&&N(r.ranges&&r.ranges[6])<=0)return false;if(s.f==='novta'&&r.sales>0)return false;if(age!=='all'&&N(r.ranges&&r.ranges[Number(age)])<=0)return false;if(q&&(r.c+' '+r.p.n+' '+r.p.cat+' '+r.p.lin+' '+r.p.sub+' '+r.cc).toLowerCase().indexOf(q)<0)return false;return true});var k=s.sort||(mod==='evac'?'pri':'age'),d=N(s.dir)||-1;a.sort(function(x,y){if(mod==='evac'&&k==='pri'){var xa=N(x.ranges&&x.ranges[6])>0,ya=N(y.ranges&&y.ranges[6])>0;if(xa!==ya)return xa?-1:1;var xs=x.cendis<=0,ys=y.cendis<=0;if(xs!==ys)return xs?-1:1;return y.value-x.value||y.units-x.units}var xv=k==='c'?x.c:k==='p'?x.p.n:k==='age'?maxAge(x):k==='cendis'?x.cendis:(k==='value'||k==='v'||k==='val')?x.value:k==='sales'?x.sales:x.units,yv=k==='c'?y.c:k==='p'?y.p.n:k==='age'?maxAge(y):k==='cendis'?y.cendis:(k==='value'||k==='v'||k==='val')?y.value:k==='sales'?y.sales:y.units;return typeof xv==='string'?xv.localeCompare(String(yv))*d:(N(xv)-N(yv))*d});return a}
+function arrow(mod,k){var s=state[mod]||{};return s.sort===k?'<span class="v94Sort">'+(N(s.dir)<0?'▾':'▴')+'</span>':''}
+function table(mod,a){var ev=mod==='evac',b=a.map(function(r,i){return'<tr data-code="'+E(r.c)+'" tabindex="0" role="button"><td class="v94ImgCol">'+thumb(r.c)+'</td>'+(ev?'<td class="v94RankCol"><span class="v94Rank '+(N(r.ranges&&r.ranges[6])>0||r.cendis<=0?'hot':'')+'">'+(i+1)+'</span></td>':'')+'<td class="v94CodeCol"><span class="code">'+E(r.c)+'</span></td><td class="v94ProductCol"><div class="v94Name">'+E(r.p.n)+'</div><div class="v94Meta">Presiona la fila para ver el detalle</div></td><td class="v94ClassCol"><div class="v94ClassCell">'+clsBadge(r.c)+'<div class="v94Hierarchy"><b>'+E(r.p.cat)+'</b><br>'+E(r.p.lin)+' · '+E(r.p.sub)+'</div></div></td><td class="v94AgeCol">'+ageHTML(r.ranges)+'</td><td class="num v94UnitsCol"><b>'+I(r.units)+'</b></td><td class="num v94CendisCol">'+(r.cendis>0?'<span class="tag cr">'+I(r.cendis)+' u</span>':'<span class="tag sr">SIN RESPALDO</span>')+'</td><td class="num v94ValueCol"><b>'+M(r.value)+'</b></td><td class="num v94SalesCol">'+(r.sales>0?'<b>'+I(r.sales)+'</b>':'<span class="tag sr">SIN VENTA</span>')+'</td></tr>'}).join(''),span=ev?10:9;return'<div class="v94Wrap"><table class="v94Table"><thead><tr><th class="v94ImgCol">Imagen</th>'+(ev?'<th class="v94RankCol">#</th>':'')+'<th class="v94CodeCol" data-k="c">Código'+arrow(mod,'c')+'</th><th class="v94ProductCol" data-k="p">Producto'+arrow(mod,'p')+'</th><th class="v94ClassCol">Clasificación</th><th class="v94AgeCol" data-k="age">Antigüedad'+arrow(mod,'age')+'</th><th class="num v94UnitsCol" data-k="units">Uds.'+arrow(mod,'units')+'</th><th class="num v94CendisCol" data-k="cendis">CENDIS'+arrow(mod,'cendis')+'</th><th class="num v94ValueCol" data-k="value">Valor'+arrow(mod,'value')+'</th><th class="num v94SalesCol" data-k="sales">Venta 3m'+arrow(mod,'sales')+'</th></tr></thead><tbody>'+(b||'<tr><td colspan="'+span+'"><div class="empty">No hay productos para este filtro.</div></td></tr>')+'</tbody></table></div>'}
+function ageBar(mod){var root=document.getElementById(mod+'-tbl'),body=root&&root.closest('.cbody');if(!root||!body)return;var bar=body.querySelector('.v80AgeBar');if(!bar){bar=document.createElement('div');bar.className='v80AgeBar';bar.innerHTML='<span>Rango de antigüedad</span><button data-v94-age="all">Todos</button>'+AG.map(function(x,i){return'<button data-v94-age="'+i+'">'+E(x)+'</button>'}).join('');var tb=body.querySelector('.tbar');if(tb)tb.insertAdjacentElement('afterend',bar);else root.insertAdjacentElement('beforebegin',bar)}bar.querySelectorAll('button').forEach(function(bt){var v=bt.dataset.v94Age||'all',s=state[mod]||{};bt.classList.toggle('on',T(s.age94||s.age80||s.age79||'all','all')===v);bt.onclick=function(){setAgeFilter94(mod,v)}})}
+function cards(mod,a){var root=document.getElementById(mod+'-tbl'),body=root&&root.closest('.cbody'),mk=body&&body.querySelector('.mkpis');if(!body||!mk)return;var old=body.querySelector('[data-v94-class-grid="'+mod+'"], [data-v71-class-grid="'+mod+'"], [data-v70-class-grid="'+mod+'"]'),g={'CORE':[],'COMPLEMENTO':[],'SIN CLASIFICACIÓN':[]};a.forEach(function(r){(g[r.cc]||(g[r.cc]=[])).push(r)});var box=document.createElement('div');box.className='v71ClassGrid';box.dataset.v94ClassGrid=mod;box.innerHTML=Object.keys(g).map(function(c){var ar=g[c],u=ar.reduce(function(z,r){return z+r.units},0),cl=c==='CORE'?'core':c==='COMPLEMENTO'?'comp':'none',f=c==='CORE'?'core':c==='COMPLEMENTO'?'comp':'none';return'<button type="button" class="v71ClassCard '+cl+' '+(((state[mod]||{}).f===f)?'on':'')+'" data-f="'+f+'"><label>'+E(c)+'</label><b>'+I(ar.length)+' productos</b><span>'+I(u)+' unidades</span></button>'}).join('');box.querySelectorAll('button').forEach(function(bt){bt.onclick=function(){var s=state[mod]||(state[mod]={});s.f=s.f===bt.dataset.f?'all':bt.dataset.f;render(mod)}});if(old)old.replaceWith(box);else mk.insertAdjacentElement('afterend',box)}
+function wire(mod,root){root.querySelectorAll('tbody tr[data-code]').forEach(function(tr){var go=function(e){if(e&&e.target&&e.target.closest('button,a,input,select,textarea'))return;var c=tr.dataset.code;try{if(typeof openInventoryProduct==='function')openInventoryProduct(c);else if(typeof openBestProductDetail==='function')openBestProductDetail(c)}catch(x){}};tr.onclick=go;tr.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go(e)}}});root.querySelectorAll('th[data-k]').forEach(function(th){th.onclick=function(){var s=state[mod]||(state[mod]={}),k=th.dataset.k;if(s.sort===k)s.dir*=-1;else{s.sort=k;s.dir=-1}render(mod)}});document.querySelectorAll('.chip.filt[data-q="'+mod+'"]').forEach(function(ch){ch.classList.toggle('on',((state[mod]||{}).f||'all')===ch.dataset.f);ch.onclick=function(){state[mod].f=ch.dataset.f;render(mod)}})}
+function render(mod){var all=allRows(mod),a=rows(mod),el=document.getElementById(mod+'-tbl');if(!el)return;el.innerHTML=table(mod,a);wire(mod,el);ageBar(mod);cards(mod,all);var c=document.getElementById(mod+'-cnt');if(c)c.textContent='Mostrando '+I(a.length)+' de '+I(all.length)+' productos · diseño unificado con Próximos a rotar'}
+window.setAgeFilter94=function(mod,a){var s=state[mod]||(state[mod]={});s.age94=a;s.age80=a;s.age79=a;render(mod)};window.setAgeFilter80=window.setAgeFilter79=window.setAgeFilter94;window.drawRot=drawRot=function(){render('rot')};window.drawEvac=drawEvac=function(){render('evac')};
+var sv=window.setView;if(typeof sv==='function')window.setView=function(v){var o=sv.apply(this,arguments);if(v==='rot'||v==='evac')setTimeout(function(){render(v)},180);return o};var rf=window.refresh;if(typeof rf==='function')window.refresh=function(){var o=rf.apply(this,arguments);setTimeout(function(){if(typeof VIEW!=='undefined'&&(VIEW==='rot'||VIEW==='evac'))render(VIEW)},220);return o};
+function mark(){window.LLAVERO_BUILD='V94';document.documentElement.setAttribute('data-llavero-build','V94');document.documentElement.setAttribute('data-llavero-app-version','V94');document.title=document.title.replace(/V\d+/,'V94');var b=document.querySelector('.appVersionChip b');if(b)b.textContent=(b.textContent||'').replace(/V\d+$/,'V94')}mark();setTimeout(mark,300);setTimeout(mark,900)
 })();

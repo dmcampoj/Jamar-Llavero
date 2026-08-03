@@ -3784,55 +3784,22 @@ body.dark .v90Kpi,body.dark .v90Toolbar{background:#222f40}.v90Kpi.on{background
   #evac-tbl .v80ModuleTable{min-width:1120px!important}
 }
 
-
-/* ===== LLAVERO V94 · TABLAS ROT/EVAC ESTILO PROX + IMAGENES ===== */
-#rot-tbl .v94ModuleWrap,
-#evac-tbl .v94ModuleWrap{max-height:58vh!important;overflow:auto!important;border:1px solid var(--line)!important;border-radius:12px!important;background:var(--card)!important}
-#rot-tbl .v94ModuleTable,
-#evac-tbl .v94ModuleTable{width:100%!important;min-width:1180px!important;border-collapse:separate!important;border-spacing:0!important;table-layout:fixed!important;font-size:11px!important;line-height:1.2!important}
-#rot-tbl .v94ModuleTable thead th,
-#evac-tbl .v94ModuleTable thead th{position:sticky!important;top:0!important;z-index:7!important;background:#f4f7fc!important;color:var(--ink2)!important;padding:8px 8px!important;font-size:9.5px!important;font-weight:800!important;box-shadow:inset 0 -1px 0 var(--line2)!important;white-space:nowrap!important}
-#rot-tbl .v94ModuleTable tbody td,
-#evac-tbl .v94ModuleTable tbody td{padding:7px 8px!important;border-bottom:1px solid #edf0f4!important;vertical-align:middle!important;color:var(--ink2)!important;white-space:normal!important;overflow:hidden!important}
-#rot-tbl .v94ModuleTable tbody tr,
-#evac-tbl .v94ModuleTable tbody tr{cursor:pointer;transition:background .12s ease}
-#rot-tbl .v94ModuleTable tbody tr:hover,
-#evac-tbl .v94ModuleTable tbody tr:hover{background:#f7faff!important}
-#rot-tbl .v94ModuleTable .code,
-#evac-tbl .v94ModuleTable .code{font-size:10px!important;white-space:nowrap!important}
-#rot-tbl .v94ColProd,
-#evac-tbl .v94ColProd{white-space:normal!important}
-.v94ProdName{font-weight:700;color:var(--ink);line-height:1.18;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
-.v94Hierarchy{display:flex;flex-direction:column;gap:2px;line-height:1.15}
-.v94Hierarchy b{font-size:10px;color:var(--ink);font-weight:700}
-.v94Hierarchy small{font-size:9px;color:var(--mut);white-space:normal}
-.v94RangeWrap{display:flex;flex-wrap:wrap;gap:4px}
-.v94RangeChip{display:inline-flex;flex-direction:column;justify-content:center;align-items:flex-start;min-width:54px;padding:3px 6px;border-radius:8px;border:1px solid var(--line);background:#fff;line-height:1}
-.v94RangeChip b{font-size:10px;color:var(--ink)}
-.v94RangeChip small{font-size:8.2px;color:var(--mut);margin-top:2px}
-.v94RangeChip.age1{background:#f5f7ff}.v94RangeChip.age2{background:#eef8ff}.v94RangeChip.age3{background:#fff7ec}.v94RangeChip.age4{background:#fff1dc}.v94RangeChip.age5{background:#ffe8d9}.v94RangeChip.age6{background:#ffe1e1}
-.v94ThumbBtn{all:unset;cursor:pointer;display:inline-flex}
-.v94Thumb{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#fff}
-.v94Thumb img{display:block;width:100%;height:100%;object-fit:contain;background:#fff}
-.v94Thumb.noimg{background:#f3f4f6;border-style:dashed}
-.v94ThumbFallback{font-size:9px;color:var(--mut);text-align:center;line-height:1.05;padding:4px}
-.v94Rank{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:#eef2f7;color:var(--ink);font-size:10px;font-weight:900}
-.v94Rank.hot{background:var(--bad);color:#fff}.v94Rank.blank{background:transparent;color:#c4cbd5;border:1px dashed #d5dbe4}
-#rot-tbl .v94ModuleTable .tag,
-#evac-tbl .v94ModuleTable .tag{font-size:9px!important;padding:3px 6px!important;white-space:nowrap!important}
-#rot-tbl .v94ModuleTable .num,
-#evac-tbl .v94ModuleTable .num{text-align:right!important;white-space:nowrap!important;font-variant-numeric:tabular-nums}
-#rot-tbl .v94ModuleTable col.w-rank,#evac-tbl .v94ModuleTable col.w-rank{width:42px}
-#rot-tbl .v94ModuleTable col.w-img,#evac-tbl .v94ModuleTable col.w-img{width:58px}
-#rot-tbl .v94ModuleTable col.w-code,#evac-tbl .v94ModuleTable col.w-code{width:96px}
-#rot-tbl .v94ModuleTable col.w-prod,#evac-tbl .v94ModuleTable col.w-prod{width:245px}
-#rot-tbl .v94ModuleTable col.w-class,#evac-tbl .v94ModuleTable col.w-class{width:106px}
-#rot-tbl .v94ModuleTable col.w-hier,#evac-tbl .v94ModuleTable col.w-hier{width:180px}
-#rot-tbl .v94ModuleTable col.w-age,#evac-tbl .v94ModuleTable col.w-age{width:280px}
-#rot-tbl .v94ModuleTable col.w-units,#evac-tbl .v94ModuleTable col.w-units{width:72px}
-#rot-tbl .v94ModuleTable col.w-cendis,#evac-tbl .v94ModuleTable col.w-cendis{width:98px}
-#rot-tbl .v94ModuleTable col.w-value,#evac-tbl .v94ModuleTable col.w-value{width:110px}
-#rot-tbl .v94ModuleTable col.w-sales,#evac-tbl .v94ModuleTable col.w-sales{width:78px}
-body.dark #rot-tbl .v94ModuleTable thead th,body.dark #evac-tbl .v94ModuleTable thead th{background:#202c3a!important;color:#e8edf3!important}
-body.dark .v94RangeChip{background:#223244;border-color:#35485e}body.dark .v94ProdName{color:#f2f5f8}body.dark .v94Hierarchy b{color:#edf2f7}body.dark .v94Thumb{background:#16202b}
-@media(max-width:900px){#rot-tbl .v94ModuleWrap,#evac-tbl .v94ModuleWrap{overflow:auto!important}#rot-tbl .v94ModuleTable,#evac-tbl .v94ModuleTable{min-width:1120px!important;font-size:10.4px!important}.v94Thumb{width:40px;height:40px}.v94RangeChip{min-width:50px;padding:3px 5px}}
+/* ===== LLAVERO V94 · tablas de Rotación y Evacuación como Próximos a rotar ===== */
+#rot-tbl .v94Wrap,#evac-tbl .v94Wrap{max-height:58vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);scrollbar-gutter:stable both-edges}
+#rot-tbl .v94Table,#evac-tbl .v94Table{width:100%;min-width:1120px;table-layout:fixed;border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+#rot-tbl .v94Table thead th,#evac-tbl .v94Table thead th{position:sticky;top:0;z-index:7;padding:7px!important;background:#f4f7fc!important;color:var(--ink2)!important;border-bottom:1px solid var(--line2)!important;box-shadow:inset 0 -1px 0 var(--line2);font-size:9.5px!important;line-height:1.15!important;white-space:normal!important;text-transform:uppercase;letter-spacing:.35px}
+#rot-tbl .v94Table thead th[data-k],#evac-tbl .v94Table thead th[data-k]{cursor:pointer}
+#rot-tbl .v94Table tbody td,#evac-tbl .v94Table tbody td{padding:6px 7px!important;border-bottom:1px solid #edf1f6!important;color:var(--ink2)!important;font-size:11px!important;line-height:1.22!important;white-space:normal!important;vertical-align:middle}
+#rot-tbl .v94Table tbody tr,#evac-tbl .v94Table tbody tr{cursor:pointer;transition:background .12s ease}
+#rot-tbl .v94Table tbody tr:hover,#evac-tbl .v94Table tbody tr:hover{background:rgba(229,43,47,.045)!important}
+#rot-tbl .v94Table tbody tr:focus-visible,#evac-tbl .v94Table tbody tr:focus-visible{outline:2px solid var(--brand);outline-offset:-2px;background:rgba(47,107,255,.06)!important}
+.v94ImgCol{width:60px;text-align:center}.v94RankCol{width:48px;text-align:center}.v94CodeCol{width:82px}.v94ProductCol{width:23%}.v94ClassCol{width:22%}.v94AgeCol{width:18%}.v94UnitsCol{width:72px}.v94CendisCol{width:105px}.v94ValueCol{width:118px}.v94SalesCol{width:82px}
+.v94Thumb{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;padding:2px;border:1px solid #dfe5ee;border-radius:8px;background:#fff;cursor:zoom-in}
+.v94Thumb img{width:100%;height:100%;object-fit:contain;display:block}.v94Thumb.noImage{cursor:default;background:#f2f4f7;color:#9aa4b2;font-size:17px;font-weight:800}
+.v94Name{font-weight:900;color:var(--ink);line-height:1.18}.v94Meta{font-size:9.3px;color:var(--mut);margin-top:3px;line-height:1.25}
+.v94ClassCell{display:flex;flex-direction:column;align-items:flex-start;gap:5px}.v94Hierarchy{font-size:9.7px;color:var(--ink2);line-height:1.3}.v94Hierarchy b{color:var(--ink)}
+.v94AgeList{display:flex;gap:4px;flex-wrap:wrap;align-items:center}.v94AgeChip{display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid #f0d3a4;border-radius:7px;background:#fff2dc;color:#a96200;font-size:9px;font-weight:850;white-space:nowrap}.v94AgeChip.critical{background:var(--evacBg);border-color:#f2bec3;color:var(--bad)}.v94AgeEmpty{font-size:9.5px;color:var(--mut)}
+.v94Rank{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:#eef2f7;color:var(--ink2);font-size:10px;font-weight:900}.v94Rank.hot{background:var(--bad);color:#fff}.v94Sort{margin-left:3px;color:var(--brand);font-size:9px}
+body.dark #rot-tbl .v94Table thead th,body.dark #evac-tbl .v94Table thead th{background:#343b46!important;color:#edf1f6!important;border-bottom-color:var(--line)!important}
+body.dark #rot-tbl .v94Table tbody td,body.dark #evac-tbl .v94Table tbody td{border-bottom-color:#4a505a!important}body.dark .v94Thumb{background:#fff;border-color:#59616d}body.dark .v94Thumb.noImage{background:#343b46;color:#aeb6c2}body.dark .v94AgeChip{background:#4a3517;color:#ffc465;border-color:#6b4f25}body.dark .v94AgeChip.critical{background:#51292c;color:#ffb4b8;border-color:#754046}
+@media(max-width:980px){#rot-tbl .v94Table,#evac-tbl .v94Table{min-width:1040px}.v94ProductCol{width:220px}.v94ClassCol{width:210px}.v94AgeCol{width:190px}}
