@@ -6633,3 +6633,90 @@ setTimeout(function(){mark80();enhance80();},80);
   function mark866(){window.LLAVERO_BUILD='V86.6';document.documentElement.setAttribute('data-llavero-build','V86.6');document.documentElement.setAttribute('data-llavero-app-version','V86.6');document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.6');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.6');}
   setTimeout(function(){mark866();installListFilters866(document.getElementById('rangeModal'));installListFilters866(document.getElementById('v80ModalBack'));syncProductFooter866();},140);
 })();
+
+/* ===== LLAVERO V86.7 - CARDS CENDIS POR ROTACION Y EVACUACION ===== */
+(function llaveroV867CendisCards(){
+  'use strict';
+  function t867(v){return String(v==null?'':v)}
+  function n867(v){var x=Number(v);return Number.isFinite(x)?x:0}
+  function i867(v){try{return typeof fInt==='function'?fInt(n867(v)):Math.round(n867(v)).toLocaleString('es-CO')}catch(_){return String(Math.round(n867(v)))}}
+  function m867(v){try{return typeof fMoneyCOP==='function'?fMoneyCOP(n867(v)):(typeof fMoney==='function'?fMoney(n867(v)):'$ '+Math.round(n867(v)).toLocaleString('es-CO'))}catch(_){return '$ '+Math.round(n867(v)).toLocaleString('es-CO')}}
+  function e867(v){try{return typeof esc80==='function'?esc80(t867(v)):(typeof esc==='function'?esc(t867(v)):t867(v))}catch(_){return t867(v)}}
+  function store867(){try{return typeof store80==='function'?store80(CUR):(S&&S[CUR]||{})}catch(_){return {}}}
+  function productRows867(module,mode){
+    var st=store867(), rows=[];
+    try{
+      rows=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,st):[];
+    }catch(_){rows=[]}
+    return rows.filter(function(r){return mode==='with'?n867(r.cendis)>0:n867(r.cendis)<=0});
+  }
+  function stats867(module,mode){
+    var rows=productRows867(module,mode);
+    return {rows:rows,products:rows.length,units:rows.reduce(function(a,r){return a+n867(r.units)},0),value:rows.reduce(function(a,r){return a+n867(r.value)},0)};
+  }
+  function card867(module,mode,data){
+    var rot=module==='rot',withSupport=mode==='with',title=(rot?'Rotaci\u00f3n':'Evacuaci\u00f3n')+' \u00b7 '+(withSupport?'Con respaldo CENDIS':'Sin respaldo CENDIS'),cls=(rot?'rot':'evac')+' '+(withSupport?'with':'without');
+    return '<button type="button" class="v867CendisCard '+cls+'" data-v867-module="'+module+'" data-v867-mode="'+mode+'">'
+      +'<span class="v867CendisIcon">'+(withSupport?'\u2713':'!')+'</span>'
+      +'<span class="v867CendisText"><small>'+title+'</small><b>'+i867(data.products)+'</b><em>'+i867(data.units)+' uds \u00b7 '+m867(data.value)+'</em></span>'
+      +'<span class="v867CendisLink">Ver detalle \u2192</span></button>';
+  }
+  function cardsHtml867(){
+    var rNo=stats867('rot','without'),rYes=stats867('rot','with'),eNo=stats867('evac','without'),eYes=stats867('evac','with');
+    return '<div class="v867CendisBlock" data-v867-cendis-block><div class="v867CendisHead"><div><b>Respaldo CENDIS por condici\u00f3n</b><span>Rotaci\u00f3n y Evacuaci\u00f3n separadas para una lectura directa.</span></div></div><div class="v867CendisGrid">'
+      +card867('rot','without',rNo)+card867('rot','with',rYes)+card867('evac','without',eNo)+card867('evac','with',eYes)
+      +'</div></div>';
+  }
+  function rangeHtml867(ranges){
+    try{if(typeof ranges80==='function')return ranges80(ranges||{})}catch(_){}
+    var labels=['91-120','121-150','151-180','181-210','211-240','241-360','+360'],out=[];
+    Object.keys(ranges||{}).forEach(function(k){var v=n867(ranges[k]);if(v>0)out.push('<span class="v867Range">'+i867(v)+' u \u00b7 '+e867(labels[Number(k)]||k)+'</span>')});
+    return out.join('')||'<span class="mut">Sin rango</span>';
+  }
+  function classHtml867(r){
+    try{if(typeof ccBadge80==='function')return ccBadge80(r.c)}catch(_){}
+    return '<span class="tag">'+e867(r.cc||'SIN CLASIFICACI\u00d3N')+'</span>';
+  }
+  window.openCendisModule867=function(module,mode){
+    var st=store867(),data=stats867(module,mode),rows=data.rows,rot=module==='rot',withSupport=mode==='with';
+    var title=(rot?'Rotaci\u00f3n':'Evacuaci\u00f3n')+' \u00b7 '+(withSupport?'Con respaldo CENDIS':'Sin respaldo CENDIS');
+    var body=rows.map(function(r){return '<tr data-code="'+e867(r.c)+'" data-class="'+e867(r.cc||'')+'" data-condition="'+(rot?'ROTACI\u00d3N':'EVACUACI\u00d3N')+'">'
+      +'<td><span class="code">'+e867(r.c)+'</span></td>'
+      +'<td class="productCell"><b>'+e867(r.p&&r.p.n||r.c)+'</b><small>'+e867(((r.p&&r.p.cat)||'\u2014')+' \u00b7 '+((r.p&&r.p.lin)||'\u2014')+' \u00b7 '+((r.p&&r.p.sub)||'\u2014'))+'</small></td>'
+      +'<td>'+classHtml867(r)+'</td><td>'+rangeHtml867(r.ranges)+'</td><td class="num"><b>'+i867(r.units)+'</b></td>'
+      +'<td class="num">'+(n867(r.cendis)>0?'<span class="tag cr">'+i867(r.cendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td>'
+      +'<td class="num">'+i867(r.sales)+'</td><td class="num">'+m867(r.value)+'</td></tr>';}).join('');
+    if(!body)body='<tr><td colspan="8"><div class="empty">No hay productos para esta condici\u00f3n.</div></td></tr>';
+    var html='<div class="v80Kpis">'
+      +(typeof kpi80==='function'?kpi80('Productos',i867(data.products),'referencias'):'' )
+      +(typeof kpi80==='function'?kpi80('Unidades',i867(data.units),'inventario en tienda'):'' )
+      +(typeof kpi80==='function'?kpi80('Valor',m867(data.value),'valor del inventario'):'' )
+      +(typeof kpi80==='function'?kpi80('Condici\u00f3n',rot?'Rotaci\u00f3n':'Evacuaci\u00f3n',withSupport?'Con respaldo':'Sin respaldo'):'' )
+      +'</div><div class="v80TableWrap"><table class="v80Table v867CendisTable"><thead><tr><th>C\u00f3digo</th><th>Producto</th><th>Clasificaci\u00f3n</th><th>Rangos</th><th class="num">Uds.</th><th class="num">CENDIS</th><th class="num">Venta 3m</th><th class="num">Valor</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+    if(typeof openModal80==='function')openModal80(title,(st.name||CUR)+' \u00b7 detalle por producto',html);
+    else if(typeof rangeModal79==='function')rangeModal79(title,(st.name||CUR)+' \u00b7 detalle por producto',html);
+    setTimeout(function(){
+      document.querySelectorAll('#v80ModalBody .v867CendisTable tbody tr[data-code],#rangeModalBody .v867CendisTable tbody tr[data-code]').forEach(function(tr){tr.classList.add('v866ProductListRow');tr.setAttribute('role','button');tr.tabIndex=0;});
+    },20);
+  };
+  function wire867(root){
+    (root||document).querySelectorAll('[data-v867-module][data-v867-mode]').forEach(function(b){
+      if(b.dataset.v867Wired)return;b.dataset.v867Wired='1';
+      b.onclick=function(){window.openCendisModule867(b.dataset.v867Module,b.dataset.v867Mode)};
+    });
+  }
+  function insert867(){
+    if(typeof VIEW==='undefined'||(VIEW!=='inventario'&&VIEW!=='resumen'))return;
+    var content=document.getElementById('content');if(!content||content.querySelector('[data-v867-cendis-block]'))return;
+    var anchor=VIEW==='inventario'?content.querySelector('.inventoryKpis'):content.querySelector('.kgrid');
+    if(!anchor)return;
+    anchor.insertAdjacentHTML('afterend',cardsHtml867());
+    wire867(content);
+  }
+  var obs867=new MutationObserver(function(){clearTimeout(obs867._t);obs867._t=setTimeout(insert867,30)});
+  obs867.observe(document.documentElement,{subtree:true,childList:true});
+  var refresh867=window.refresh;if(typeof refresh867==='function')window.refresh=function(){var out=refresh867.apply(this,arguments);setTimeout(insert867,40);return out};
+  var setView867=window.setView;if(typeof setView867==='function')window.setView=function(v){var out=setView867.apply(this,arguments);setTimeout(insert867,50);return out};
+  function mark867(){window.LLAVERO_BUILD='V86.7';document.documentElement.setAttribute('data-llavero-build','V86.7');document.documentElement.setAttribute('data-llavero-app-version','V86.7');document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.7');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.7')}
+  setTimeout(function(){mark867();insert867()},120);
+})();
