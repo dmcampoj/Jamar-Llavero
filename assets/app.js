@@ -5980,3 +5980,108 @@ setTimeout(function(){mark80();enhance80();},80);
   function mark90(){window.LLAVERO_BUILD='V90';document.documentElement.setAttribute('data-llavero-build','V90');document.title=document.title.replace(/V\d+(?:\s+Corregida)?/,'V90');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+$/,'V90')}
   mark90();setTimeout(mark90,350);setTimeout(mark90,750);
 })();
+
+
+/* ===== LLAVERO V91 · TABLAS ROTACIÓN / EVACUACIÓN MÁS CLARAS ===== */
+(function llaveroV91CompactRotEv(){
+  'use strict';
+  window.LLAVERO_BUILD='V91';
+  document.documentElement.setAttribute('data-llavero-build','V91');
+  document.documentElement.setAttribute('data-llavero-app-version','V91');
+
+  function safeV91(fn,fallback){ try{return typeof fn==='function'?fn:fallback;}catch(_){return fallback;} }
+  var esc91=safeV91(window.e71, function(v){return String(v==null?'':v);});
+  var int91=safeV91(window.i71, function(v){return String(Number(v||0));});
+  var money91=safeV91(window.m71, function(v){return '$ '+Number(v||0).toLocaleString('es-CO');});
+  var badge91=safeV91(window.ccBadge71, function(cc){return '<span>'+String(cc||'')+'</span>';});
+  var ages91=safeV91(window.ageChips71, function(){return '';});
+
+  window.productImageUrl=function(code){
+    var url='';
+    try{ url = safeText(P?.[safeCode(code)]?.img,''); }catch(_){ url=''; }
+    if(/^https?:\/\//i.test(url)) return url;
+    if(/^\/\//.test(url)) return 'https:'+url;
+    return '';
+  };
+
+  window.imageThumb=function(code,cls){
+    cls=cls||'';
+    var url=window.productImageUrl(code), p=(typeof productInfo==='function'?productInfo(code):{n:code});
+    if(!url) return '<span class="productThumb '+cls+' noImage v91ThumbFallback" title="Sin imagen disponible">🖼</span>';
+    return '<button class="productThumb '+cls+'" type="button" onclick="event.stopPropagation();openImageModal('+JSON.stringify(url)+','+JSON.stringify(p.n)+')" title="Ampliar imagen">'
+      + '<img loading="lazy" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" src="'+esc(url)+'" alt="'+esc(p.n)+'" '
+      + 'onerror="if(!this.dataset.v91Retry){this.dataset.v91Retry=1;this.referrerPolicy=\'origin\';this.src=this.src;return;}var h=this.closest(\'.productThumb\');if(h){h.classList.add(\'noImage\',\'v91ThumbFallback\');h.innerHTML=\'🖼\';}">'
+      + '</button>';
+  };
+
+  window.moduleTable71=function(module,rows){
+    var body=rows.map(function(r){
+      var cendisHtml = r.cendis>0 ? '<span class="tag cr">'+int91(r.cendis)+' u</span>' : '<span class="tag sr">SIN RESPALDO</span>';
+      return '<tr class="v71GeneralRow v91Row" tabindex="0" role="button" data-code="'+esc91(r.c)+'">'
+        + '<td class="v91ColProduct">'
+          + '<div class="v91ProductWrap">'
+            + imageThumb(r.c,'sm')
+            + '<div class="v91ProductText">'
+              + '<span class="code v91Code">'+esc91(r.c)+'</span>'
+              + '<div class="v71ProductName v91ProductName">'+esc91(r.p.n)+'</div>'
+            + '</div>'
+          + '</div>'
+        + '</td>'
+        + '<td class="v91ColClass">'
+          + '<div class="v91ClassBox">'+badge91(r.cc)
+            + '<small class="v71Hierarchy v91Hierarchy">'+esc91(r.p.cat)+' · '+esc91(r.p.lin)+' · '+esc91(r.p.sub)+'</small>'
+          + '</div>'
+        + '</td>'
+        + '<td class="v91ColAge">'+ages91(r.ranges)+'</td>'
+        + '<td class="num v91ColUnits"><b>'+int91(r.units)+'</b></td>'
+        + '<td class="num v91ColCendis">'+cendisHtml+'</td>'
+        + '<td class="num v91ColValue"><b>'+money91(r.value)+'</b></td>'
+        + '<td class="num v91ColSales">'+int91(r.sales)+'</td>'
+      + '</tr>';
+    }).join('');
+
+    return '<div class="twrap v91Wrap"><table class="v71ModuleTable v91ModuleTable"><thead><tr>'
+      + '<th data-k="p">Producto</th>'
+      + '<th>Clasificación / Jerarquía</th>'
+      + '<th data-k="age">Unidades por rango</th>'
+      + '<th class="num" data-k="units">Uds.</th>'
+      + '<th class="num" data-k="cendis">CENDIS</th>'
+      + '<th class="num" data-k="value">Valor</th>'
+      + '<th class="num" data-k="sales">Venta 3M</th>'
+      + '</tr></thead><tbody>'
+      + (body||'<tr><td colspan="7"><div class="empty">No hay productos para este filtro.</div></td></tr>')
+      + '</tbody></table></div>';
+  };
+
+  window.wireModuleTable71=function(module){
+    var root=document.getElementById(module+'-tbl');
+    if(!root) return;
+    root.querySelectorAll('.v71GeneralRow').forEach(function(tr){
+      var open=function(e){
+        if(e && e.target && e.target.closest('button,a,input,select,textarea')) return;
+        var c=tr.dataset.code;
+        if(typeof openInventoryProduct==='function') openInventoryProduct(c);
+        else if(typeof openBestProductDetail==='function') openBestProductDetail(c);
+      };
+      tr.onclick=open;
+      tr.onkeydown=function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); open(e); } };
+    });
+    root.querySelectorAll('th[data-k]').forEach(function(th){
+      th.style.cursor='pointer';
+      th.onclick=function(){
+        var st=state[module], k=th.dataset.k;
+        if(st.sort===k) st.dir*=-1; else { st.sort=k; st.dir=-1; }
+        if(module==='rot') drawRot(); else drawEvac();
+      };
+    });
+  };
+
+  function redrawIfNeeded(){
+    try{
+      if(typeof VIEW!=='undefined' && VIEW==='rot' && typeof drawRot==='function') drawRot();
+      if(typeof VIEW!=='undefined' && VIEW==='evac' && typeof drawEvac==='function') drawEvac();
+    }catch(err){ console.warn('V91 redraw warning',err); }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',redrawIfNeeded,{once:true});
+  else setTimeout(redrawIfNeeded,0);
+})();
