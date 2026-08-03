@@ -5880,3 +5880,103 @@ setTimeout(function(){mark80();enhance80();},80);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start89,{once:true});else start89();
   setTimeout(markBuild89,300);
 })();
+
+/* ===== LLAVERO V90 · movimientos diarios reales en detalles históricos ===== */
+(function(){
+  'use strict';
+  function e90(v){return typeof esc80==='function'?esc80(v):String(v==null?'':v)}
+  function n90(v){return typeof num==='function'?num(v):(Number(v)||0)}
+  function i90(v){return typeof int80==='function'?int80(v):Math.round(n90(v)).toLocaleString('es-CO')}
+  function m90(v){return typeof money80==='function'?money80(v):('$ '+Math.round(n90(v)).toLocaleString('es-CO'))}
+  function t90(v){return typeof text==='function'?text(v):String(v==null?'':v).trim()}
+  function code90(v){return typeof code80==='function'?code80(v):t90(v)}
+  function product90(c){return typeof product80==='function'?product80(c):(P&&P[c]||{n:c,cat:'—',lin:'—',sub:'—'})}
+  function cc90(c){return typeof cc80==='function'?cc80(c):t90(P&&P[c]&&P[c].cc||'SIN CLASIFICACIÓN')}
+  function fmt90(d){return typeof fmtDate80==='function'?fmtDate80(d):t90(d)}
+  function badge90(c){return typeof ccBadge80==='function'?ccBadge80(c):'<span>'+e90(cc90(c))+'</span>'}
+  function ageText90(age){return age==null||age<0?'No disponible':(typeof ageLabel80==='function'?ageLabel80(age):String(age))}
+  function currentStore90(code){return typeof store80==='function'?store80(code):(S&&S[code]||{})}
+  function currentSales90(code){var st=currentStore90(code),out={};(st&&st.ventasProducto||[]).forEach(function(r){var c=code90(r&&r[0]);out[c]={value:n90(r&&r[1]),units:n90(r&&r[2])}});return out}
+  function currentInventory90(code){var st=currentStore90(code),out={};try{(typeof normalizeInventoryRows==='function'?normalizeInventoryRows(st):[]).forEach(function(r){out[code90(r.c)]={cendis:n90(r.dispCendis),stock:n90(r.stock)}})}catch(_e){}return out}
+
+  function detailPair90(storeCode,date){
+    var a=typeof details80==='function'?details80():[],i=date?a.findIndex(function(x){return t90(x.date)===t90(date)}):a.length-1;
+    if(i<0)i=a.length-1;
+    return {cur:a[i]||null,prev:i>0?a[i-1]:null,curStore:a[i]&&a[i].stores&&a[i].stores[storeCode],prevStore:i>0&&a[i-1]&&a[i-1].stores&&a[i-1].stores[storeCode],curDate:a[i]&&a[i].date,prevDate:i>0&&a[i-1]&&a[i-1].date};
+  }
+  function conditionMap90(store){
+    var rot={},ev={};
+    (store&&store.rot||[]).forEach(function(r){var c=code90(r&&r[0]);if(!c)return;rot[c]={u:n90(r&&r[1]),v:n90(r&&r[2]),age:(n90(r&&r[3])>=0&&n90(r&&r[3])<=6)?n90(r&&r[3]):null}});
+    /* En los históricos de Evacuación la cuarta posición corresponde a CENDIS, no a edad. */
+    (store&&store.evac||[]).forEach(function(r){var c=code90(r&&r[0]);if(!c)return;ev[c]={u:n90(r&&r[1]),v:n90(r&&r[2]),age:null}});
+    var keys=Array.from(new Set(Object.keys(rot).concat(Object.keys(ev)))),out={};
+    keys.forEach(function(c){var rr=rot[c],ee=ev[c],conds=[];if(rr)conds.push('ROTACIÓN');if(ee)conds.push('EVACUACIÓN');out[c]={c:c,conditions:conds,condition:conds.join(' / ')||'SIN CONDICIÓN',u:Math.max(rr?rr.u:0,ee?ee.u:0),v:Math.max(rr?rr.v:0,ee?ee.v:0),age:rr&&rr.age!=null?rr.age:null,rot:rr||null,evac:ee||null}});
+    return out;
+  }
+  function movementRows90(storeCode,date){
+    var pair=detailPair90(storeCode,date),prev=conditionMap90(pair.prevStore),cur=conditionMap90(pair.curStore),sales=currentSales90(storeCode),inv=currentInventory90(storeCode),keys=Array.from(new Set(Object.keys(prev).concat(Object.keys(cur)))),rows=[];
+    keys.forEach(function(c){
+      var a=prev[c]||null,b=cur[c]||null,prevCondition=a?a.condition:'NO CRÍTICO',curCondition=b?b.condition:'NO CRÍTICO',du=(b?b.u:0)-(a?a.u:0),dv=(b?b.v:0)-(a?a.v:0),conditionChanged=!!(a&&b&&prevCondition!==curCondition),rangeChanged=!!(a&&b&&a.age!=null&&b.age!=null&&a.age!==b.age),activity='',moves=[];
+      if(a&&!b){activity='Gestionado';moves.push('Salió del estado crítico')}
+      else if(!a&&b){activity='Nuevo crítico';moves.push('Ingresó al estado crítico')}
+      else{
+        if(conditionChanged)moves.push('Cambió de condición');
+        if(rangeChanged)moves.push('Cambió de rango');
+        if(du>0)moves.push('Aumentó unidades');else if(du<0)moves.push('Disminuyó unidades');
+        if(dv!==0&&du===0)moves.push('Cambió valor');
+        activity=moves.length?'Persistente con cambio':'Persistente sin cambio';
+      }
+      var p=product90(c),s=sales[c]||{},ci=inv[c]||{};
+      rows.push({c:c,p:p,cc:cc90(c),store:storeCode,storeName:(pair.curStore&&pair.curStore.name)||(pair.prevStore&&pair.prevStore.name)||(S&&S[storeCode]&&S[storeCode].name)||storeCode,activity:activity,moves:moves,hasMovement:activity!=='Persistente sin cambio',prevCondition:prevCondition,curCondition:curCondition,prevU:a?a.u:0,curU:b?b.u:0,deltaU:du,prevV:a?a.v:0,curV:b?b.v:0,deltaV:dv,prevAge:a?a.age:null,curAge:b?b.age:null,conditionChanged:conditionChanged,rangeChanged:rangeChanged,cendis:n90(ci.cendis||P&&P[c]&&P[c].dispCendis),salesU:n90(s.units),salesV:n90(s.value)});
+    });
+    return {rows:rows,pair:pair};
+  }
+  function networkRows90(date){
+    var a=typeof details80==='function'?details80():[],idx=a.findIndex(function(x){return t90(x.date)===t90(date)});if(idx<0)return {rows:[],cur:null,prev:null};var cur=a[idx],prev=idx>0?a[idx-1]:null,stores=Array.from(new Set(Object.keys(cur&&cur.stores||{}).concat(Object.keys(prev&&prev.stores||{})))),rows=[];
+    stores.forEach(function(sc){movementRows90(sc,date).rows.forEach(function(r){rows.push(r)})});
+    return {rows:rows,cur:cur,prev:prev};
+  }
+  function reduction90(date,storeCode,kind){
+    var d=typeof daily80==='function'?daily80():[],idx=d.findIndex(function(x){return t90(x.date)===t90(date)});if(idx<0)return 0;var cur=d[idx],stores=storeCode?[storeCode]:Object.keys(cur.stores||{}),pv=0,nv=0,cv=0;
+    stores.forEach(function(sc){var x=cur.stores&&cur.stores[sc]&&cur.stores[sc][kind];pv+=n90(x&&x.previousVal);nv+=n90(x&&x.newVal);cv+=n90(x&&x.currentVal)});var den=pv+nv;return den>0?(den-cv)/den*100:0;
+  }
+  function classForDelta90(v,goodWhenNegative){if(!v)return 'v90Neutral';var good=goodWhenNegative?v<0:v>0;return good?'v90Good':'v90Bad'}
+  function conditionHtml90(r){return '<div class="v90Transition"><span>'+e90(r.prevCondition)+'</span><i>→</i><span>'+e90(r.curCondition)+'</span></div>'}
+  function rangeHtml90(r){return '<div class="v90Transition v90RangeTransition"><span>'+e90(ageText90(r.prevAge))+'</span><i>→</i><span>'+e90(ageText90(r.curAge))+'</span></div>'}
+  function moveHtml90(r){var arr=r.moves.length?r.moves:[r.activity];return '<div class="v90MoveTags">'+arr.map(function(x){var cl=x.indexOf('Salió')>=0||x.indexOf('Disminuyó')>=0?'good':x.indexOf('Ingresó')>=0||x.indexOf('Aumentó')>=0?'bad':'info';return '<span class="'+cl+'">'+e90(x)+'</span>'}).join('')+'</div>'}
+  function rowsHtml90(rows,includeStore){
+    return rows.map(function(r){var du=r.deltaU,dv=r.deltaV;return '<tr data-v90-row data-code="'+e90(r.c)+'" data-class="'+e90(r.cc)+'" data-condition="'+e90(r.prevCondition+' '+r.curCondition)+'" data-activity="'+e90(r.activity)+'" data-moves="'+e90(r.moves.join('|'))+'" data-age="'+e90(r.curAge==null?'':r.curAge)+'" data-movement="'+(r.hasMovement?'1':'0')+'"><td><span class="code">'+e90(r.c)+'</span></td><td class="productCell"><b>'+e90(r.p.n||r.c)+'</b><small>'+e90((r.p.cat||'—')+' · '+(r.p.lin||'—')+' · '+(r.p.sub||'—'))+'</small></td>'+(includeStore?'<td>'+e90(r.storeName)+'</td>':'')+'<td>'+badge90(r.c)+'</td><td>'+conditionHtml90(r)+'</td><td>'+moveHtml90(r)+'</td><td class="num">'+i90(r.prevU)+'</td><td class="num"><b>'+i90(r.curU)+'</b></td><td class="num"><b class="'+classForDelta90(du,true)+'">'+(du>0?'+':'')+i90(du)+'</b></td><td>'+rangeHtml90(r)+'</td><td class="num">'+m90(r.prevV)+'</td><td class="num">'+m90(r.curV)+'</td><td class="num"><b class="'+classForDelta90(dv,true)+'">'+(dv>0?'+':'')+m90(dv)+'</b></td><td class="num">'+i90(r.cendis)+'</td><td class="num">'+i90(r.salesU)+' u<br><small>'+m90(r.salesV)+'</small></td></tr>'}).join('');
+  }
+  function quick90(){
+    var opts=[['movement','Movimientos del día'],['managed','Gestionados'],['new','Nuevos críticos'],['increased','Aumentaron'],['decreased','Disminuyeron'],['condition','Cambio de condición'],['range','Cambio de rango'],['persistent','Todos los persistentes'],['persistentChanged','Persistentes con cambio'],['unchanged','Persistentes sin cambio'],['all','Todos']];
+    return '<div class="v90QuickFilters">'+opts.map(function(x){return '<button type="button" data-v90-mode="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>';
+  }
+  function toolbar90(){return '<div class="v90Toolbar" data-v90-toolbar><div class="search">🔎 <input type="search" data-v90-search placeholder="Buscar código, producto o tienda…"></div><select data-v90-class><option value="">Todas las clasificaciones</option><option>CORE</option><option>COMPLEMENTO</option><option>SIN CLASIFICACIÓN</option></select><select data-v90-condition><option value="">Todas las condiciones</option><option value="ROTACIÓN">Rotación</option><option value="EVACUACIÓN">Evacuación</option><option value="NO CRÍTICO">No crítico</option></select><select data-v90-activity><option value="">Todas las actividades</option><option>Gestionado</option><option>Nuevo crítico</option><option>Persistente con cambio</option><option>Persistente sin cambio</option></select><select data-v90-age><option value="">Todos los rangos</option>'+(typeof AGE80!=='undefined'?AGE80.slice(1).map(function(a){return '<option value="'+a.k+'">'+a.l+'</option>'}).join(''):'')+'</select><button type="button" data-v90-clear>Limpiar</button><span data-v90-count></span></div>'}
+  function table90(rows,includeStore){return quick90()+toolbar90()+'<div class="v90TableWrap"><table class="v90Table"><thead><tr><th>Código</th><th>Producto</th>'+(includeStore?'<th>Tienda</th>':'')+'<th>Clasificación</th><th>Condición anterior → actual</th><th>Movimiento del día</th><th class="num">Uds. anterior</th><th class="num">Uds. actual</th><th class="num">Dif. uds.</th><th>Rango anterior → actual</th><th class="num">Valor anterior</th><th class="num">Valor actual</th><th class="num">Dif. valor</th><th class="num">CENDIS</th><th class="num">Venta 3m</th></tr></thead><tbody>'+rowsHtml90(rows,includeStore)+'</tbody></table></div>'}
+  function kpiCard90(label,value,sub,preset,cls){return '<button type="button" class="v90Kpi '+(cls||'')+'" data-v90-preset="'+preset+'"><label>'+e90(label)+'</label><b>'+e90(value)+'</b><small>'+e90(sub)+'</small></button>'}
+  function summary90(rows,date,storeCode){var managed=rows.filter(function(r){return r.activity==='Gestionado'}),newr=rows.filter(function(r){return r.activity==='Nuevo crítico'}),changed=rows.filter(function(r){return r.activity==='Persistente con cambio'}),unchanged=rows.filter(function(r){return r.activity==='Persistente sin cambio'}),rot=reduction90(date,storeCode,'rot'),ev=reduction90(date,storeCode,'evac');return '<div class="v90Kpis">'+kpiCard90('Movimientos del día',i90(managed.length+newr.length+changed.length),'Productos con actividad','movement','info')+kpiCard90('Gestionados',i90(managed.length),'Productos que salieron','managed','good')+kpiCard90('Nuevos críticos',i90(newr.length),'Productos que ingresaron','new','bad')+kpiCard90('Persistentes con cambio',i90(changed.length),'Tuvieron movimiento','persistentChanged','info')+kpiCard90('Mejora Rotación',rot.toFixed(1)+'%','Reducción ajustada','rot',rot>=0?'good':'bad')+kpiCard90('Mejora Evacuación',ev.toFixed(1)+'%','Reducción ajustada','evac',ev>=0?'good':'bad')+'</div>'}
+  function presetMatch90(r,mode){
+    if(mode==='all')return true;if(mode==='movement')return r.hasMovement;if(mode==='managed')return r.activity==='Gestionado';if(mode==='new')return r.activity==='Nuevo crítico';if(mode==='persistent')return r.activity.indexOf('Persistente')===0;if(mode==='persistentChanged')return r.activity==='Persistente con cambio';if(mode==='unchanged')return r.activity==='Persistente sin cambio';if(mode==='increased')return r.deltaU>0;if(mode==='decreased')return r.deltaU<0;if(mode==='condition')return r.conditionChanged;if(mode==='range')return r.rangeChanged;if(mode==='rot')return r.hasMovement&&(r.prevCondition.indexOf('ROTACIÓN')>=0||r.curCondition.indexOf('ROTACIÓN')>=0);if(mode==='evac')return r.hasMovement&&(r.prevCondition.indexOf('EVACUACIÓN')>=0||r.curCondition.indexOf('EVACUACIÓN')>=0);if(mode==='360')return r.prevAge===6||r.curAge===6;return true;
+  }
+  function wire90(root,rows,initial){
+    var bodyRows=Array.from(root.querySelectorAll('[data-v90-row]')),tb=root.querySelector('[data-v90-toolbar]'),mode=initial||'movement';
+    function apply(){var q=t90(tb&&tb.querySelector('[data-v90-search]')&&tb.querySelector('[data-v90-search]').value).toLowerCase(),cl=t90(tb&&tb.querySelector('[data-v90-class]')&&tb.querySelector('[data-v90-class]').value),co=t90(tb&&tb.querySelector('[data-v90-condition]')&&tb.querySelector('[data-v90-condition]').value),ac=t90(tb&&tb.querySelector('[data-v90-activity]')&&tb.querySelector('[data-v90-activity]').value),ag=t90(tb&&tb.querySelector('[data-v90-age]')&&tb.querySelector('[data-v90-age]').value),shown=0;bodyRows.forEach(function(tr,i){var r=rows[i],ok=presetMatch90(r,mode)&&(!q||t90(tr.textContent).toLowerCase().indexOf(q)>=0)&&(!cl||r.cc===cl)&&(!co||(r.prevCondition+' '+r.curCondition).indexOf(co)>=0)&&(!ac||r.activity===ac)&&(!ag||String(r.curAge==null?'':r.curAge)===ag);tr.style.display=ok?'':'none';if(ok)shown++});var c=tb&&tb.querySelector('[data-v90-count]');if(c)c.textContent=i90(shown)+' de '+i90(rows.length)+' resultados';root.querySelectorAll('[data-v90-mode]').forEach(function(b){b.classList.toggle('on',b.dataset.v90Mode===mode)});root.querySelectorAll('[data-v90-preset]').forEach(function(b){b.classList.toggle('on',b.dataset.v90Preset===mode)})}
+    root.querySelectorAll('[data-v90-mode],[data-v90-preset]').forEach(function(b){b.onclick=function(){mode=b.dataset.v90Mode||b.dataset.v90Preset||'movement';apply()}});
+    if(tb){tb.querySelectorAll('input,select').forEach(function(x){x.addEventListener('input',apply);x.addEventListener('change',apply)});var clear=tb.querySelector('[data-v90-clear]');if(clear)clear.onclick=function(){tb.querySelectorAll('input').forEach(function(x){x.value=''});tb.querySelectorAll('select').forEach(function(x){x.value=''});mode='movement';apply()}}
+    apply();
+  }
+  function open90(title,sub,rows,includeStore,initial,date,storeCode){var html=summary90(rows,date,storeCode)+table90(rows,includeStore);openModal80(title,sub,html);var root=document.getElementById('v80ModalBody');if(root)wire90(root,rows,initial||'movement')}
+  function metricInitial90(metric){if(metric==='managed')return'managed';if(metric==='new')return'new';if(metric==='persistent')return'persistent';if(metric==='rot')return'rot';if(metric==='evac')return'evac';if(metric==='360')return'360';return'movement'}
+
+  window.openStoreDailyDetail90=window.openStoreDailyDetail80=window.openStoreDailyDetail79=function(storeCode,metric,date){
+    if(metric==='transfers'){if(typeof openTransferKpi80==='function')return openTransferKpi80('pending',storeCode);return}
+    var x=movementRows90(storeCode,date),name=(currentStore90(storeCode).name||storeCode),titles={managed:'Productos gestionados',persistent:'Productos persistentes',new:'Nuevos productos críticos',rot:'Movimientos de Rotación',evac:'Movimientos de Evacuación','360':'Productos con más de 360 días'};
+    open90((titles[metric]||'Movimientos del día')+' · '+name,'Actividad entre '+fmt90(x.pair.prevDate||'línea base')+' y '+fmt90(x.pair.curDate||date||'corte actual'),x.rows,false,metricInitial90(metric),x.pair.curDate||date,storeCode);
+  };
+  window.openTrendDetail90=window.openTrendDetail80=window.openTrendDetail79=function(date,storeCode){
+    var rows,pair,title,sub;if(storeCode){var x=movementRows90(storeCode,date);rows=x.rows;pair=x.pair;title='Detalle del corte '+fmt90(pair.curDate||date)+' · '+(currentStore90(storeCode).name||storeCode);sub='Movimientos frente a '+fmt90(pair.prevDate||'la línea base')}else{var y=networkRows90(date);rows=y.rows;pair={curDate:y.cur&&y.cur.date,prevDate:y.prev&&y.prev.date};title='Detalle del corte '+fmt90(pair.curDate||date);sub='Movimientos de todas las tiendas frente a '+fmt90(pair.prevDate||'la línea base')}
+    open90(title,sub,rows,!storeCode,'movement',pair.curDate||date,storeCode||'');
+  };
+  function mark90(){window.LLAVERO_BUILD='V90';document.documentElement.setAttribute('data-llavero-build','V90');document.title=document.title.replace(/V\d+(?:\s+Corregida)?/,'V90');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+$/,'V90')}
+  mark90();setTimeout(mark90,350);setTimeout(mark90,750);
+})();

@@ -3782,3 +3782,26 @@ body.dark .v89ModalBackButton:hover{border-color:var(--jamar);color:#fff;backgro
   .v89ModalBackButton{padding:0 9px;font-size:10px}
   .v89ModalBackButton .v89BackText{display:none}
 }
+
+/* ===== LLAVERO V90 · detalle de movimientos por corte ===== */
+.v90Kpis{display:grid;grid-template-columns:repeat(6,minmax(145px,1fr));gap:10px;margin-bottom:14px}
+.v90Kpi{appearance:none;text-align:left;background:#f7f9fc;border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;color:var(--ink);font:inherit;min-width:0}
+.v90Kpi:hover,.v90Kpi.on{border-color:var(--brand);box-shadow:0 0 0 2px rgba(23,59,99,.08)}
+.v90Kpi label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.45px;color:var(--mut);font-weight:900;cursor:pointer}
+.v90Kpi b{display:block;font-size:21px;line-height:1.1;margin-top:5px}.v90Kpi small{display:block;font-size:10px;color:var(--mut);margin-top:4px}
+.v90Kpi.good b{color:var(--ok)}.v90Kpi.bad b{color:var(--bad)}.v90Kpi.info b{color:var(--brand)}.v90Kpi.neutral b{color:var(--mut)}
+.v90QuickFilters{display:flex;gap:7px;overflow-x:auto;padding:2px 1px 9px;scrollbar-width:thin}
+.v90QuickFilters button{flex:none;border:1px solid var(--line2);background:#fff;color:var(--ink2);border-radius:999px;padding:7px 11px;font:inherit;font-size:10px;font-weight:800;cursor:pointer}
+.v90QuickFilters button:hover,.v90QuickFilters button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.v90Toolbar{display:grid;grid-template-columns:minmax(210px,1.7fr) repeat(3,minmax(145px,.8fr)) minmax(135px,.7fr) auto auto;gap:8px;align-items:center;background:#f7f9fc;border:1px solid var(--line);border-radius:12px;padding:9px;margin-bottom:10px}
+.v90Toolbar .search{min-width:0}.v90Toolbar select,.v90Toolbar button{height:38px;border:1px solid var(--line2);border-radius:9px;background:#fff;color:var(--ink2);padding:0 10px;font:inherit;font-size:10px;font-weight:700}.v90Toolbar button{cursor:pointer}.v90Toolbar [data-v90-count]{font-size:10px;color:var(--mut);font-weight:800;white-space:nowrap}
+.v90TableWrap{border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:58vh}.v90Table{min-width:1660px;width:100%;border-collapse:collapse;table-layout:auto}
+.v90Table th{position:sticky;top:0;z-index:2;background:#eef3f8;color:var(--ink2);font-size:9px;text-transform:uppercase;letter-spacing:.35px;padding:8px 9px;white-space:nowrap;border-bottom:1px solid var(--line2)}
+.v90Table td{font-size:10.5px;padding:8px 9px;vertical-align:middle;border-bottom:1px solid var(--line);white-space:nowrap}.v90Table tbody tr{cursor:pointer}.v90Table tbody tr:hover{background:#f7faff}
+.v90Table .productCell{min-width:270px;white-space:normal}.v90Table .productCell b{display:block;color:var(--ink);line-height:1.2}.v90Table .productCell small{display:block;color:var(--mut);font-size:9px;margin-top:3px}.v90Table .num{text-align:right;font-variant-numeric:tabular-nums}
+.v90Transition{display:grid;grid-template-columns:minmax(90px,1fr) 16px minmax(90px,1fr);align-items:center;gap:4px;white-space:normal;min-width:220px}.v90Transition span{font-size:9.5px;font-weight:750}.v90Transition i{text-align:center;color:var(--mut);font-style:normal}.v90RangeTransition{min-width:180px;grid-template-columns:minmax(72px,1fr) 16px minmax(72px,1fr)}
+.v90MoveTags{display:flex;flex-wrap:wrap;gap:4px;min-width:180px;max-width:250px;white-space:normal}.v90MoveTags span{display:inline-flex;padding:3px 6px;border-radius:999px;font-size:8.5px;font-weight:900}.v90MoveTags .good{background:var(--okBg);color:var(--ok)}.v90MoveTags .bad{background:var(--evacBg);color:var(--bad)}.v90MoveTags .info{background:var(--vtaBg);color:var(--brand)}
+.v90Good{color:var(--ok)}.v90Bad{color:var(--bad)}.v90Neutral{color:var(--mut)}
+body.dark .v90Kpi,body.dark .v90Toolbar{background:#222f40}.v90Kpi.on{background:#edf4fb}body.dark .v90Kpi.on{background:#24384e}.v90Toolbar select,body.dark .v90Toolbar button,body.dark .v90QuickFilters button{background:var(--card);color:var(--ink);border-color:var(--line2)}
+@media(max-width:1250px){.v90Kpis{grid-template-columns:repeat(3,1fr)}.v90Toolbar{grid-template-columns:repeat(3,minmax(150px,1fr))}.v90Toolbar .search{grid-column:1/-1}}
+@media(max-width:720px){.v90Kpis{grid-template-columns:repeat(2,1fr)}.v90Toolbar{display:flex;overflow-x:auto}.v90Toolbar>*{flex:0 0 165px}.v90Toolbar .search{flex-basis:240px}.v90TableWrap{max-height:64vh}.v90Kpi b{font-size:18px}}
