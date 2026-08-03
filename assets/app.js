@@ -6169,3 +6169,182 @@ setTimeout(function(){mark80();enhance80();},80);
   }
   mark862();setTimeout(function(){mark862();refreshBackButtons862();if(typeof VIEW!=='undefined'&&VIEW==='traslados'){var c=document.getElementById('content');if(c){c.innerHTML=window.viewTraslados();window.drawTr862();}}},420);
 })();
+
+
+/* ===== LLAVERO V86.3 · TENDENCIA JERARQUICA + TRASLADOS INTERACTIVOS + ETIQUETAS ===== */
+(function llaveroV863(){
+  'use strict';
+  function s863(v){return v==null?'':String(v);}
+  function n863(v){var x=Number(v);return Number.isFinite(x)?x:0;}
+  function e863(v){try{return typeof esc==='function'?esc(s863(v)):s863(v);}catch(_){return s863(v);}}
+  function f863(v){try{return typeof fInt==='function'?fInt(n863(v)):Math.round(n863(v)).toLocaleString('es-CO');}catch(_){return String(Math.round(n863(v)));}}
+  function fmt863(d){var a=s863(d).split('-');return a.length===3?a[2]+'/'+a[1]+'/'+a[0]:s863(d);}
+
+  /* --- Renombre visual sin alterar las llaves de lectura de los archivos fuente. --- */
+  function renameVisibleLabels863(root){
+    root=root||document.body;
+    if(!root)return;
+    var walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:function(node){
+      var p=node.parentElement;
+      if(!p||/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|OPTION)$/i.test(p.tagName))return NodeFilter.FILTER_REJECT;
+      return /CAN\s*(?:MIN\s*SUM|SUM|MIN)/i.test(node.nodeValue||'')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
+    }}),nodes=[],node;
+    while((node=walker.nextNode()))nodes.push(node);
+    nodes.forEach(function(t){
+      t.nodeValue=(t.nodeValue||'')
+        .replace(/CAN\s*MIN\s*SUM/gi,'Presencia')
+        .replace(/CAN\s*SUM/gi,'Existencia')
+        .replace(/CAN\s*MIN/gi,'Presencia');
+    });
+  }
+
+  /* --- Tendencia histórica de tienda, responsiva y alineada con el prototipo. --- */
+  function history863(){
+    try{return (typeof readDailyHistory==='function'?readDailyHistory():[]).slice().sort(function(a,b){return s863(a.date).localeCompare(s863(b.date));});}
+    catch(_){return [];}
+  }
+  function trendData863(code){
+    return history863().map(function(s,i){
+      var m=s&&s.stores&&s.stores[code];
+      if(!m)return null;
+      return {date:s.date,rot:i===0?0:n863(m.rot&&m.rot.reductionAdj),evac:i===0?0:n863(m.evac&&m.evac.reductionAdj),base:i===0};
+    }).filter(Boolean);
+  }
+  function trendSvg863(data){
+    if(!data.length)return '<div class="empty">Sin historial disponible.</div>';
+    var W=1000,H=300,p={l:58,r:34,t:48,b:54},vals=[];
+    data.forEach(function(d){vals.push(d.rot,d.evac);});
+    var lo=Math.min.apply(null,vals.concat([0])),hi=Math.max.apply(null,vals.concat([0])),span=Math.max(1,hi-lo),pad=Math.max(.45,span*.18);
+    lo=Math.min(-.2,lo-pad*.35);hi=hi+pad;if(hi-lo<1.4)hi=lo+1.4;
+    function x(i){return p.l+(W-p.l-p.r)*(data.length===1?.5:i/(data.length-1));}
+    function y(v){return p.t+(H-p.t-p.b)*(hi-n863(v))/(hi-lo);}
+    function path(k){return data.map(function(d,i){return (i?'L':'M')+x(i).toFixed(1)+','+y(d[k]).toFixed(1);}).join(' ');}
+    var grid='';
+    for(var j=0;j<5;j++){
+      var v=lo+(hi-lo)*j/4,yy=y(v);
+      grid+='<line x1="'+p.l+'" y1="'+yy+'" x2="'+(W-p.r)+'" y2="'+yy+'" class="v863Grid"/><text x="'+(p.l-10)+'" y="'+(yy+4)+'" text-anchor="end" class="v863Axis">'+v.toFixed(1)+'%</text>';
+    }
+    var zero='<line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(W-p.r)+'" y2="'+y(0)+'" class="v863Zero"/>';
+    function points(k,cls,up){
+      return data.map(function(d,i){
+        var v=d[k],cx=x(i),cy=y(v),txt=d.base?'Base 0%':v.toFixed(1)+'%',w=Math.max(54,txt.length*7+18),by=up?cy-34:cy+11,ty=up?cy-19:cy+26;
+        if(d.base&&k==='evac')return '';
+        return '<g class="v863TrendPoint '+cls+'" role="button" tabindex="0" data-trend-date863="'+e863(d.date)+'">'
+          +'<circle cx="'+cx+'" cy="'+cy+'" r="6"></circle>'
+          +'<rect x="'+(cx-w/2)+'" y="'+by+'" width="'+w+'" height="22" rx="8"></rect>'
+          +'<text x="'+cx+'" y="'+ty+'" text-anchor="middle">'+txt+'</text>'
+          +'<title>'+e863(d.date)+' · '+txt+'</title></g>';
+      }).join('');
+    }
+    var dates=data.map(function(d,i){return '<text x="'+x(i)+'" y="'+(H-17)+'" text-anchor="middle" class="v863Date">'+fmt863(d.date).slice(0,5)+'</text>';}).join('');
+    return '<div class="v863TrendCanvas"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">'
+      +grid+zero
+      +'<path d="'+path('rot')+'" class="v863Line rot"></path>'+points('rot','rot',true)
+      +'<path d="'+path('evac')+'" class="v863Line evac"></path>'+points('evac','evac',false)
+      +dates+'</svg></div>'
+      +'<div class="v863TrendFooter"><div class="v863Legend"><span><i class="rot"></i>Mejora Rotación</span><span><i class="evac"></i>Mejora Evacuación</span></div><span class="v863TrendHelp">Selecciona un corte para consultar sus movimientos</span></div>';
+  }
+  function enhanceStoreTrend863(){
+    if(typeof VIEW!=='undefined'&&VIEW!=='resumen')return;
+    var card=document.querySelector('.v79StoreTrendCard');
+    if(!card)return;
+    var code=typeof CUR!=='undefined'?CUR:'',data=trendData863(code),sig=code+'|'+data.map(function(d){return d.date+':'+d.rot+':'+d.evac;}).join('|');
+    if(card.dataset.v863Signature===sig)return;
+    card.dataset.v863Signature=sig;
+    card.classList.add('v863StoreTrendCard');
+    card.innerHTML='<div class="v863TrendHead"><div><span class="v863Eyebrow">EVOLUCIÓN POR CORTE</span><h4>Tendencia histórica de la tienda</h4><p>Variación de Rotación y Evacuación frente al corte anterior.</p></div><div class="v863TrendAction"><span>'+f863(data.length)+' cortes</span><small>Presiona un punto para ver su actividad</small></div></div>'+trendSvg863(data);
+  }
+  function openTrendPoint863(date){
+    var code=typeof CUR!=='undefined'?CUR:'';
+    if(typeof window.openTrendDetail80==='function')window.openTrendDetail80(date,code);
+    else if(typeof window.openTrendDetail79==='function')window.openTrendDetail79(date,code);
+    setTimeout(function(){
+      var modal=document.getElementById('v80ModalBack');
+      if(modal)modal.classList.add('v863TrendDetailOpen');
+      renameVisibleLabels863(modal||document.body);
+    },0);
+  }
+
+  /* --- Traslados: interacción robusta y estados visuales de filtros. --- */
+  function transferRoot863(){return document.getElementById('tr-tbl')&&document.getElementById('tr-tbl').closest('.card');}
+  function kpiKind863(card){
+    var label=s863(card&&card.querySelector('label')&&card.querySelector('label').textContent).toLowerCase();
+    if(label.indexOf('órdenes')>=0||label.indexOf('ordenes')>=0)return 'deliveries';
+    if(label.indexOf('productos /')>=0)return 'products';
+    if(label.indexOf('unidades')>=0)return 'units';
+    if(label.indexOf('completarían')>=0||label.indexOf('completarian')>=0)return 'complete';
+    if(label.indexOf('avanzarían')>=0||label.indexOf('avanzarian')>=0)return 'advance';
+    if(label.indexOf('críticos')>=0||label.indexOf('criticos')>=0)return 'critical';
+    return '';
+  }
+  function syncTransferControls863(){
+    var root=transferRoot863();if(!root)return;
+    state.tr=state.tr||{};
+    root.querySelectorAll('.v80Switch button').forEach(function(b){
+      var txt=s863(b.textContent).trim().toLowerCase(),on=false;
+      if(txt==='entregas')on=(state.tr.view80||'delivery')==='delivery';
+      else if(txt==='productos')on=(state.tr.view80||'delivery')==='product';
+      else if(txt==='todos')on=(state.tr.f80||'all')==='all';
+      else if(txt==='por entregar')on=(state.tr.f80||'all')==='pending';
+      else if(txt==='entregados')on=(state.tr.f80||'all')==='delivered';
+      else if(txt==='por revisar')on=(state.tr.f80||'all')==='review';
+      b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');
+    });
+    var purpose=root.querySelector('#tr-purpose-862');
+    if(purpose){purpose.value=state.tr.purpose862||'all';purpose.classList.toggle('is-active',(state.tr.purpose862||'all')!=='all');}
+    root.querySelectorAll('.transferKpi862').forEach(function(card){var kind=kpiKind863(card);if(kind)card.dataset.transferKpi863=kind;card.setAttribute('role','button');card.tabIndex=0;});
+    root.querySelectorAll('.transferTable862 tbody tr[data-code],.transferTable862 tbody tr[data-delivery]').forEach(function(r){r.setAttribute('role','button');r.tabIndex=0;r.classList.add('v863ClickableRow');});
+  }
+  var baseDrawTr863=window.drawTr862;
+  if(typeof baseDrawTr863==='function'){
+    window.drawTr862=function(){var out=baseDrawTr863.apply(this,arguments);syncTransferControls863();renameVisibleLabels863(transferRoot863()||document.body);return out;};
+    window.drawTr80=window.drawTr=window.drawTr862;
+  }
+  window.setTransferView862=function(v){state.tr=state.tr||{};state.tr.view80=v;if(typeof window.drawTr862==='function')window.drawTr862();syncTransferControls863();};
+  window.setTransferFilter862=function(f){state.tr=state.tr||{};state.tr.f80=f;if(typeof window.drawTr862==='function')window.drawTr862();syncTransferControls863();};
+  window.setTransferPurpose862=function(p){state.tr=state.tr||{};state.tr.purpose862=p;if(typeof window.drawTr862==='function')window.drawTr862();syncTransferControls863();};
+  window.setTransferView80=window.setTransferView862;
+  window.setTransferFilter80=window.setTransferFilter862;
+
+  document.addEventListener('click',function(ev){
+    var trend=ev.target&&ev.target.closest&&ev.target.closest('[data-trend-date863]');
+    if(trend){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();openTrendPoint863(trend.dataset.trendDate863);return;}
+    var card=ev.target&&ev.target.closest&&ev.target.closest('.transferKpi862');
+    if(card&&transferRoot863()&&transferRoot863().contains(card)){
+      var kind=card.dataset.transferKpi863||kpiKind863(card);if(kind){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();if(typeof window.openTransferKpi862==='function')window.openTransferKpi862(kind);return;}
+    }
+    var row=ev.target&&ev.target.closest&&ev.target.closest('.transferTable862 tbody tr[data-code],.transferTable862 tbody tr[data-delivery]');
+    if(row&&transferRoot863()&&transferRoot863().contains(row)){
+      if(ev.target.closest('button,a,input,select,textarea'))return;
+      ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+      if(row.closest('.productView862')&&row.dataset.code&&typeof window.openTransferProduct862==='function')window.openTransferProduct862(row.dataset.code);
+      else if(row.dataset.delivery&&typeof window.openDelivery862==='function')window.openDelivery862(row.dataset.delivery);
+      return;
+    }
+    var modalRow=ev.target&&ev.target.closest&&ev.target.closest('#v80ModalBack tr[data-guide-code],#v80ModalBack tr[data-code],#v80ModalBack tr[data-delivery]');
+    if(modalRow){
+      if(ev.target.closest('button,a,input,select,textarea'))return;
+      ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+      if(modalRow.dataset.guideCode&&typeof window.openGuideFromTransfer862==='function')window.openGuideFromTransfer862(modalRow.dataset.guideCode);
+      else if(modalRow.dataset.code&&modalRow.closest('.productView862')&&typeof window.openTransferProduct862==='function')window.openTransferProduct862(modalRow.dataset.code);
+      else if(modalRow.dataset.delivery&&typeof window.openDelivery862==='function')window.openDelivery862(modalRow.dataset.delivery);
+    }
+  },true);
+  document.addEventListener('keydown',function(ev){
+    if(ev.key!=='Enter'&&ev.key!==' ')return;
+    var el=ev.target&&ev.target.closest&&ev.target.closest('[data-trend-date863],.transferKpi862,.transferTable862 tbody tr[data-code],.transferTable862 tbody tr[data-delivery]');
+    if(el){ev.preventDefault();el.click();}
+  },true);
+
+  function enhance863(){
+    enhanceStoreTrend863();syncTransferControls863();renameVisibleLabels863(document.body);
+    window.LLAVERO_BUILD='V86.3';
+    document.documentElement.setAttribute('data-llavero-build','V86.3');
+    document.documentElement.setAttribute('data-llavero-app-version','V86.3');
+    document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.3');
+    var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.3');
+  }
+  var mo863=new MutationObserver(function(){clearTimeout(mo863._t);mo863._t=setTimeout(enhance863,25);});
+  mo863.observe(document.documentElement,{subtree:true,childList:true});
+  setTimeout(enhance863,80);
+})();
