@@ -5709,274 +5709,97 @@ setTimeout(function(){mark80();enhance80();},80);
   markV86();setTimeout(markV86,250);
 })();
 
-
-/* ===== LLAVERO V89 · pila jerárquica de modales ===== */
-(function(){
+/* ===== LLAVERO V86.1 · ROTACION/EVACUACION CON DISEÑO DE PROXIMOS A ROTAR ===== */
+(function llaveroV861RotEvTables(){
   'use strict';
-  var HIDDEN='v89-modal-parent-hidden';
-  var pendingParent=null;
-  var seq=0;
-  var scheduled=false;
-  var knownOpen=new Set();
 
-  function markBuild89(){
-    window.LLAVERO_BUILD='V89';
-    document.documentElement.setAttribute('data-llavero-build','V89');
-    document.title=document.title.replace(/V\d+(?:\s+Corregida)?/,'V89');
+  function enhanceRotEvTable861(module){
+    var root=document.getElementById(module+'-tbl');
+    if(!root)return;
+    var wrap=root.querySelector('.v80TableWrap,.twrap');
+    var table=root.querySelector('table');
+    if(!wrap||!table)return;
+
+    wrap.classList.add('rotEvProxWrap861');
+    table.classList.add('rotEvProxTable861');
+
+    var head=table.querySelector('thead tr');
+    if(head&&head.children.length>=11){
+      /* Se elimina ranking y se integra la jerarquia dentro de Clasificacion. */
+      head.children[5].remove();
+      head.children[0].remove();
+      var labels=['Imagen','Codigo','Producto','Clasificacion','Rangos de antiguedad','Uds.','CENDIS','Valor','Venta 3m'];
+      Array.from(head.children).forEach(function(th,i){if(labels[i])th.textContent=labels[i];});
+      var sortKeys=['','c','p','','age','units','cendis','value','sales'];
+      Array.from(head.children).forEach(function(th,i){
+        if(sortKeys[i])th.dataset.k=sortKeys[i];else th.removeAttribute('data-k');
+        th.classList.toggle('num',i>=5);
+      });
+    }
+
+    table.querySelectorAll('tbody tr[data-code]').forEach(function(tr){
+      if(tr.dataset.v861Done==='1')return;
+      var cells=Array.from(tr.children);
+      if(cells.length<11)return;
+      var code=tr.dataset.code||'';
+
+      /* La miniatura usa exactamente el mismo generador de Proximos a rotar. */
+      if(typeof imageThumb==='function')cells[1].innerHTML=imageThumb(code,'sm');
+
+      var classCell=cells[4],hierarchyCell=cells[5];
+      var hierarchyHtml=hierarchyCell.innerHTML;
+      classCell.innerHTML='<div class="rotEvClassStack861"><div class="rotEvClassBadge861">'+classCell.innerHTML+'</div><div class="rotEvHierarchy861">'+hierarchyHtml+'</div></div>';
+
+      hierarchyCell.remove();
+      cells[0].remove();
+      tr.dataset.v861Done='1';
+    });
+
+    table.querySelectorAll('th[data-k]').forEach(function(th){
+      th.style.cursor='pointer';
+      th.onclick=function(){
+        var s=state[module]||(state[module]={}),k=th.dataset.k;
+        if(s.sort===k)s.dir=(s.dir||-1)*-1;else{s.sort=k;s.dir=-1;}
+        if(module==='rot')window.drawRot();else window.drawEvac();
+      };
+    });
+
+    root.querySelectorAll('.productThumb img').forEach(function(img){
+      img.loading='eager';
+      img.decoding='async';
+      img.referrerPolicy='no-referrer';
+    });
+  }
+
+  var previousDrawRot861=window.drawRot;
+  var previousDrawEvac861=window.drawEvac;
+
+  if(typeof previousDrawRot861==='function'){
+    window.drawRot=drawRot=function(){
+      var out=previousDrawRot861.apply(this,arguments);
+      enhanceRotEvTable861('rot');
+      return out;
+    };
+  }
+  if(typeof previousDrawEvac861==='function'){
+    window.drawEvac=drawEvac=function(){
+      var out=previousDrawEvac861.apply(this,arguments);
+      enhanceRotEvTable861('evac');
+      return out;
+    };
+  }
+
+  function mark861(){
+    window.LLAVERO_BUILD='V86.1';
+    document.documentElement.setAttribute('data-llavero-build','V86.1');
+    document.documentElement.setAttribute('data-llavero-app-version','V86.1');
     var chip=document.querySelector('.appVersionChip b');
-    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+$/,'V89');
+    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.1');
   }
-  function modalId89(el){
-    if(!el.id)el.id='llaveroModalV89_'+(++seq);
-    return el.id;
-  }
-  function scrollNode89(modal){
-    return modal.querySelector('.guideDetailScrollV49,.modalBody,.inventoryDetailBody,.guideKpiBody65,#rangeModalBody')||modal.querySelector('.modal');
-  }
-  function visibleOpen89(){
-    return Array.from(document.querySelectorAll('.modalBack.on')).filter(function(x){return !x.classList.contains(HIDDEN);});
-  }
-  function depth89(el){return Number(el.dataset.v89Depth||0)||0;}
-  function topModal89(){
-    var arr=visibleOpen89();
-    arr.sort(function(a,b){return depth89(a)-depth89(b)||(Number(a.style.zIndex)||0)-(Number(b.style.zIndex)||0);});
-    return arr[arr.length-1]||null;
-  }
-  function closeModal89(modal){
-    if(!modal)return;
-    var close=modal.querySelector('.modalClose:not(.v89ModalBackButton),[data-modal-close]');
-    if(close){close.click();return;}
-    modal.classList.remove('on');
-  }
-  function removeBack89(modal){
-    var b=modal.querySelector('.v89ModalBackButton');
-    if(b)b.remove();
-  }
-  function addBack89(modal){
-    var head=modal.querySelector('.modalHead');
-    if(!head||head.querySelector('.v89ModalBackButton'))return;
-    var btn=document.createElement('button');
-    btn.type='button';
-    btn.className='v89ModalBackButton';
-    btn.setAttribute('aria-label','Volver a la vista anterior');
-    btn.innerHTML='<span aria-hidden="true">←</span><span class="v89BackText">Volver</span>';
-    btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();closeModal89(modal);});
-    var x=head.querySelector('.modalClose');
-    if(x)head.insertBefore(btn,x);else head.appendChild(btn);
-  }
-  function setPending89(target){
-    if(!target||!target.closest)return;
-    if(target.closest('.modalClose,.v89ModalBackButton'))return;
-    var parent=target.closest('.modalBack.on');
-    if(!parent||parent.classList.contains(HIDDEN))return;
-    var sc=scrollNode89(parent);
-    pendingParent={el:parent,id:modalId89(parent),at:Date.now(),scroll:sc?sc.scrollTop:0};
-  }
-  function link89(child,parentInfo){
-    var parent=parentInfo&&parentInfo.el;
-    if(!parent||child===parent||!document.body.contains(parent))return false;
-    modalId89(child);modalId89(parent);
-    parent.classList.add('on');
-    parent.classList.add(HIDDEN);
-    parent.dataset.v89Child=child.id;
-    parent.dataset.v89SavedScroll=String(parentInfo.scroll||0);
-    child.dataset.v89Parent=parent.id;
-    child.dataset.v89Depth=String(depth89(parent)+1);
-    child.style.zIndex=String(260+depth89(child)*20);
-    addBack89(child);
-    document.body.style.overflow='hidden';
-    return true;
-  }
-  function restoreParent89(child){
-    var pid=child.dataset.v89Parent;
-    if(!pid)return;
-    var parent=document.getElementById(pid);
-    delete child.dataset.v89Parent;
-    delete child.dataset.v89Depth;
-    child.style.zIndex='';
-    removeBack89(child);
-    if(!parent)return;
-    delete parent.dataset.v89Child;
-    parent.classList.add('on');
-    parent.classList.remove(HIDDEN);
-    document.body.style.overflow='hidden';
-    var sc=scrollNode89(parent),saved=Number(parent.dataset.v89SavedScroll||0)||0;
-    delete parent.dataset.v89SavedScroll;
-    if(sc)requestAnimationFrame(function(){sc.scrollTop=saved;});
-    requestAnimationFrame(function(){
-      var f=parent.querySelector('.modalClose,.v89ModalBackButton,button,input,select,[tabindex]');
-      if(f&&typeof f.focus==='function')f.focus({preventScroll:true});
-    });
-  }
-  function opened89(modal){
-    if(modal.classList.contains(HIDDEN))return;
-    var candidate=pendingParent&&Date.now()-pendingParent.at<1800?pendingParent:null;
-    if(candidate&&candidate.el!==modal){
-      if(link89(modal,candidate))pendingParent=null;
-    }else{
-      delete modal.dataset.v89Parent;
-      delete modal.dataset.v89Depth;
-      modal.style.zIndex='';
-      removeBack89(modal);
-    }
-  }
-  function closed89(modal){
-    restoreParent89(modal);
-    if(!document.querySelector('.modalBack.on'))document.body.style.overflow='';
-  }
-  function reconcile89(){
-    scheduled=false;
-    var now=new Set(Array.from(document.querySelectorAll('.modalBack.on')));
-    Array.from(knownOpen).forEach(function(x){if(!now.has(x))closed89(x);});
-    Array.from(now).forEach(function(x){if(!knownOpen.has(x))opened89(x);});
-    knownOpen=new Set(Array.from(document.querySelectorAll('.modalBack.on')));
-  }
-  function schedule89(){if(scheduled)return;scheduled=true;queueMicrotask(reconcile89);}
-
-  window.addEventListener('pointerdown',function(e){setPending89(e.target);},true);
-  window.addEventListener('keydown',function(e){
-    if(e.key==='Escape'){
-      var top=topModal89();
-      if(top){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();closeModal89(top);}
-      return;
-    }
-    if(e.key==='Enter'||e.key===' ')setPending89(e.target);
-  },true);
-
-  var observer=new MutationObserver(function(mutations){
-    if(mutations.some(function(m){return m.type==='attributes'&&m.attributeName==='class'||m.type==='childList';}))schedule89();
-  });
-  function start89(){
-    markBuild89();
-    knownOpen=new Set(Array.from(document.querySelectorAll('.modalBack.on')));
-    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start89,{once:true});else start89();
-  setTimeout(markBuild89,300);
-})();
-
-/* ===== LLAVERO V90 · movimientos diarios reales en detalles históricos ===== */
-(function(){
-  'use strict';
-  function e90(v){return typeof esc80==='function'?esc80(v):String(v==null?'':v)}
-  function n90(v){return typeof num==='function'?num(v):(Number(v)||0)}
-  function i90(v){return typeof int80==='function'?int80(v):Math.round(n90(v)).toLocaleString('es-CO')}
-  function m90(v){return typeof money80==='function'?money80(v):('$ '+Math.round(n90(v)).toLocaleString('es-CO'))}
-  function t90(v){return typeof text==='function'?text(v):String(v==null?'':v).trim()}
-  function code90(v){return typeof code80==='function'?code80(v):t90(v)}
-  function product90(c){return typeof product80==='function'?product80(c):(P&&P[c]||{n:c,cat:'—',lin:'—',sub:'—'})}
-  function cc90(c){return typeof cc80==='function'?cc80(c):t90(P&&P[c]&&P[c].cc||'SIN CLASIFICACIÓN')}
-  function fmt90(d){return typeof fmtDate80==='function'?fmtDate80(d):t90(d)}
-  function badge90(c){return typeof ccBadge80==='function'?ccBadge80(c):'<span>'+e90(cc90(c))+'</span>'}
-  function ageText90(age){return age==null||age<0?'No disponible':(typeof ageLabel80==='function'?ageLabel80(age):String(age))}
-  function currentStore90(code){return typeof store80==='function'?store80(code):(S&&S[code]||{})}
-  function currentSales90(code){var st=currentStore90(code),out={};(st&&st.ventasProducto||[]).forEach(function(r){var c=code90(r&&r[0]);out[c]={value:n90(r&&r[1]),units:n90(r&&r[2])}});return out}
-  function currentInventory90(code){var st=currentStore90(code),out={};try{(typeof normalizeInventoryRows==='function'?normalizeInventoryRows(st):[]).forEach(function(r){out[code90(r.c)]={cendis:n90(r.dispCendis),stock:n90(r.stock)}})}catch(_e){}return out}
-
-  function detailPair90(storeCode,date){
-    var a=typeof details80==='function'?details80():[],i=date?a.findIndex(function(x){return t90(x.date)===t90(date)}):a.length-1;
-    if(i<0)i=a.length-1;
-    return {cur:a[i]||null,prev:i>0?a[i-1]:null,curStore:a[i]&&a[i].stores&&a[i].stores[storeCode],prevStore:i>0&&a[i-1]&&a[i-1].stores&&a[i-1].stores[storeCode],curDate:a[i]&&a[i].date,prevDate:i>0&&a[i-1]&&a[i-1].date};
-  }
-  function conditionMap90(store){
-    var rot={},ev={};
-    (store&&store.rot||[]).forEach(function(r){var c=code90(r&&r[0]);if(!c)return;rot[c]={u:n90(r&&r[1]),v:n90(r&&r[2]),age:(n90(r&&r[3])>=0&&n90(r&&r[3])<=6)?n90(r&&r[3]):null}});
-    /* En los históricos de Evacuación la cuarta posición corresponde a CENDIS, no a edad. */
-    (store&&store.evac||[]).forEach(function(r){var c=code90(r&&r[0]);if(!c)return;ev[c]={u:n90(r&&r[1]),v:n90(r&&r[2]),age:null}});
-    var keys=Array.from(new Set(Object.keys(rot).concat(Object.keys(ev)))),out={};
-    keys.forEach(function(c){var rr=rot[c],ee=ev[c],conds=[];if(rr)conds.push('ROTACIÓN');if(ee)conds.push('EVACUACIÓN');out[c]={c:c,conditions:conds,condition:conds.join(' / ')||'SIN CONDICIÓN',u:Math.max(rr?rr.u:0,ee?ee.u:0),v:Math.max(rr?rr.v:0,ee?ee.v:0),age:rr&&rr.age!=null?rr.age:null,rot:rr||null,evac:ee||null}});
-    return out;
-  }
-  function movementRows90(storeCode,date){
-    var pair=detailPair90(storeCode,date),prev=conditionMap90(pair.prevStore),cur=conditionMap90(pair.curStore),sales=currentSales90(storeCode),inv=currentInventory90(storeCode),keys=Array.from(new Set(Object.keys(prev).concat(Object.keys(cur)))),rows=[];
-    keys.forEach(function(c){
-      var a=prev[c]||null,b=cur[c]||null,prevCondition=a?a.condition:'NO CRÍTICO',curCondition=b?b.condition:'NO CRÍTICO',du=(b?b.u:0)-(a?a.u:0),dv=(b?b.v:0)-(a?a.v:0),conditionChanged=!!(a&&b&&prevCondition!==curCondition),rangeChanged=!!(a&&b&&a.age!=null&&b.age!=null&&a.age!==b.age),activity='',moves=[];
-      if(a&&!b){activity='Gestionado';moves.push('Salió del estado crítico')}
-      else if(!a&&b){activity='Nuevo crítico';moves.push('Ingresó al estado crítico')}
-      else{
-        if(conditionChanged)moves.push('Cambió de condición');
-        if(rangeChanged)moves.push('Cambió de rango');
-        if(du>0)moves.push('Aumentó unidades');else if(du<0)moves.push('Disminuyó unidades');
-        if(dv!==0&&du===0)moves.push('Cambió valor');
-        activity=moves.length?'Persistente con cambio':'Persistente sin cambio';
-      }
-      var p=product90(c),s=sales[c]||{},ci=inv[c]||{};
-      rows.push({c:c,p:p,cc:cc90(c),store:storeCode,storeName:(pair.curStore&&pair.curStore.name)||(pair.prevStore&&pair.prevStore.name)||(S&&S[storeCode]&&S[storeCode].name)||storeCode,activity:activity,moves:moves,hasMovement:activity!=='Persistente sin cambio',prevCondition:prevCondition,curCondition:curCondition,prevU:a?a.u:0,curU:b?b.u:0,deltaU:du,prevV:a?a.v:0,curV:b?b.v:0,deltaV:dv,prevAge:a?a.age:null,curAge:b?b.age:null,conditionChanged:conditionChanged,rangeChanged:rangeChanged,cendis:n90(ci.cendis||P&&P[c]&&P[c].dispCendis),salesU:n90(s.units),salesV:n90(s.value)});
-    });
-    return {rows:rows,pair:pair};
-  }
-  function networkRows90(date){
-    var a=typeof details80==='function'?details80():[],idx=a.findIndex(function(x){return t90(x.date)===t90(date)});if(idx<0)return {rows:[],cur:null,prev:null};var cur=a[idx],prev=idx>0?a[idx-1]:null,stores=Array.from(new Set(Object.keys(cur&&cur.stores||{}).concat(Object.keys(prev&&prev.stores||{})))),rows=[];
-    stores.forEach(function(sc){movementRows90(sc,date).rows.forEach(function(r){rows.push(r)})});
-    return {rows:rows,cur:cur,prev:prev};
-  }
-  function reduction90(date,storeCode,kind){
-    var d=typeof daily80==='function'?daily80():[],idx=d.findIndex(function(x){return t90(x.date)===t90(date)});if(idx<0)return 0;var cur=d[idx],stores=storeCode?[storeCode]:Object.keys(cur.stores||{}),pv=0,nv=0,cv=0;
-    stores.forEach(function(sc){var x=cur.stores&&cur.stores[sc]&&cur.stores[sc][kind];pv+=n90(x&&x.previousVal);nv+=n90(x&&x.newVal);cv+=n90(x&&x.currentVal)});var den=pv+nv;return den>0?(den-cv)/den*100:0;
-  }
-  function classForDelta90(v,goodWhenNegative){if(!v)return 'v90Neutral';var good=goodWhenNegative?v<0:v>0;return good?'v90Good':'v90Bad'}
-  function conditionHtml90(r){return '<div class="v90Transition"><span>'+e90(r.prevCondition)+'</span><i>→</i><span>'+e90(r.curCondition)+'</span></div>'}
-  function rangeHtml90(r){return '<div class="v90Transition v90RangeTransition"><span>'+e90(ageText90(r.prevAge))+'</span><i>→</i><span>'+e90(ageText90(r.curAge))+'</span></div>'}
-  function moveHtml90(r){var arr=r.moves.length?r.moves:[r.activity];return '<div class="v90MoveTags">'+arr.map(function(x){var cl=x.indexOf('Salió')>=0||x.indexOf('Disminuyó')>=0?'good':x.indexOf('Ingresó')>=0||x.indexOf('Aumentó')>=0?'bad':'info';return '<span class="'+cl+'">'+e90(x)+'</span>'}).join('')+'</div>'}
-  function rowsHtml90(rows,includeStore){
-    return rows.map(function(r){var du=r.deltaU,dv=r.deltaV;return '<tr data-v90-row data-code="'+e90(r.c)+'" data-class="'+e90(r.cc)+'" data-condition="'+e90(r.prevCondition+' '+r.curCondition)+'" data-activity="'+e90(r.activity)+'" data-moves="'+e90(r.moves.join('|'))+'" data-age="'+e90(r.curAge==null?'':r.curAge)+'" data-movement="'+(r.hasMovement?'1':'0')+'"><td><span class="code">'+e90(r.c)+'</span></td><td class="productCell"><b>'+e90(r.p.n||r.c)+'</b><small>'+e90((r.p.cat||'—')+' · '+(r.p.lin||'—')+' · '+(r.p.sub||'—'))+'</small></td>'+(includeStore?'<td>'+e90(r.storeName)+'</td>':'')+'<td>'+badge90(r.c)+'</td><td>'+conditionHtml90(r)+'</td><td>'+moveHtml90(r)+'</td><td class="num">'+i90(r.prevU)+'</td><td class="num"><b>'+i90(r.curU)+'</b></td><td class="num"><b class="'+classForDelta90(du,true)+'">'+(du>0?'+':'')+i90(du)+'</b></td><td>'+rangeHtml90(r)+'</td><td class="num">'+m90(r.prevV)+'</td><td class="num">'+m90(r.curV)+'</td><td class="num"><b class="'+classForDelta90(dv,true)+'">'+(dv>0?'+':'')+m90(dv)+'</b></td><td class="num">'+i90(r.cendis)+'</td><td class="num">'+i90(r.salesU)+' u<br><small>'+m90(r.salesV)+'</small></td></tr>'}).join('');
-  }
-  function quick90(){
-    var opts=[['movement','Movimientos del día'],['managed','Gestionados'],['new','Nuevos críticos'],['increased','Aumentaron'],['decreased','Disminuyeron'],['condition','Cambio de condición'],['range','Cambio de rango'],['persistent','Todos los persistentes'],['persistentChanged','Persistentes con cambio'],['unchanged','Persistentes sin cambio'],['all','Todos']];
-    return '<div class="v90QuickFilters">'+opts.map(function(x){return '<button type="button" data-v90-mode="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>';
-  }
-  function toolbar90(){return '<div class="v90Toolbar" data-v90-toolbar><div class="search">🔎 <input type="search" data-v90-search placeholder="Buscar código, producto o tienda…"></div><select data-v90-class><option value="">Todas las clasificaciones</option><option>CORE</option><option>COMPLEMENTO</option><option>SIN CLASIFICACIÓN</option></select><select data-v90-condition><option value="">Todas las condiciones</option><option value="ROTACIÓN">Rotación</option><option value="EVACUACIÓN">Evacuación</option><option value="NO CRÍTICO">No crítico</option></select><select data-v90-activity><option value="">Todas las actividades</option><option>Gestionado</option><option>Nuevo crítico</option><option>Persistente con cambio</option><option>Persistente sin cambio</option></select><select data-v90-age><option value="">Todos los rangos</option>'+(typeof AGE80!=='undefined'?AGE80.slice(1).map(function(a){return '<option value="'+a.k+'">'+a.l+'</option>'}).join(''):'')+'</select><button type="button" data-v90-clear>Limpiar</button><span data-v90-count></span></div>'}
-  function table90(rows,includeStore){return quick90()+toolbar90()+'<div class="v90TableWrap"><table class="v90Table"><thead><tr><th>Código</th><th>Producto</th>'+(includeStore?'<th>Tienda</th>':'')+'<th>Clasificación</th><th>Condición anterior → actual</th><th>Movimiento del día</th><th class="num">Uds. anterior</th><th class="num">Uds. actual</th><th class="num">Dif. uds.</th><th>Rango anterior → actual</th><th class="num">Valor anterior</th><th class="num">Valor actual</th><th class="num">Dif. valor</th><th class="num">CENDIS</th><th class="num">Venta 3m</th></tr></thead><tbody>'+rowsHtml90(rows,includeStore)+'</tbody></table></div>'}
-  function kpiCard90(label,value,sub,preset,cls){return '<button type="button" class="v90Kpi '+(cls||'')+'" data-v90-preset="'+preset+'"><label>'+e90(label)+'</label><b>'+e90(value)+'</b><small>'+e90(sub)+'</small></button>'}
-  function summary90(rows,date,storeCode){var managed=rows.filter(function(r){return r.activity==='Gestionado'}),newr=rows.filter(function(r){return r.activity==='Nuevo crítico'}),changed=rows.filter(function(r){return r.activity==='Persistente con cambio'}),unchanged=rows.filter(function(r){return r.activity==='Persistente sin cambio'}),rot=reduction90(date,storeCode,'rot'),ev=reduction90(date,storeCode,'evac');return '<div class="v90Kpis">'+kpiCard90('Movimientos del día',i90(managed.length+newr.length+changed.length),'Productos con actividad','movement','info')+kpiCard90('Gestionados',i90(managed.length),'Productos que salieron','managed','good')+kpiCard90('Nuevos críticos',i90(newr.length),'Productos que ingresaron','new','bad')+kpiCard90('Persistentes con cambio',i90(changed.length),'Tuvieron movimiento','persistentChanged','info')+kpiCard90('Mejora Rotación',rot.toFixed(1)+'%','Reducción ajustada','rot',rot>=0?'good':'bad')+kpiCard90('Mejora Evacuación',ev.toFixed(1)+'%','Reducción ajustada','evac',ev>=0?'good':'bad')+'</div>'}
-  function presetMatch90(r,mode){
-    if(mode==='all')return true;if(mode==='movement')return r.hasMovement;if(mode==='managed')return r.activity==='Gestionado';if(mode==='new')return r.activity==='Nuevo crítico';if(mode==='persistent')return r.activity.indexOf('Persistente')===0;if(mode==='persistentChanged')return r.activity==='Persistente con cambio';if(mode==='unchanged')return r.activity==='Persistente sin cambio';if(mode==='increased')return r.deltaU>0;if(mode==='decreased')return r.deltaU<0;if(mode==='condition')return r.conditionChanged;if(mode==='range')return r.rangeChanged;if(mode==='rot')return r.hasMovement&&(r.prevCondition.indexOf('ROTACIÓN')>=0||r.curCondition.indexOf('ROTACIÓN')>=0);if(mode==='evac')return r.hasMovement&&(r.prevCondition.indexOf('EVACUACIÓN')>=0||r.curCondition.indexOf('EVACUACIÓN')>=0);if(mode==='360')return r.prevAge===6||r.curAge===6;return true;
-  }
-  function wire90(root,rows,initial){
-    var bodyRows=Array.from(root.querySelectorAll('[data-v90-row]')),tb=root.querySelector('[data-v90-toolbar]'),mode=initial||'movement';
-    function apply(){var q=t90(tb&&tb.querySelector('[data-v90-search]')&&tb.querySelector('[data-v90-search]').value).toLowerCase(),cl=t90(tb&&tb.querySelector('[data-v90-class]')&&tb.querySelector('[data-v90-class]').value),co=t90(tb&&tb.querySelector('[data-v90-condition]')&&tb.querySelector('[data-v90-condition]').value),ac=t90(tb&&tb.querySelector('[data-v90-activity]')&&tb.querySelector('[data-v90-activity]').value),ag=t90(tb&&tb.querySelector('[data-v90-age]')&&tb.querySelector('[data-v90-age]').value),shown=0;bodyRows.forEach(function(tr,i){var r=rows[i],ok=presetMatch90(r,mode)&&(!q||t90(tr.textContent).toLowerCase().indexOf(q)>=0)&&(!cl||r.cc===cl)&&(!co||(r.prevCondition+' '+r.curCondition).indexOf(co)>=0)&&(!ac||r.activity===ac)&&(!ag||String(r.curAge==null?'':r.curAge)===ag);tr.style.display=ok?'':'none';if(ok)shown++});var c=tb&&tb.querySelector('[data-v90-count]');if(c)c.textContent=i90(shown)+' de '+i90(rows.length)+' resultados';root.querySelectorAll('[data-v90-mode]').forEach(function(b){b.classList.toggle('on',b.dataset.v90Mode===mode)});root.querySelectorAll('[data-v90-preset]').forEach(function(b){b.classList.toggle('on',b.dataset.v90Preset===mode)})}
-    root.querySelectorAll('[data-v90-mode],[data-v90-preset]').forEach(function(b){b.onclick=function(){mode=b.dataset.v90Mode||b.dataset.v90Preset||'movement';apply()}});
-    if(tb){tb.querySelectorAll('input,select').forEach(function(x){x.addEventListener('input',apply);x.addEventListener('change',apply)});var clear=tb.querySelector('[data-v90-clear]');if(clear)clear.onclick=function(){tb.querySelectorAll('input').forEach(function(x){x.value=''});tb.querySelectorAll('select').forEach(function(x){x.value=''});mode='movement';apply()}}
-    apply();
-  }
-  function open90(title,sub,rows,includeStore,initial,date,storeCode){var html=summary90(rows,date,storeCode)+table90(rows,includeStore);openModal80(title,sub,html);var root=document.getElementById('v80ModalBody');if(root)wire90(root,rows,initial||'movement')}
-  function metricInitial90(metric){if(metric==='managed')return'managed';if(metric==='new')return'new';if(metric==='persistent')return'persistent';if(metric==='rot')return'rot';if(metric==='evac')return'evac';if(metric==='360')return'360';return'movement'}
-
-  window.openStoreDailyDetail90=window.openStoreDailyDetail80=window.openStoreDailyDetail79=function(storeCode,metric,date){
-    if(metric==='transfers'){if(typeof openTransferKpi80==='function')return openTransferKpi80('pending',storeCode);return}
-    var x=movementRows90(storeCode,date),name=(currentStore90(storeCode).name||storeCode),titles={managed:'Productos gestionados',persistent:'Productos persistentes',new:'Nuevos productos críticos',rot:'Movimientos de Rotación',evac:'Movimientos de Evacuación','360':'Productos con más de 360 días'};
-    open90((titles[metric]||'Movimientos del día')+' · '+name,'Actividad entre '+fmt90(x.pair.prevDate||'línea base')+' y '+fmt90(x.pair.curDate||date||'corte actual'),x.rows,false,metricInitial90(metric),x.pair.curDate||date,storeCode);
-  };
-  window.openTrendDetail90=window.openTrendDetail80=window.openTrendDetail79=function(date,storeCode){
-    var rows,pair,title,sub;if(storeCode){var x=movementRows90(storeCode,date);rows=x.rows;pair=x.pair;title='Detalle del corte '+fmt90(pair.curDate||date)+' · '+(currentStore90(storeCode).name||storeCode);sub='Movimientos frente a '+fmt90(pair.prevDate||'la línea base')}else{var y=networkRows90(date);rows=y.rows;pair={curDate:y.cur&&y.cur.date,prevDate:y.prev&&y.prev.date};title='Detalle del corte '+fmt90(pair.curDate||date);sub='Movimientos de todas las tiendas frente a '+fmt90(pair.prevDate||'la línea base')}
-    open90(title,sub,rows,!storeCode,'movement',pair.curDate||date,storeCode||'');
-  };
-  function mark90(){window.LLAVERO_BUILD='V90';document.documentElement.setAttribute('data-llavero-build','V90');document.title=document.title.replace(/V\d+(?:\s+Corregida)?/,'V90');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+$/,'V90')}
-  mark90();setTimeout(mark90,350);setTimeout(mark90,750);
-})();
-
-/* LLAVERO_BUILD_V93 · restaura tablas previas a V88 conservando movimientos diarios */
-
-(function(){window.LLAVERO_BUILD='V93';document.documentElement.setAttribute('data-llavero-build','V93');document.documentElement.setAttribute('data-llavero-app-version','V93');})();
-
-/* ===== LLAVERO V94 · mejora Rotación/Evacuación e imágenes ===== */
-(function(){
-'use strict';
-function N(v){var n=Number(v);return Number.isFinite(n)?n:0}function T(v,f){var s=v==null?'':String(v).trim();return s||(f||'')}function E(v){try{return typeof esc==='function'?esc(v):String(v==null?'':v).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}catch(e){return String(v==null?'':v)}}function C(v){try{return typeof safeCode==='function'?safeCode(v):T(v)}catch(e){return T(v)}}function I(v){try{return typeof fInt==='function'?fInt(N(v)):Math.round(N(v)).toLocaleString('es-CO')}catch(e){return String(Math.round(N(v)))}}function M(v){try{return typeof fMoneyCOP==='function'?fMoneyCOP(N(v)):'$ '+Math.round(N(v)).toLocaleString('es-CO')}catch(e){return '$ '+Math.round(N(v)).toLocaleString('es-CO')}}
-function store(){try{return(S&&S[CUR])||{}}catch(e){return{}}}function product(c){c=C(c);var r={},p={};try{r=(P&&P[c])||{};p=typeof productInfo==='function'?productInfo(c):r}catch(e){p=r}return{n:T(p.n||r.n,'Producto '+c),cat:T(p.cat||r.cat,'SIN CLASIFICAR'),lin:T(p.lin||r.lin,'SIN LÍNEA'),sub:T(p.sub||r.sub,'SIN SUBLÍNEA')}}function cls(c){var x='';try{x=T(P&&P[C(c)]&&P[C(c)].cc).toUpperCase()}catch(e){}return x==='CORE'?'CORE':x==='COMPLEMENTO'?'COMPLEMENTO':'SIN CLASIFICACIÓN'}function clsBadge(c){var x=cls(c),k=x==='CORE'?'core':x==='COMPLEMENTO'?'comp':'none';return'<span class="ccBadge68 '+k+'">'+E(x)+'</span>'}
-function imageUrl(c){c=C(c);var p={};try{p=(P&&P[c])||{}}catch(e){}var a=[p.img,p.imagen,p.image,p.imageUrl,p.imageURL,p.urlImagen,p.url_imagen,p.foto,p.photo,p.src];for(var i=0;i<a.length;i++){var u=T(a[i]);if(!u)continue;if(/^\/\//.test(u))return(location.protocol==='file:'?'https:':location.protocol)+u;if(/^(https?:|data:|blob:|file:)/i.test(u))return u;if(/^(\.\.?\/|\/)/.test(u))return u;if(/^www\./i.test(u))return'https://'+u;if(/^[a-z0-9.-]+\.[a-z]{2,}(?:\/|$)/i.test(u))return'https://'+u;return u}return''}
-window.productImageUrl=imageUrl;window.openProductImage94=function(url,title){if(!url)return;var m=document.getElementById('imageModal'),im=document.getElementById('imageModalImg'),tt=document.getElementById('imageModalTitle');if(!m||!im)return;if(tt)tt.textContent=title||'Imagen del producto';im.src=url;im.alt=title||'Producto';m.classList.add('on')};window.productImageError94=function(im){var b=im&&im.closest?im.closest('.v94Thumb'):null;if(!b)return;b.classList.add('noImage');b.title='Imagen no disponible';b.innerHTML='▧';b.onclick=function(e){e.stopPropagation()}};
-function thumb(c){var u=imageUrl(c),p=product(c);if(!u)return'<span class="v94Thumb noImage" title="Sin imagen disponible">▧</span>';return'<button type="button" class="v94Thumb" data-img="'+E(u)+'" data-title="'+E(p.n)+'" onclick="event.stopPropagation();openProductImage94(this.dataset.img,this.dataset.title)" title="Ampliar imagen"><img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="'+E(u)+'" alt="'+E(p.n)+'" onerror="productImageError94(this)"></button>'}window.imageThumb=function(c){return thumb(c)};
-var AG=['91–120','121–150','151–180','181–210','211–240','241–360','+360'];function ageHTML(r){var h=[];Object.keys(r||{}).map(Number).sort(function(a,b){return b-a}).forEach(function(k){var u=N(r[k]);if(u>0)h.push('<span class="v94AgeChip '+(k>=6?'critical':'')+'"><b>'+I(u)+' u</b><span>'+E(AG[k]||'Sin rango')+'</span></span>')});return h.length?'<div class="v94AgeList">'+h.join('')+'</div>':'<span class="v94AgeEmpty">Sin unidades en rangos de 91 días o más</span>'}function maxAge(r){var a=Object.keys(r||{}).filter(function(k){return N(r[k])>0}).map(Number);return a.length?Math.max.apply(null,a):-1}
-function allRows(mod){var a=[];try{a=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(mod,store()):[]}catch(e){}return a.map(function(r){var c=C(r.c),p=r.p||product(c);return{c:c,p:{n:T(p.n,'Producto '+c),cat:T(p.cat,'SIN CLASIFICAR'),lin:T(p.lin,'SIN LÍNEA'),sub:T(p.sub,'SIN SUBLÍNEA')},cc:r.cc||cls(c),units:N(r.units),value:N(r.value),cendis:N(r.cendis),sales:N(r.sales),ranges:r.ranges||{}}})}
-function rows(mod){var s=state[mod]||(state[mod]={}),q=T(s.q).toLowerCase(),age=T(s.age94||s.age80||s.age79||'all','all'),a=allRows(mod).filter(function(r){if(s.f==='core'&&r.cc!=='CORE')return false;if(s.f==='comp'&&r.cc!=='COMPLEMENTO')return false;if(s.f==='none'&&(r.cc==='CORE'||r.cc==='COMPLEMENTO'))return false;if(s.f==='sr'&&r.cendis>0)return false;if(s.f==='cr'&&r.cendis<=0)return false;if(s.f==='crit'&&maxAge(r)<3)return false;if(s.f==='a360'&&N(r.ranges&&r.ranges[6])<=0)return false;if(s.f==='novta'&&r.sales>0)return false;if(age!=='all'&&N(r.ranges&&r.ranges[Number(age)])<=0)return false;if(q&&(r.c+' '+r.p.n+' '+r.p.cat+' '+r.p.lin+' '+r.p.sub+' '+r.cc).toLowerCase().indexOf(q)<0)return false;return true});var k=s.sort||(mod==='evac'?'pri':'age'),d=N(s.dir)||-1;a.sort(function(x,y){if(mod==='evac'&&k==='pri'){var xa=N(x.ranges&&x.ranges[6])>0,ya=N(y.ranges&&y.ranges[6])>0;if(xa!==ya)return xa?-1:1;var xs=x.cendis<=0,ys=y.cendis<=0;if(xs!==ys)return xs?-1:1;return y.value-x.value||y.units-x.units}var xv=k==='c'?x.c:k==='p'?x.p.n:k==='age'?maxAge(x):k==='cendis'?x.cendis:(k==='value'||k==='v'||k==='val')?x.value:k==='sales'?x.sales:x.units,yv=k==='c'?y.c:k==='p'?y.p.n:k==='age'?maxAge(y):k==='cendis'?y.cendis:(k==='value'||k==='v'||k==='val')?y.value:k==='sales'?y.sales:y.units;return typeof xv==='string'?xv.localeCompare(String(yv))*d:(N(xv)-N(yv))*d});return a}
-function arrow(mod,k){var s=state[mod]||{};return s.sort===k?'<span class="v94Sort">'+(N(s.dir)<0?'▾':'▴')+'</span>':''}
-function table(mod,a){var ev=mod==='evac',b=a.map(function(r,i){return'<tr data-code="'+E(r.c)+'" tabindex="0" role="button"><td class="v94ImgCol">'+thumb(r.c)+'</td>'+(ev?'<td class="v94RankCol"><span class="v94Rank '+(N(r.ranges&&r.ranges[6])>0||r.cendis<=0?'hot':'')+'">'+(i+1)+'</span></td>':'')+'<td class="v94CodeCol"><span class="code">'+E(r.c)+'</span></td><td class="v94ProductCol"><div class="v94Name">'+E(r.p.n)+'</div><div class="v94Meta">Presiona la fila para ver el detalle</div></td><td class="v94ClassCol"><div class="v94ClassCell">'+clsBadge(r.c)+'<div class="v94Hierarchy"><b>'+E(r.p.cat)+'</b><br>'+E(r.p.lin)+' · '+E(r.p.sub)+'</div></div></td><td class="v94AgeCol">'+ageHTML(r.ranges)+'</td><td class="num v94UnitsCol"><b>'+I(r.units)+'</b></td><td class="num v94CendisCol">'+(r.cendis>0?'<span class="tag cr">'+I(r.cendis)+' u</span>':'<span class="tag sr">SIN RESPALDO</span>')+'</td><td class="num v94ValueCol"><b>'+M(r.value)+'</b></td><td class="num v94SalesCol">'+(r.sales>0?'<b>'+I(r.sales)+'</b>':'<span class="tag sr">SIN VENTA</span>')+'</td></tr>'}).join(''),span=ev?10:9;return'<div class="v94Wrap"><table class="v94Table"><thead><tr><th class="v94ImgCol">Imagen</th>'+(ev?'<th class="v94RankCol">#</th>':'')+'<th class="v94CodeCol" data-k="c">Código'+arrow(mod,'c')+'</th><th class="v94ProductCol" data-k="p">Producto'+arrow(mod,'p')+'</th><th class="v94ClassCol">Clasificación</th><th class="v94AgeCol" data-k="age">Antigüedad'+arrow(mod,'age')+'</th><th class="num v94UnitsCol" data-k="units">Uds.'+arrow(mod,'units')+'</th><th class="num v94CendisCol" data-k="cendis">CENDIS'+arrow(mod,'cendis')+'</th><th class="num v94ValueCol" data-k="value">Valor'+arrow(mod,'value')+'</th><th class="num v94SalesCol" data-k="sales">Venta 3m'+arrow(mod,'sales')+'</th></tr></thead><tbody>'+(b||'<tr><td colspan="'+span+'"><div class="empty">No hay productos para este filtro.</div></td></tr>')+'</tbody></table></div>'}
-function ageBar(mod){var root=document.getElementById(mod+'-tbl'),body=root&&root.closest('.cbody');if(!root||!body)return;var bar=body.querySelector('.v80AgeBar');if(!bar){bar=document.createElement('div');bar.className='v80AgeBar';bar.innerHTML='<span>Rango de antigüedad</span><button data-v94-age="all">Todos</button>'+AG.map(function(x,i){return'<button data-v94-age="'+i+'">'+E(x)+'</button>'}).join('');var tb=body.querySelector('.tbar');if(tb)tb.insertAdjacentElement('afterend',bar);else root.insertAdjacentElement('beforebegin',bar)}bar.querySelectorAll('button').forEach(function(bt){var v=bt.dataset.v94Age||'all',s=state[mod]||{};bt.classList.toggle('on',T(s.age94||s.age80||s.age79||'all','all')===v);bt.onclick=function(){setAgeFilter94(mod,v)}})}
-function cards(mod,a){var root=document.getElementById(mod+'-tbl'),body=root&&root.closest('.cbody'),mk=body&&body.querySelector('.mkpis');if(!body||!mk)return;var old=body.querySelector('[data-v94-class-grid="'+mod+'"], [data-v71-class-grid="'+mod+'"], [data-v70-class-grid="'+mod+'"]'),g={'CORE':[],'COMPLEMENTO':[],'SIN CLASIFICACIÓN':[]};a.forEach(function(r){(g[r.cc]||(g[r.cc]=[])).push(r)});var box=document.createElement('div');box.className='v71ClassGrid';box.dataset.v94ClassGrid=mod;box.innerHTML=Object.keys(g).map(function(c){var ar=g[c],u=ar.reduce(function(z,r){return z+r.units},0),cl=c==='CORE'?'core':c==='COMPLEMENTO'?'comp':'none',f=c==='CORE'?'core':c==='COMPLEMENTO'?'comp':'none';return'<button type="button" class="v71ClassCard '+cl+' '+(((state[mod]||{}).f===f)?'on':'')+'" data-f="'+f+'"><label>'+E(c)+'</label><b>'+I(ar.length)+' productos</b><span>'+I(u)+' unidades</span></button>'}).join('');box.querySelectorAll('button').forEach(function(bt){bt.onclick=function(){var s=state[mod]||(state[mod]={});s.f=s.f===bt.dataset.f?'all':bt.dataset.f;render(mod)}});if(old)old.replaceWith(box);else mk.insertAdjacentElement('afterend',box)}
-function wire(mod,root){root.querySelectorAll('tbody tr[data-code]').forEach(function(tr){var go=function(e){if(e&&e.target&&e.target.closest('button,a,input,select,textarea'))return;var c=tr.dataset.code;try{if(typeof openInventoryProduct==='function')openInventoryProduct(c);else if(typeof openBestProductDetail==='function')openBestProductDetail(c)}catch(x){}};tr.onclick=go;tr.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go(e)}}});root.querySelectorAll('th[data-k]').forEach(function(th){th.onclick=function(){var s=state[mod]||(state[mod]={}),k=th.dataset.k;if(s.sort===k)s.dir*=-1;else{s.sort=k;s.dir=-1}render(mod)}});document.querySelectorAll('.chip.filt[data-q="'+mod+'"]').forEach(function(ch){ch.classList.toggle('on',((state[mod]||{}).f||'all')===ch.dataset.f);ch.onclick=function(){state[mod].f=ch.dataset.f;render(mod)}})}
-function render(mod){var all=allRows(mod),a=rows(mod),el=document.getElementById(mod+'-tbl');if(!el)return;el.innerHTML=table(mod,a);wire(mod,el);ageBar(mod);cards(mod,all);var c=document.getElementById(mod+'-cnt');if(c)c.textContent='Mostrando '+I(a.length)+' de '+I(all.length)+' productos · diseño unificado con Próximos a rotar'}
-window.setAgeFilter94=function(mod,a){var s=state[mod]||(state[mod]={});s.age94=a;s.age80=a;s.age79=a;render(mod)};window.setAgeFilter80=window.setAgeFilter79=window.setAgeFilter94;window.drawRot=drawRot=function(){render('rot')};window.drawEvac=drawEvac=function(){render('evac')};
-var sv=window.setView;if(typeof sv==='function')window.setView=function(v){var o=sv.apply(this,arguments);if(v==='rot'||v==='evac')setTimeout(function(){render(v)},180);return o};var rf=window.refresh;if(typeof rf==='function')window.refresh=function(){var o=rf.apply(this,arguments);setTimeout(function(){if(typeof VIEW!=='undefined'&&(VIEW==='rot'||VIEW==='evac'))render(VIEW)},220);return o};
-function mark(){window.LLAVERO_BUILD='V94';document.documentElement.setAttribute('data-llavero-build','V94');document.documentElement.setAttribute('data-llavero-app-version','V94');document.title=document.title.replace(/V\d+/,'V94');var b=document.querySelector('.appVersionChip b');if(b)b.textContent=(b.textContent||'').replace(/V\d+$/,'V94')}mark();setTimeout(mark,300);setTimeout(mark,900)
+  mark861();
+  setTimeout(function(){
+    mark861();
+    if(typeof VIEW!=='undefined'&&VIEW==='rot'&&typeof window.drawRot==='function')window.drawRot();
+    if(typeof VIEW!=='undefined'&&VIEW==='evac'&&typeof window.drawEvac==='function')window.drawEvac();
+  },320);
 })();
