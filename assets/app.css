@@ -3880,3 +3880,10 @@ body.dark .v866Narrative,body.dark .v866Filters,body.dark .v866ListFilters,body.
 body.dark .v867CendisCard,body.dark .v867CendisBlock{background:transparent}body.dark .v867Range{background:#253344}
 @media(max-width:1150px){.v867CendisGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.v867CendisGrid{grid-template-columns:1fr}.v867CendisText b{font-size:20px}}
+
+/* ===== LLAVERO V86.8 - CARDS CENDIS NATIVAS ===== */
+#content .v867CendisBlock{display:none!important}
+.v868CendisNative{cursor:pointer!important}
+.v868CendisNative:focus-visible{outline:2px solid rgba(229,43,47,.45)!important;outline-offset:2px}
+.kgrid .v868CendisNative{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.kgrid .v868CendisNative:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(23,59,99,.12);border-color:rgba(229,50,50,.30)}

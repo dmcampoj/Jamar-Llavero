@@ -6720,3 +6720,124 @@ setTimeout(function(){mark80();enhance80();},80);
   function mark867(){window.LLAVERO_BUILD='V86.7';document.documentElement.setAttribute('data-llavero-build','V86.7');document.documentElement.setAttribute('data-llavero-app-version','V86.7');document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.7');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.7')}
   setTimeout(function(){mark867();insert867()},120);
 })();
+
+/* ===== LLAVERO V86.8 - CARDS CENDIS NATIVAS, SIN DUPLICADOS Y CON DETALLE ===== */
+(function llaveroV868NativeCendisCards(){
+  'use strict';
+
+  function text868(v){return String(v==null?'':v);}
+  function num868(v){var x=Number(v);return Number.isFinite(x)?x:0;}
+  function int868(v){try{return typeof fInt==='function'?fInt(num868(v)):Math.round(num868(v)).toLocaleString('es-CO');}catch(_){return String(Math.round(num868(v)));}}
+  function money868(v){try{return typeof fMoneyCOP==='function'?fMoneyCOP(num868(v)):(typeof fMoney==='function'?fMoney(num868(v)):'$ '+Math.round(num868(v)).toLocaleString('es-CO'));}catch(_){return '$ '+Math.round(num868(v)).toLocaleString('es-CO');}}
+  function esc868(v){try{return typeof esc==='function'?esc(text868(v)):text868(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}catch(_){return text868(v);}}
+  function normalize868(v){var x=text868(v).trim().toUpperCase();try{return x.normalize('NFD').replace(/[\u0300-\u036f]/g,'');}catch(_){return x;}}
+  function store868(){try{return (S&&S[CUR])||{};}catch(_){return {};}}
+  function product868(code){try{return (typeof productInfo==='function'?productInfo(code):(P&&P[code]))||{n:code,cat:'—',lin:'—',sub:'—'};}catch(_){return {n:code,cat:'—',lin:'—',sub:'—'};}}
+  function class868(code,row){var x=text868((row&&row.cc)||(P&&P[code]&&P[code].cc)).trim().toUpperCase();return x==='CORE'?'CORE':x==='COMPLEMENTO'?'COMPLEMENTO':'SIN CLASIFICACIÓN';}
+  function classBadge868(code,row){var x=class868(code,row),cl=x==='CORE'?'core':x==='COMPLEMENTO'?'comp':'none';return '<span class="ccBadge68 '+cl+'">'+esc868(x)+'</span>';}
+  function rows868(module,mode){
+    var rows=[];
+    try{rows=typeof window.aggregateModuleProducts71==='function'?window.aggregateModuleProducts71(module,store868()):[];}catch(_){rows=[];}
+    return rows.filter(function(r){return mode==='with'?num868(r.cendis)>0:num868(r.cendis)<=0;});
+  }
+  function stats868(module,mode){var rows=rows868(module,mode);return {rows:rows,products:rows.length,units:rows.reduce(function(a,r){return a+num868(r.units);},0),value:rows.reduce(function(a,r){return a+num868(r.value);},0)};}
+  function label868(module,mode){return (module==='rot'?'Rotación':'Evacuación')+' · '+(mode==='with'?'Con respaldo CENDIS':'Sin respaldo CENDIS');}
+  function iconClass868(module,mode){if(mode==='without')return 'i-sr';return module==='rot'?'i-rot':'i-evac';}
+  function icon868(module,mode){if(mode==='without')return '!';return module==='rot'?'⟳':'⇲';}
+
+  function inventoryCard868(module,mode,data,marker){
+    return '<div class="inventoryKpi clickableKpi v868CendisNative" data-v868-cendis-card data-v868-module="'+module+'" data-v868-mode="'+mode+'" '+(marker?'data-v867-cendis-block ':'')+'role="button" tabindex="0" onclick="openCendisModule868(\''+module+'\',\''+mode+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openCendisModule868(\''+module+'\',\''+mode+'\')}">'
+      +'<div class="ikLabel">'+label868(module,mode)+'</div>'
+      +'<div class="ikValue">'+int868(data.products)+'</div>'
+      +'<div class="ikMeta">'+int868(data.units)+' uds · '+money868(data.value)+'</div>'
+      +'</div>';
+  }
+  function summaryCard868(module,mode,data,marker){
+    var kind=module==='rot'?'k-rot-native':'k-evac-native';
+    return '<div class="kpi v868CendisNative '+kind+'" data-v868-cendis-card data-v868-module="'+module+'" data-v868-mode="'+mode+'" '+(marker?'data-v867-cendis-block ':'')+'role="button" tabindex="0" onclick="openCendisModule868(\''+module+'\',\''+mode+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openCendisModule868(\''+module+'\',\''+mode+'\')}">'
+      +'<div class="top"><div class="ico '+iconClass868(module,mode)+'">'+icon868(module,mode)+'</div></div>'
+      +'<div class="lab">'+label868(module,mode)+'</div>'
+      +'<div class="val">'+int868(data.products)+'</div>'
+      +'<div class="sub">'+int868(data.units)+' uds · '+money868(data.value)+'</div>'
+      +'</div>';
+  }
+
+  function removeOldBlock868(content){
+    if(!content)return;
+    content.querySelectorAll('.v867CendisBlock').forEach(function(x){x.remove();});
+  }
+  function removeGenericDuplicates868(content,view){
+    if(!content)return;
+    if(view==='inventario'){
+      content.querySelectorAll('.inventoryKpis .inventoryKpi:not([data-v868-cendis-card])').forEach(function(card){
+        var lab=card.querySelector('.ikLabel'),name=normalize868(lab&&lab.textContent);
+        if(name==='CON RESPALDO CENDIS'||name==='CON RESPALDO EN CENDIS')card.remove();
+      });
+    }
+    if(view==='resumen'){
+      content.querySelectorAll('.kgrid .kpi:not([data-v868-cendis-card])').forEach(function(card){
+        var lab=card.querySelector('.lab'),name=normalize868(lab&&lab.textContent);
+        if(name==='SIN RESPALDO CENDIS'||name==='SIN RESPALDO EN CENDIS'||name==='CON RESPALDO CENDIS'||name==='CON RESPALDO EN CENDIS')card.remove();
+      });
+    }
+  }
+  function cardsHtml868(view){
+    var rNo=stats868('rot','without'),rYes=stats868('rot','with'),eNo=stats868('evac','without'),eYes=stats868('evac','with');
+    var fn=view==='inventario'?inventoryCard868:summaryCard868;
+    return fn('rot','without',rNo,true)+fn('rot','with',rYes,false)+fn('evac','without',eNo,false)+fn('evac','with',eYes,false);
+  }
+  function reconcileCards868(){
+    if(typeof VIEW==='undefined'||(VIEW!=='inventario'&&VIEW!=='resumen'))return;
+    var content=document.getElementById('content');if(!content)return;
+    removeOldBlock868(content);
+    removeGenericDuplicates868(content,VIEW);
+    var grid=VIEW==='inventario'?content.querySelector('.inventoryKpis'):content.querySelector('.kgrid');
+    if(!grid)return;
+    if(!grid.querySelector('[data-v868-cendis-card]'))grid.insertAdjacentHTML('beforeend',cardsHtml868(VIEW));
+  }
+
+  function range868(ranges){
+    var labels=['91–120','121–150','151–180','181–210','211–240','241–360','+360'],out=[];
+    Object.keys(ranges||{}).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(k){var v=num868(ranges[k]);if(v>0)out.push('<span class="v867Range">'+int868(v)+' u · '+esc868(labels[Number(k)]||k)+'</span>');});
+    return out.join('')||'<span class="mut">Sin rango</span>';
+  }
+  function ensureModal868(){
+    var back=document.getElementById('v80ModalBack');
+    if(!back){
+      back=document.createElement('div');back.id='v80ModalBack';back.className='v80ModalBack';
+      back.innerHTML='<div class="v80Modal" role="dialog" aria-modal="true"><div class="v80ModalHead"><div><h3 id="v80ModalTitle"></h3><p id="v80ModalSub"></p></div><button type="button" class="v80ModalClose" aria-label="Cerrar">×</button></div><div class="v80ModalBody" id="v80ModalBody"></div></div>';
+      document.body.appendChild(back);
+    }
+    var close=back.querySelector('.v80ModalClose');
+    if(close&&!close.dataset.v868Close){close.dataset.v868Close='1';close.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();if(typeof window.llaveroCloseCurrentModal862==='function')window.llaveroCloseCurrentModal862();else back.classList.remove('on');});}
+    if(!back.dataset.v868Backdrop){back.dataset.v868Backdrop='1';back.addEventListener('click',function(ev){if(ev.target===back){if(typeof window.llaveroCloseCurrentModal862==='function')window.llaveroCloseCurrentModal862();else back.classList.remove('on');}});}
+    return back;
+  }
+  function kpi868(label,value,small){return '<div class="v80Kpi"><label>'+esc868(label)+'</label><b>'+esc868(value)+'</b><small>'+esc868(small)+'</small></div>';}
+  window.openCendisModule868=function(module,mode){
+    var data=stats868(module,mode),st=store868(),title=label868(module,mode),condition=module==='rot'?'ROTACIÓN':'EVACUACIÓN';
+    var body=data.rows.map(function(r){var p=r.p||product868(r.c),maxAge=Math.max.apply(null,Object.keys(r.ranges||{}).filter(function(k){return num868(r.ranges[k])>0;}).map(Number).concat([-1]));return '<tr class="v866ProductListRow" data-code="'+esc868(r.c)+'" data-class="'+esc868(class868(r.c,r))+'" data-condition="'+condition+'" data-age="'+maxAge+'" role="button" tabindex="0">'
+      +'<td><span class="code">'+esc868(r.c)+'</span></td>'
+      +'<td class="productCell"><b>'+esc868(p.n||r.c)+'</b><small>'+esc868((p.cat||'—')+' · '+(p.lin||'—')+' · '+(p.sub||'—'))+'</small></td>'
+      +'<td>'+classBadge868(r.c,r)+'</td>'
+      +'<td>'+range868(r.ranges)+'</td>'
+      +'<td class="num"><b>'+int868(r.units)+'</b></td>'
+      +'<td class="num">'+(num868(r.cendis)>0?'<span class="tag cr">'+int868(r.cendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td>'
+      +'<td class="num">'+int868(r.sales)+'</td>'
+      +'<td class="num">'+money868(r.value)+'</td></tr>';}).join('');
+    if(!body)body='<tr><td colspan="8"><div class="empty">No hay productos para esta condición.</div></td></tr>';
+    var html='<div class="v80Kpis">'+kpi868('Productos',int868(data.products),'Referencias')+kpi868('Unidades',int868(data.units),'Inventario en tienda')+kpi868('Valor',money868(data.value),'Valor del inventario')+kpi868('Condición',condition,mode==='with'?'Con respaldo':'Sin respaldo')+'</div>'
+      +'<div class="v80TableWrap"><table class="v80Table v867CendisTable"><thead><tr><th>Código</th><th>Producto</th><th>Clasificación</th><th>Rangos</th><th class="num">Uds.</th><th class="num">CENDIS</th><th class="num">Venta 3m</th><th class="num">Valor</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+    var modal=ensureModal868(),titleEl=modal.querySelector('#v80ModalTitle'),subEl=modal.querySelector('#v80ModalSub'),bodyEl=modal.querySelector('#v80ModalBody');
+    if(titleEl)titleEl.textContent=title;if(subEl)subEl.textContent=(st.name||CUR)+' · detalle por producto';if(bodyEl)bodyEl.innerHTML=html;
+    modal.classList.add('on');document.body.style.overflow='hidden';
+  };
+
+  var timer868=0;
+  var observer868=new MutationObserver(function(){clearTimeout(timer868);timer868=setTimeout(reconcileCards868,30);});
+  observer868.observe(document.documentElement,{subtree:true,childList:true});
+  var refresh868=window.refresh;if(typeof refresh868==='function')window.refresh=function(){var out=refresh868.apply(this,arguments);setTimeout(reconcileCards868,60);return out;};
+  var setView868=window.setView;if(typeof setView868==='function')window.setView=function(v){var out=setView868.apply(this,arguments);setTimeout(reconcileCards868,70);return out;};
+  function mark868(){window.LLAVERO_BUILD='V86.8';document.documentElement.setAttribute('data-llavero-build','V86.8');document.documentElement.setAttribute('data-llavero-app-version','V86.8');document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.8');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.8');}
+  setTimeout(function(){mark868();reconcileCards868();},140);
+})();
