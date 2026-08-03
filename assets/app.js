@@ -6349,108 +6349,130 @@ setTimeout(function(){mark80();enhance80();},80);
   setTimeout(enhance863,80);
 })();
 
-/* ===== LLAVERO V86.4 · SOLO NAVEGACION JERARQUICA GLOBAL ===== */
-(function llaveroV864GlobalHierarchyOnly(){
+/* ===== LLAVERO V86.5 · NAVEGACION SELECTIVA RANGO → PRODUCTO ===== */
+(function llaveroV865SelectiveHierarchy(){
   'use strict';
   var nav=window.llaveroNavigationState862;
   if(!nav||!Array.isArray(nav.frames))return;
 
-  var selector='.modalBack,.v80ModalBack';
-  var excluded={leaderModal:1,dataHelpModal:1,actionModal:1};
-  var rootSeq=0;
-  var pageProxy=document.createElement('div');
+  var RANGE_ID='rangeModal';
+  var PRODUCT_ID='inventoryProductModal';
+  var pendingRangeSnapshot=null;
+  var seq=0;
 
-  function eligible(modal){
-    return !!(modal&&modal.id&&!excluded[modal.id]);
+  function open(el){return !!(el&&el.classList&&el.classList.contains('on'));}
+  function modalBody(el){return el&&el.querySelector('.inventoryDetailBody,.modalBody,.v80ModalBody');}
+  function modalTitle(el){return el&&el.querySelector('.modalHead h3,.v80ModalHead h3');}
+  function modalSub(el){return el&&el.querySelector('.modalHead p,.v80ModalHead p');}
+  function snapshotRange(){
+    var el=document.getElementById(RANGE_ID);
+    if(!open(el))return null;
+    var body=modalBody(el),title=modalTitle(el),sub=modalSub(el);
+    return {
+      id:RANGE_ID,
+      el:el,
+      body:body,
+      nodes:body?Array.prototype.slice.call(body.childNodes):[],
+      scroll:body?body.scrollTop:0,
+      title:title?title.textContent:'',
+      sub:sub?sub.textContent:'',
+      z:el.style.zIndex||''
+    };
   }
-  function isOpen(modal){
-    return !!(modal&&modal.classList&&modal.classList.contains('on'));
+  function productCodeFromTarget(target){
+    if(!target||!target.closest)return '';
+    var row=target.closest('#rangeModalBody tr');
+    if(!row)return '';
+    return row.dataset.code||row.dataset.v70DetailCode||row.dataset.v68Product||row.dataset.v79Row||'';
   }
-  function openModals(){
-    return Array.prototype.slice.call(document.querySelectorAll(selector)).filter(function(modal){return eligible(modal)&&isOpen(modal);});
+  function prepareRangeParent(target){
+    var code=productCodeFromTarget(target);
+    if(!code)return;
+    pendingRangeSnapshot=snapshotRange();
   }
-  function topModal(){
-    var list=openModals();
-    if(!list.length)return null;
-    list.sort(function(a,b){
-      var za=parseInt(getComputedStyle(a).zIndex,10)||0;
-      var zb=parseInt(getComputedStyle(b).zIndex,10)||0;
-      if(za!==zb)return za-zb;
-      return Array.prototype.indexOf.call(document.body.children,a)-Array.prototype.indexOf.call(document.body.children,b);
-    });
-    return list[list.length-1];
+  function topIsRangeProduct(){
+    var f=nav.frames[nav.frames.length-1];
+    return !!(f&&f.childId===PRODUCT_ID&&f.parent&&f.parent.id===RANGE_ID);
   }
-  function backButton(modal){
-    if(!modal)return null;
-    var head=modal.querySelector('.v80ModalHead,.modalHead');
-    if(!head)return null;
+  function ensureProductBack(){
+    var product=document.getElementById(PRODUCT_ID);
+    if(!open(product))return;
+    var head=product.querySelector('.modalHead,.v80ModalHead');
+    if(!head)return;
     var btn=head.querySelector('.hierBackV862');
     if(!btn){
       btn=document.createElement('button');
       btn.type='button';
       btn.className='hierBackV862';
       btn.innerHTML='<span aria-hidden="true">←</span><span>Volver</span>';
-      btn.setAttribute('aria-label','Volver a la vista anterior');
-      btn.addEventListener('click',function(ev){
+      btn.setAttribute('aria-label','Volver al detalle del rango');
+      btn.onclick=function(ev){
         ev.preventDefault();
         ev.stopPropagation();
         if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
         if(typeof window.llaveroNavBack862==='function')window.llaveroNavBack862();
-      },true);
+      };
       head.insertBefore(btn,head.firstChild);
     }
-    return btn;
+    btn.hidden=!topIsRangeProduct();
   }
-  function refreshButtons(){
-    var top=nav.frames.length?nav.frames[nav.frames.length-1]:null;
-    document.querySelectorAll(selector).forEach(function(modal){
-      if(!eligible(modal))return;
-      var btn=backButton(modal);
-      if(btn)btn.hidden=!(isOpen(modal)&&top&&top.childId===modal.id);
+  function registerRangeProduct(){
+    var range=document.getElementById(RANGE_ID),product=document.getElementById(PRODUCT_ID);
+    if(!pendingRangeSnapshot||!open(product))return;
+    if(!open(range))range.classList.add('on');
+    if(!topIsRangeProduct()){
+      nav.frames.push({
+        token:'range-product-'+(++seq),
+        parent:pendingRangeSnapshot,
+        childId:PRODUCT_ID,
+        sameModal:false,
+        selectiveRange:true
+      });
+    }
+    range.style.zIndex='2200';
+    product.style.zIndex='2230';
+    pendingRangeSnapshot=null;
+    ensureProductBack();
+  }
+  function clearFirstLevelButtons(){
+    document.querySelectorAll('.modalBack.on,.v80ModalBack.on').forEach(function(modal){
+      var btn=modal.querySelector('.hierBackV862');
+      if(!btn)return;
+      var f=nav.frames[nav.frames.length-1];
+      btn.hidden=!(f&&f.childId===modal.id);
     });
-  }
-  function pageSnapshot(){
-    var scroller=document.scrollingElement||document.documentElement;
-    return {
-      id:'__llavero_page__',
-      el:pageProxy,
-      body:scroller,
-      nodes:[],
-      scroll:scroller?scroller.scrollTop:0,
-      title:'',
-      sub:'',
-      z:'',
-      view:typeof VIEW!=='undefined'?VIEW:'',
-      store:typeof CUR!=='undefined'?CUR:''
-    };
-  }
-  function createRootFrame(modal){
-    if(!modal||nav.frames.length||nav.pending||nav.restoring)return;
-    nav.frames.push({
-      token:'page-'+(++rootSeq),
-      parent:pageSnapshot(),
-      childId:modal.id,
-      sameModal:false,
-      rootPage:true
-    });
-  }
-  function clearStaleRoot(){
-    if(nav.pending||nav.restoring||nav.frames.length!==1)return;
-    var frame=nav.frames[0];
-    if(!frame||!frame.rootPage)return;
-    var child=document.getElementById(frame.childId);
-    if(!isOpen(child))nav.frames.pop();
-  }
-  function sync(){
-    clearStaleRoot();
-    var top=topModal();
-    if(top&&!nav.frames.length)createRootFrame(top);
-    refreshButtons();
   }
 
-  var observer=new MutationObserver(function(){setTimeout(sync,0);});
-  observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
-  document.addEventListener('click',function(){setTimeout(sync,0);},true);
-  document.addEventListener('keydown',function(ev){if(ev.key==='Escape')setTimeout(sync,0);},true);
-  setTimeout(sync,160);
+  document.addEventListener('click',function(ev){
+    if(ev.target&&ev.target.closest&&ev.target.closest('#rangeModalBody tr'))prepareRangeParent(ev.target);
+    setTimeout(function(){registerRangeProduct();clearFirstLevelButtons();},0);
+  },true);
+  document.addEventListener('keydown',function(ev){
+    if((ev.key==='Enter'||ev.key===' ')&&ev.target&&ev.target.closest&&ev.target.closest('#rangeModalBody tr')){
+      prepareRangeParent(ev.target);
+      setTimeout(function(){registerRangeProduct();clearFirstLevelButtons();},0);
+    }
+  },true);
+
+  var observer=new MutationObserver(function(muts){
+    for(var i=0;i<muts.length;i++){
+      var m=muts[i];
+      if(m.type==='attributes'&&m.target&&m.target.id===PRODUCT_ID&&open(m.target)){
+        setTimeout(function(){registerRangeProduct();clearFirstLevelButtons();},0);
+        return;
+      }
+    }
+    setTimeout(clearFirstLevelButtons,0);
+  });
+  observer.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['class'],childList:true});
+
+  function mark865(){
+    window.LLAVERO_BUILD='V86.5';
+    document.documentElement.setAttribute('data-llavero-build','V86.5');
+    document.documentElement.setAttribute('data-llavero-app-version','V86.5');
+    document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.5');
+    var chip=document.querySelector('.appVersionChip b');
+    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.5');
+  }
+  setTimeout(function(){mark865();clearFirstLevelButtons();},120);
 })();
