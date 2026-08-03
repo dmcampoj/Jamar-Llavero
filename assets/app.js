@@ -5958,3 +5958,94 @@ setTimeout(function(){mark80();enhance80();},80);
 /* LLAVERO_BUILD_V93 · restaura tablas previas a V88 conservando movimientos diarios */
 
 (function(){window.LLAVERO_BUILD='V93';document.documentElement.setAttribute('data-llavero-build','V93');document.documentElement.setAttribute('data-llavero-app-version','V93');})();
+
+
+/* ===== LLAVERO V94 · TABLAS ROT/EVAC ESTILO PROX + IMAGENES ===== */
+(function v94RotEvRefresh(){
+  'use strict';
+  function productImg94(code){
+    try{
+      var p=(typeof product80==='function'?product80(code):((window.P||{})[code]||{}))||{};
+      return p.img||p.image||p.imagen||'';
+    }catch(_){return ''}
+  }
+  function imgCell94(code){
+    var src=productImg94(code), name='';
+    try{ var p=(typeof product80==='function'?product80(code):((window.P||{})[code]||{}))||{}; name=p.n||code||''; }catch(_){ name=code||''; }
+    if(!src){
+      return '<span class="v94Thumb noimg" title="Sin imagen disponible"><span class="v94ThumbFallback">Sin foto</span></span>';
+    }
+    var e = (typeof esc80==='function'?esc80:function(x){return String(x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})});
+    return '<button class="v94ThumbBtn" type="button" onclick="event.stopPropagation();if(window.openImageModal){openImageModal('+JSON.stringify(src)+','+JSON.stringify(name)+')}" title="Ampliar imagen">'
+      +'<span class="v94Thumb">'
+      +'<img loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" src="'+e(src)+'" alt="'+e(name)+'" '
+      +'onerror="this.style.display=\'none\';var p=this.closest(\'.v94Thumb\');if(p){p.classList.add(\'noimg\');p.innerHTML=\'<span class=\\\'v94ThumbFallback\\\'>Sin foto</span>\';}">'
+      +'</span></button>';
+  }
+  function rangeChips94(ranges){
+    var keys=[1,2,3,4,5,6], out=[];
+    for(var i=0;i<keys.length;i++){
+      var k=keys[i], v=Number(ranges&&ranges[k]||0);
+      if(v>0){
+        var lbl=(window.AGE80||window.AGE79||[]).find(function(a){return Number(a.k)===k;});
+        out.push('<span class="v94RangeChip age'+k+'"><b>'+ (typeof int80==='function'?int80(v):v) +'</b><small>'+ (lbl?lbl.l:('R'+k)) +'</small></span>');
+      }
+    }
+    return out.length?'<div class="v94RangeWrap">'+out.join('')+'</div>':'<span class="mut">Sin antigüedad crítica</span>';
+  }
+  function buildTable94(module, rows){
+    var e=typeof esc80==='function'?esc80:function(x){return x}, cc=typeof ccBadge80==='function'?ccBadge80:function(x){return x}, money=typeof money80==='function'?money80:function(x){return x}, intf=typeof int80==='function'?int80:function(x){return x};
+    var body=(rows||[]).map(function(r,i){
+      var hierarchy = '<div class="v94Hierarchy"><b>'+e(r.p.cat||'—')+'</b><small>'+e((r.p.lin||'—')+' · '+(r.p.sub||'—'))+'</small></div>';
+      var cendis = Number(r.cendis||0)>0 ? '<span class="tag cr">'+intf(r.cendis)+' u</span>' : '<span class="tag sr">Sin respaldo</span>';
+      var rank = module==='evac' ? '<span class="v94Rank '+(Number(r.ranges&&r.ranges[6]||0)>0?'hot':'')+'">'+(i+1)+'</span>' : '<span class="v94Rank blank">•</span>';
+      return '<tr data-code="'+e(r.c)+'">'
+        +'<td class="v94ColRank">'+rank+'</td>'
+        +'<td class="v94ColImg">'+imgCell94(r.c)+'</td>'
+        +'<td class="v94ColCode"><span class="code">'+e(r.c)+'</span></td>'
+        +'<td class="v94ColProd"><div class="v94ProdName">'+e(r.p.n||r.c)+'</div></td>'
+        +'<td class="v94ColClass">'+cc(r.c)+'</td>'
+        +'<td class="v94ColHier">'+hierarchy+'</td>'
+        +'<td class="v94ColAge">'+rangeChips94(r.ranges||{})+'</td>'
+        +'<td class="num v94ColUnits"><b>'+intf(r.units)+'</b></td>'
+        +'<td class="num v94ColCendis">'+cendis+'</td>'
+        +'<td class="num v94ColValue">'+money(r.value)+'</td>'
+        +'<td class="num v94ColSales">'+intf(r.sales)+'</td>'
+        +'</tr>';
+    }).join('');
+    if(!body) body='<tr><td colspan="11"><div class="empty">No hay productos para este filtro.</div></td></tr>';
+    return '<div class="twrap v94ModuleWrap"><table class="v94ModuleTable"><colgroup>'
+      +'<col class="w-rank"><col class="w-img"><col class="w-code"><col class="w-prod"><col class="w-class"><col class="w-hier"><col class="w-age"><col class="w-units"><col class="w-cendis"><col class="w-value"><col class="w-sales">'
+      +'</colgroup><thead><tr>'
+      +'<th>#</th><th>Imagen</th><th data-k="c">Código</th><th data-k="p">Producto</th><th>Clasificación</th><th>Jerarquía</th><th data-k="age">Rangos de antigüedad</th><th class="num" data-k="units">Uds.</th><th class="num" data-k="cendis">CENDIS</th><th class="num" data-k="value">Valor</th><th class="num" data-k="sales">Venta 3m</th>'
+      +'</tr></thead><tbody>'+body+'</tbody></table></div>';
+  }
+  window.renderModule80 = function(module){
+    var rows = typeof aggregateRows80==='function'?aggregateRows80(module):[];
+    var all = typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,(typeof store80==='function'?store80(CUR):{})):rows;
+    var el = document.getElementById(module+'-tbl');
+    if(el){
+      el.innerHTML = buildTable94(module,rows);
+      if(typeof wireModule80==='function') wireModule80(module,el);
+    }
+    var cnt=document.getElementById(module+'-cnt');
+    if(cnt){
+      var ageActive='';
+      try{ var ageCfg=(window.AGE80||[]).find(function(a){return a.k===String((state[module]&&state[module].age80)||'all')}); ageActive=ageCfg?ageCfg.l:'Todos'; }catch(_){ ageActive='Todos'; }
+      cnt.textContent='Mostrando '+(typeof int80==='function'?int80(rows.length):rows.length)+' de '+(typeof int80==='function'?int80(all.length):all.length)+' productos · '+(module==='evac'?'vista priorizada por sin respaldo y +360 días':'rango '+ageActive);
+    }
+    if(typeof ensureAge80==='function') ensureAge80(module);
+  };
+  window.drawRot = function(){ window.renderModule80('rot'); };
+  window.drawEvac = function(){ window.renderModule80('evac'); };
+  function apply94(){
+    window.LLAVERO_BUILD='V94';
+    document.documentElement.setAttribute('data-llavero-build','V94');
+    var chip=document.querySelector('.appVersionChip b'); if(chip) chip.textContent=(chip.textContent||'').replace(/V\d+/,'V94');
+    if(typeof VIEW!=='undefined' && VIEW==='rot') window.drawRot();
+    if(typeof VIEW!=='undefined' && VIEW==='evac') window.drawEvac();
+  }
+  var baseRefresh=window.refresh; if(typeof baseRefresh==='function') window.refresh=function(){ var out=baseRefresh.apply(this,arguments); setTimeout(apply94,80); return out; };
+  var baseSetView=window.setView; if(typeof baseSetView==='function') window.setView=function(v){ var out=baseSetView.apply(this,arguments); setTimeout(function(){ if(v==='rot') window.drawRot(); if(v==='evac') window.drawEvac(); apply94(); },100); return out; };
+  setTimeout(apply94,120);
+})();
