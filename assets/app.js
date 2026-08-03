@@ -6476,3 +6476,160 @@ setTimeout(function(){mark80();enhance80();},80);
   }
   setTimeout(function(){mark865();clearFirstLevelButtons();},120);
 })();
+
+/* ===== LLAVERO V86.6 - DETALLE DE CORTES, FILTROS Y NAVEGACION SELECTIVA ===== */
+(function llaveroV866DetailsAndHierarchy(){
+  'use strict';
+
+  function t866(v){return v==null?'':String(v);}
+  function n866(v){var x=Number(v);return Number.isFinite(x)?x:0;}
+  function e866(v){try{return typeof esc==='function'?esc(t866(v)):t866(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}catch(_){return t866(v);}}
+  function i866(v){try{return typeof fInt==='function'?fInt(n866(v)):Math.round(n866(v)).toLocaleString('es-CO');}catch(_){return String(Math.round(n866(v)));}}
+  function m866(v){try{return typeof fMoneyCOP==='function'?fMoneyCOP(n866(v)):'$ '+Math.round(n866(v)).toLocaleString('es-CO');}catch(_){return '$ '+Math.round(n866(v)).toLocaleString('es-CO');}}
+  function code866(v){try{return typeof safeCode==='function'?safeCode(v):t866(v).trim();}catch(_){return t866(v).trim();}}
+  function fmtDate866(v){var p=t866(v).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:t866(v);}
+  function product866(c){try{return (typeof productInfo==='function'?productInfo(c):(P&&P[c]))||{n:c,cat:'--',lin:'--',sub:'--'};}catch(_){return {n:c,cat:'--',lin:'--',sub:'--'};}}
+  function class866(c){var x=t866((P&&P[c]&&P[c].cc)||'').trim().toUpperCase();return x==='CORE'?'CORE':x==='COMPLEMENTO'?'COMPLEMENTO':'SIN CLASIFICACION';}
+  function classBadge866(c){var x=class866(c),cl=x==='CORE'?'core':x==='COMPLEMENTO'?'comp':'none';return '<span class="ccBadge68 '+cl+'">'+e866(x==='SIN CLASIFICACION'?'SIN CLASIFICACI\u00d3N':x)+'</span>';}
+  function age866(r){var a=['91-120','121-150','151-180','181-210','211-240','241-360','+360'];return r==null||Number(r)<0?'Sin rango':a[Number(r)]||'Sin rango';}
+  function details866(){try{return (typeof readDetailHistory==='function'?readDetailHistory():[]).slice().sort(function(a,b){return t866(a.date).localeCompare(t866(b.date));});}catch(_){return [];}}
+  function daily866(){try{return (typeof readDailyHistory==='function'?readDailyHistory():[]).slice().sort(function(a,b){return t866(a.date).localeCompare(t866(b.date));});}catch(_){return [];}}
+  function rowMap866(rows){var out={};(rows||[]).forEach(function(r){var c=code866(r&&r[0]);if(c)out[c]={u:n866(r&&r[1]),v:n866(r&&r[2]),age:n866(r&&r[3])};});return out;}
+  function combined866(store){
+    var rot=rowMap866(store&&store.rot),evac=rowMap866(store&&store.evac),keys=Array.from(new Set(Object.keys(rot).concat(Object.keys(evac)))),out={};
+    keys.forEach(function(c){var r=rot[c],e=evac[c],conds=[];if(r)conds.push('ROTACION');if(e)conds.push('EVACUACION');out[c]={c:c,u:Math.max(n866(r&&r.u),n866(e&&e.u)),v:Math.max(n866(r&&r.v),n866(e&&e.v)),age:Math.max(r?r.age:-1,e?e.age:-1),condition:conds.join(' / '),rot:r||null,evac:e||null};});
+    return out;
+  }
+  function currentInfo866(storeCode){
+    var st=(S&&S[storeCode])||{},inv={},sales={};
+    try{(typeof normalizeInventoryRows==='function'?normalizeInventoryRows(st):[]).forEach(function(r){inv[code866(r.c)]={cendis:n866(r.dispCendis),stock:n866(r.stock)};});}catch(_){ }
+    (st.ventasProducto||[]).forEach(function(r){var c=code866(r&&r[0]);if(c)sales[c]={value:n866(r&&r[1]),units:n866(r&&r[2])};});
+    return {inv:inv,sales:sales,name:st.name||storeCode};
+  }
+  function pair866(date){var a=details866(),idx=a.findIndex(function(x){return t866(x.date)===t866(date);});if(idx<0)return null;return {cur:a[idx],prev:idx>0?a[idx-1]:null};}
+  function deltaLabel866(v,type){if(type==='money')return (v>0?'+':'')+m866(v);return (v>0?'+':'')+i866(v);}
+  function detailedRows866(date,storeCode){
+    var p=pair866(date);if(!p||!p.cur)return {rows:[],pair:p};
+    var stores=storeCode?[storeCode]:Object.keys(p.cur.stores||{}),rows=[];
+    stores.forEach(function(sc){
+      var curStore=p.cur.stores&&p.cur.stores[sc],prevStore=p.prev&&p.prev.stores&&p.prev.stores[sc],cur=combined866(curStore),prev=combined866(prevStore),info=currentInfo866(sc),keys=Array.from(new Set(Object.keys(cur).concat(Object.keys(prev))));
+      keys.forEach(function(c){
+        var a=prev[c],b=cur[c],moves=[],activity='';
+        if(!a&&b){activity='Nuevo critico';moves.push('Ingreso a '+b.condition);}
+        else if(a&&!b){activity='Gestionado';moves.push('Salio de '+a.condition);}
+        else if(a&&b){
+          if(a.condition!==b.condition)moves.push('Condicion: '+a.condition+' -> '+b.condition);
+          if(a.age!==b.age)moves.push('Rango: '+age866(a.age)+' -> '+age866(b.age));
+          if(a.u!==b.u)moves.push('Unidades: '+i866(a.u)+' -> '+i866(b.u)+' ('+deltaLabel866(b.u-a.u,'units')+')');
+          if(a.v!==b.v)moves.push('Valor: '+m866(a.v)+' -> '+m866(b.v)+' ('+deltaLabel866(b.v-a.v,'money')+')');
+          activity=moves.length?'Persistente con cambio':'Persistente sin cambio';
+          if(!moves.length)moves.push('Sin cambio en condicion, rango, unidades ni valor');
+        }
+        var pr=product866(c),iv=info.inv[c]||{},sv=info.sales[c]||{};
+        rows.push({c:c,p:pr,cc:class866(c),store:sc,storeName:(curStore&&curStore.name)||info.name||sc,prevCondition:a?a.condition:'--',curCondition:b?b.condition:'--',activity:activity,moves:moves,prevU:a?a.u:0,curU:b?b.u:0,deltaU:(b?b.u:0)-(a?a.u:0),prevAge:a?a.age:-1,curAge:b?b.age:-1,prevV:a?a.v:0,curV:b?b.v:0,deltaV:(b?b.v:0)-(a?a.v:0),cendis:n866(iv.cendis),salesU:n866(sv.units),salesV:n866(sv.value),hasMovement:activity!=='Persistente sin cambio'});
+      });
+    });
+    var order={'Gestionado':0,'Nuevo critico':1,'Persistente con cambio':2,'Persistente sin cambio':3};
+    rows.sort(function(a,b){return (order[a.activity]-order[b.activity])||Math.abs(b.deltaU)-Math.abs(a.deltaU)||Math.abs(b.deltaV)-Math.abs(a.deltaV)||a.p.n.localeCompare(b.p.n);});
+    return {rows:rows,pair:p};
+  }
+  function rangeDeltas866(date,storeCode,kind){
+    var p=pair866(date),out=[0,0,0,0,0,0,0];if(!p)return out;
+    var stores=storeCode?[storeCode]:Object.keys(p.cur.stores||{});
+    stores.forEach(function(sc){var a=rowMap866(p.prev&&p.prev.stores&&p.prev.stores[sc]&&p.prev.stores[sc][kind]),b=rowMap866(p.cur&&p.cur.stores&&p.cur.stores[sc]&&p.cur.stores[sc][kind]);Object.keys(a).forEach(function(c){var r=Math.max(0,Math.min(6,n866(a[c].age)));out[r]-=a[c].u;});Object.keys(b).forEach(function(c){var r=Math.max(0,Math.min(6,n866(b[c].age)));out[r]+=b[c].u;});});
+    return out;
+  }
+  function dailyMetric866(date,storeCode){
+    var d=daily866(),idx=d.findIndex(function(x){return t866(x.date)===t866(date);}),cur=idx>=0?d[idx]:null,prev=idx>0?d[idx-1]:null;
+    if(!cur)return {rot:0,evac:0,score:null,prevScore:null};
+    if(storeCode){var m=cur.stores&&cur.stores[storeCode],pm=prev&&prev.stores&&prev.stores[storeCode];return {rot:n866(m&&m.rot&&m.rot.reductionAdj),evac:n866(m&&m.evac&&m.evac.reductionAdj),score:m&&m.score,prevScore:pm&&pm.score};}
+    var vals=Object.values(cur.stores||{}),rot=vals.reduce(function(a,m){return a+n866(m.rot&&m.rot.reductionAdj);},0),evac=vals.reduce(function(a,m){return a+n866(m.evac&&m.evac.reductionAdj);},0);return {rot:vals.length?rot/vals.length:0,evac:vals.length?evac/vals.length:0,score:null,prevScore:null};
+  }
+  function img866(c){try{return typeof imageThumb==='function'?imageThumb(c,'sm'):'<span class="v866NoImg">--</span>';}catch(_){return '<span class="v866NoImg">--</span>';}}
+  function ensureModal866(){
+    var back=document.getElementById('v80ModalBack');
+    if(!back){back=document.createElement('div');back.id='v80ModalBack';back.className='v80ModalBack';back.innerHTML='<div class="v80Modal" role="dialog" aria-modal="true"><div class="v80ModalHead"><div><h3 id="v80ModalTitle"></h3><p id="v80ModalSub"></p></div><button type="button" class="v80ModalClose" aria-label="Cerrar">x</button></div><div class="v80ModalBody" id="v80ModalBody"></div></div>';document.body.appendChild(back);}
+    var x=back.querySelector('.v80ModalClose');if(x)x.onclick=function(ev){ev.preventDefault();ev.stopPropagation();if(typeof window.llaveroCloseCurrentModal862==='function')window.llaveroCloseCurrentModal862();else back.classList.remove('on');};
+    return back;
+  }
+  function movementText866(r){return r.moves.map(function(x){var cl=x.indexOf('Condicion:')===0?'condition':x.indexOf('Rango:')===0?'range':x.indexOf('Unidades:')===0?'units':x.indexOf('Valor:')===0?'value':r.activity==='Gestionado'?'managed':r.activity==='Nuevo critico'?'new':'flat';return '<span class="v866Move '+cl+'">'+e866(x)+'</span>';}).join('');}
+  function activityBadge866(a){var cl=a==='Gestionado'?'managed':a==='Nuevo critico'?'new':a==='Persistente con cambio'?'changed':'persistent';var label=a==='Nuevo critico'?'Nuevo cr\u00edtico':a;return '<span class="v866Activity '+cl+'">'+label+'</span>';}
+  function trendTable866(rows,includeStore){
+    var body=rows.map(function(r){return '<tr class="v866TrendRow" tabindex="0" role="button" data-code="'+e866(r.c)+'" data-class="'+e866(r.cc)+'" data-prev-condition="'+e866(r.prevCondition)+'" data-cur-condition="'+e866(r.curCondition)+'" data-activity="'+e866(r.activity)+'" data-movement="'+e866(r.moves.join('|'))+'" data-prev-age="'+r.prevAge+'" data-cur-age="'+r.curAge+'" data-cendis="'+(r.cendis>0?'with':'without')+'" data-sales="'+(r.salesU>0||r.salesV>0?'with':'without')+'" data-moved="'+(r.hasMovement?'1':'0')+'"><td class="v866ImgCol">'+img866(r.c)+'</td><td><span class="code">'+e866(r.c)+'</span></td><td class="productCell"><b>'+e866(r.p.n||r.c)+'</b><small>'+e866((r.p.cat||'--')+' - '+(r.p.lin||'--')+' - '+(r.p.sub||'--'))+'</small></td>'+(includeStore?'<td>'+e866(r.storeName)+'</td>':'')+'<td>'+classBadge866(r.c)+'</td><td><div class="v866ConditionPair"><span>'+e866(r.prevCondition)+'</span><i>-></i><b>'+e866(r.curCondition)+'</b></div></td><td>'+activityBadge866(r.activity)+'</td><td class="v866MoveCell">'+movementText866(r)+'</td><td class="num">'+i866(r.prevU)+'</td><td class="num"><b>'+i866(r.curU)+'</b></td><td class="num"><b class="'+(r.deltaU<0?'v80Pos':r.deltaU>0?'v80Neg':'v80Flat')+'">'+deltaLabel866(r.deltaU,'units')+'</b></td><td><div class="v866RangePair"><span>'+e866(age866(r.prevAge))+'</span><i>-></i><b>'+e866(age866(r.curAge))+'</b></div></td><td class="num">'+m866(r.prevV)+'</td><td class="num">'+m866(r.curV)+'</td><td class="num"><b class="'+(r.deltaV<0?'v80Pos':r.deltaV>0?'v80Neg':'v80Flat')+'">'+deltaLabel866(r.deltaV,'money')+'</b></td><td class="num">'+i866(r.cendis)+'</td><td class="num">'+i866(r.salesU)+' u<small>'+m866(r.salesV)+'</small></td></tr>';}).join('');
+    return '<div class="v866TableWrap"><table class="v866TrendTable"><thead><tr><th>Imagen</th><th>Codigo</th><th>Producto</th>'+(includeStore?'<th>Tienda</th>':'')+'<th>Clasificacion</th><th>Condicion anterior / actual</th><th>Actividad</th><th>Que cambio</th><th class="num">Uds. anterior</th><th class="num">Uds. actual</th><th class="num">Variacion</th><th>Rango anterior / actual</th><th class="num">Valor anterior</th><th class="num">Valor actual</th><th class="num">Variacion valor</th><th class="num">CENDIS</th><th class="num">Venta 3m</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  }
+  function option866(value,label){return '<option value="'+e866(value)+'">'+e866(label)+'</option>';}
+  function filters866(includeStore){return '<div class="v866QuickStrip" data-v866-quick><button type="button" data-quick="changed" class="on">Con movimiento</button><button type="button" data-quick="managed">Gestionados</button><button type="button" data-quick="new">Nuevos criticos</button><button type="button" data-quick="persistent-change">Persistentes con cambio</button><button type="button" data-quick="condition">Cambio de condicion</button><button type="button" data-quick="range">Cambio de rango</button><button type="button" data-quick="units">Cambio de unidades</button><button type="button" data-quick="all">Todos</button></div><div class="v866Filters" data-v866-filters><label class="v866Search"><span>Buscar</span><input type="search" data-f="q" placeholder="Codigo, producto, tienda o cambio..."></label>'+(includeStore?'<label><span>Tienda</span><select data-f="store">'+option866('','Todas las tiendas')+'</select></label>':'')+'<label><span>Clasificacion</span><select data-f="class">'+option866('','Todas')+option866('CORE','CORE')+option866('COMPLEMENTO','COMPLEMENTO')+option866('SIN CLASIFICACION','Sin clasificacion')+'</select></label><label><span>Condicion</span><select data-f="condition">'+option866('','Anterior o actual')+option866('ROTACION','Rotacion')+option866('EVACUACION','Evacuacion')+'</select></label><label><span>Actividad</span><select data-f="activity">'+option866('','Todas')+option866('Gestionado','Gestionados')+option866('Nuevo critico','Nuevos criticos')+option866('Persistentes','Todos los persistentes')+option866('Persistente con cambio','Persistentes con cambio')+option866('Persistente sin cambio','Persistentes sin cambio')+'</select></label><label><span>Movimiento</span><select data-f="movement">'+option866('changed','Con movimiento')+option866('','Todos')+option866('condition','Cambio de condicion')+option866('range','Cambio de rango')+option866('units','Cambio de unidades')+option866('value','Cambio de valor')+option866('flat','Sin cambio')+'</select></label><label><span>Rango actual</span><select data-f="range">'+option866('','Todos los rangos')+[0,1,2,3,4,5,6].map(function(x){return option866(String(x),age866(x));}).join('')+'</select></label><label><span>CENDIS</span><select data-f="cendis">'+option866('','Todos')+option866('with','Con respaldo')+option866('without','Sin respaldo')+'</select></label><label><span>Venta 3m</span><select data-f="sales">'+option866('','Todos')+option866('with','Con venta')+option866('without','Sin venta')+'</select></label><button type="button" class="v866Clear" data-v866-clear>Limpiar</button><strong class="v866Count" data-v866-count></strong></div>';}
+  function kpi866(label,value,sub,quick,cls){return '<button type="button" class="v866CutKpi '+(cls||'')+'" data-card-quick="'+e866(quick)+'"><label>'+e866(label)+'</label><b>'+e866(value)+'</b><small>'+e866(sub)+'</small></button>';}
+  function renderTrendDetail866(date,storeCode){
+    var x=detailedRows866(date,storeCode),rows=x.rows,p=x.pair;if(!p)return;
+    var managed=rows.filter(function(r){return r.activity==='Gestionado';}),fresh=rows.filter(function(r){return r.activity==='Nuevo critico';}),persistent=rows.filter(function(r){return r.activity.indexOf('Persistente')===0;}),changed=persistent.filter(function(r){return r.hasMovement;}),unchanged=persistent.filter(function(r){return !r.hasMovement;}),cond=rows.filter(function(r){return r.moves.some(function(m){return m.indexOf('Condicion:')===0;});}),range=rows.filter(function(r){return r.moves.some(function(m){return m.indexOf('Rango:')===0;});}),units=rows.filter(function(r){return r.moves.some(function(m){return m.indexOf('Unidades:')===0;});}),values=rows.filter(function(r){return r.moves.some(function(m){return m.indexOf('Valor:')===0;});}),moved=rows.filter(function(r){return r.hasMovement;}),metric=dailyMetric866(date,storeCode),rotD=rangeDeltas866(date,storeCode,'rot'),evD=rangeDeltas866(date,storeCode,'evac'),name=storeCode&&((S&&S[storeCode]&&S[storeCode].name)||storeCode),includeStore=!storeCode;
+    var narrative='Entre '+fmtDate866(p.prev&&p.prev.date||'linea base')+' y '+fmtDate866(p.cur.date)+' se gestionaron '+i866(managed.length)+' productos, ingresaron '+i866(fresh.length)+' nuevos criticos y '+i866(persistent.length)+' permanecieron en estado critico. De los persistentes, '+i866(changed.length)+' tuvieron cambios y '+i866(unchanged.length)+' continuaron sin variacion. En total, '+i866(moved.length)+' productos registraron movimiento: '+i866(cond.length)+' cambiaron de condicion, '+i866(range.length)+' cambiaron de rango, '+i866(units.length)+' variaron unidades y '+i866(values.length)+' variaron su valor.';
+    var ageRows=[0,1,2,3,4,5,6].map(function(r){return '<div class="v866DeltaRow"><span>'+e866(age866(r))+'</span><b>Rot. '+(rotD[r]>0?'+':'')+i866(rotD[r])+' - Evac. '+(evD[r]>0?'+':'')+i866(evD[r])+'</b></div>';}).join('');
+    var changes='<div class="v866ReasonBox"><h4>Cambios detectados</h4><div class="v866ReasonGrid"><div><span>Cambio de condicion</span><b>'+i866(cond.length)+'</b></div><div><span>Cambio de rango</span><b>'+i866(range.length)+'</b></div><div><span>Cambio de unidades</span><b>'+i866(units.length)+'</b></div><div><span>Cambio de valor</span><b>'+i866(values.length)+'</b></div></div>'+(storeCode?'<div class="v866ScoreLine"><span>Indice anterior</span><b>'+(metric.prevScore==null?'--':metric.prevScore)+'</b><i>-></i><span>Indice actual</span><b>'+(metric.score==null?'--':metric.score)+'</b></div>':'')+'</div>';
+    var html='<div class="v866TrendDetail" data-v866-trend-detail><div class="v866CutKpis">'+kpi866('Gestionados',i866(managed.length),'Productos que salieron','managed','good')+kpi866('Nuevos criticos',i866(fresh.length),'Productos que entraron','new','bad')+kpi866('Persistentes',i866(persistent.length),i866(changed.length)+' con cambios','persistent','neutral')+kpi866('Mejora Rotacion',metric.rot.toFixed(1)+'%','Reduccion ajustada','rot','rot')+kpi866('Mejora Evacuacion',metric.evac.toFixed(1)+'%','Reduccion ajustada','evac','evac')+'</div><div class="v866Narrative"><b>Lectura del corte</b><p>'+e866(narrative)+'</p></div><div class="v866ExplainGrid"><div class="v866ReasonBox"><h4>Variacion por rango de antiguedad</h4>'+ageRows+'</div>'+changes+'</div>'+filters866(includeStore)+trendTable866(rows,includeStore)+'</div>';
+    var back=ensureModal866(),title=document.getElementById('v80ModalTitle'),sub=document.getElementById('v80ModalSub'),body=document.getElementById('v80ModalBody');
+    if(title)title.textContent='Detalle del corte '+fmtDate866(date)+(name?' - '+name:'');if(sub)sub.textContent='Actividad que explica la variacion frente a '+fmtDate866(p.prev&&p.prev.date||'la linea base');if(body){body.innerHTML=html;body.scrollTop=0;}back.classList.add('on');document.body.style.overflow='hidden';wireTrendDetail866(body,rows,includeStore);
+  }
+  function wireTrendDetail866(root,rows,includeStore){
+    var filter=root.querySelector('[data-v866-filters]'),table=root.querySelector('.v866TrendTable'),trs=Array.from(table.querySelectorAll('tbody tr')),quick='changed',cards=Array.from(root.querySelectorAll('[data-card-quick]')),chips=Array.from(root.querySelectorAll('[data-quick]'));
+    if(includeStore){var sel=filter.querySelector('[data-f="store"]'),names={};rows.forEach(function(r){names[r.storeName]=1;});Object.keys(names).sort().forEach(function(n){sel.insertAdjacentHTML('beforeend',option866(n,n));});}
+    function val(k){var el=filter.querySelector('[data-f="'+k+'"]');return t866(el&&el.value);}
+    function apply(){
+      var q=val('q').toLowerCase(),cl=val('class'),co=val('condition'),ac=val('activity'),mv=val('movement'),ag=val('range'),ce=val('cendis'),sa=val('sales'),st=val('store'),shown=0;
+      trs.forEach(function(tr){var activity=t866(tr.dataset.activity),movement=t866(tr.dataset.movement),ok=(!q||tr.textContent.toLowerCase().indexOf(q)>=0)&&(!cl||tr.dataset.class===cl)&&(!co||(tr.dataset.prevCondition.indexOf(co)>=0||tr.dataset.curCondition.indexOf(co)>=0))&&(!ac||(ac==='Persistentes'?activity.indexOf('Persistente')===0:activity===ac))&&(!ag||tr.dataset.curAge===ag)&&(!ce||tr.dataset.cendis===ce)&&(!sa||tr.dataset.sales===sa)&&(!st||tr.textContent.indexOf(st)>=0);
+        if(ok&&mv==='changed')ok=tr.dataset.moved==='1';if(ok&&mv==='condition')ok=movement.indexOf('Condicion:')>=0;if(ok&&mv==='range')ok=movement.indexOf('Rango:')>=0;if(ok&&mv==='units')ok=movement.indexOf('Unidades:')>=0;if(ok&&mv==='value')ok=movement.indexOf('Valor:')>=0;if(ok&&mv==='flat')ok=tr.dataset.moved==='0';
+        if(ok&&quick==='managed')ok=activity==='Gestionado';if(ok&&quick==='new')ok=activity==='Nuevo critico';if(ok&&quick==='persistent')ok=activity.indexOf('Persistente')===0;if(ok&&quick==='persistent-change')ok=activity==='Persistente con cambio';if(ok&&quick==='condition')ok=movement.indexOf('Condicion:')>=0;if(ok&&quick==='range')ok=movement.indexOf('Rango:')>=0;if(ok&&quick==='units')ok=movement.indexOf('Unidades:')>=0;if(ok&&quick==='rot')ok=(tr.dataset.prevCondition.indexOf('ROTACION')>=0||tr.dataset.curCondition.indexOf('ROTACION')>=0)&&tr.dataset.moved==='1';if(ok&&quick==='evac')ok=(tr.dataset.prevCondition.indexOf('EVACUACION')>=0||tr.dataset.curCondition.indexOf('EVACUACION')>=0)&&tr.dataset.moved==='1';if(ok&&quick==='changed')ok=tr.dataset.moved==='1';
+        tr.style.display=ok?'':'none';if(ok)shown++;
+      });
+      var count=filter.querySelector('[data-v866-count]');if(count)count.textContent=i866(shown)+' de '+i866(trs.length)+' productos';chips.forEach(function(b){b.classList.toggle('on',b.dataset.quick===quick);});cards.forEach(function(b){b.classList.toggle('on',b.dataset.cardQuick===quick);});
+    }
+    filter.querySelectorAll('input,select').forEach(function(el){el.addEventListener('input',apply);el.addEventListener('change',apply);});
+    filter.querySelector('[data-v866-clear]').onclick=function(){filter.querySelectorAll('input').forEach(function(x){x.value='';});filter.querySelectorAll('select').forEach(function(x){x.value='';});var move=filter.querySelector('[data-f="movement"]');if(move)move.value='changed';quick='changed';apply();};
+    chips.forEach(function(b){b.onclick=function(){quick=b.dataset.quick;var move=filter.querySelector('[data-f="movement"]');if(move)move.value=quick==='all'?'':quick==='changed'?'changed':'';apply();};});
+    cards.forEach(function(b){b.onclick=function(){quick=b.dataset.cardQuick;var move=filter.querySelector('[data-f="movement"]');if(move)move.value='';apply();};});
+    trs.forEach(function(tr){tr.onclick=function(ev){if(ev.target.closest('button,a,input,select'))return;if(typeof openInventoryProduct==='function')openInventoryProduct(tr.dataset.code);};tr.onkeydown=function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();tr.click();}};});
+    apply();
+  }
+  window.openTrendDetail80=window.openTrendDetail79=function(date,storeCode){renderTrendDetail866(date,storeCode||'');};
+  window.openTrendPoint59=function(date){renderTrendDetail866(date,'');};
+
+  /* Generic filters for product lists opened from ranges, CORE and COMPLEMENTO cards. */
+  function normalizeText866(v){return t866(v).toUpperCase().normalize? t866(v).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''):t866(v).toUpperCase();}
+  function indexHeader866(table,words){var hs=Array.from(table.querySelectorAll('thead th'));for(var i=0;i<hs.length;i++){var x=normalizeText866(hs[i].textContent);for(var j=0;j<words.length;j++)if(x.indexOf(words[j])>=0)return i;}return -1;}
+  function setupRows866(table){
+    var codeIdx=indexHeader866(table,['CODIGO']),classIdx=indexHeader866(table,['CLASIFICACION']),condIdx=indexHeader866(table,['CONDICION']),ageIdx=indexHeader866(table,['RANGO','ANTIGUEDAD']),cendisIdx=indexHeader866(table,['CENDIS']),salesIdx=indexHeader866(table,['VENTA']);
+    var rows=Array.from(table.querySelectorAll('tbody tr')).filter(function(r){return r.cells&&r.cells.length>1&&!r.querySelector('.empty');});
+    rows.forEach(function(r){var cell=function(i){return i>=0&&r.cells[i]?t866(r.cells[i].textContent).trim():'';},all=normalizeText866(r.textContent),code=r.dataset.code||code866(cell(codeIdx>=0?codeIdx:0).match(/\d{5,}/)&&cell(codeIdx>=0?codeIdx:0).match(/\d{5,}/)[0]);if(code)r.dataset.code=code;r.dataset.class=r.dataset.class||(all.indexOf('COMPLEMENTO')>=0?'COMPLEMENTO':all.indexOf('CORE')>=0?'CORE':all.indexOf('SIN CLASIFIC')>=0?'SIN CLASIFICACION':'');r.dataset.condition=r.dataset.condition||cell(condIdx);r.dataset.ageText=cell(ageIdx);var ce=cell(cendisIdx),sv=cell(salesIdx);if(cendisIdx>=0)r.dataset.cendis=(n866(ce.replace(/[^0-9.-]/g,''))>0&&all.indexOf('SIN RESPALDO')<0)?'with':'without';if(salesIdx>=0)r.dataset.sales=(n866(sv.replace(/[^0-9.-]/g,''))>0)?'with':'without';if(code)r.classList.add('v866ProductListRow');});
+    return {rows:rows,hasClass:classIdx>=0||rows.some(function(r){return !!r.dataset.class;}),hasCondition:condIdx>=0,hasAge:ageIdx>=0,hasCendis:cendisIdx>=0,hasSales:salesIdx>=0};
+  }
+  function installListFilters866(modal){
+    if(!modal||!modal.classList.contains('on'))return;var body=modal.querySelector('#rangeModalBody,#v80ModalBody,.modalBody,.v80ModalBody');if(!body||body.querySelector('[data-v866-trend-detail]'))return;
+    var table=Array.from(body.querySelectorAll('table')).find(function(t){var h=normalizeText866(t.textContent.slice(0,500));return h.indexOf('PRODUCTO')>=0&&h.indexOf('CODIGO')>=0;});if(!table||table.dataset.v866Enhanced)return;
+    var meta=setupRows866(table);if(!meta.rows.some(function(r){return !!r.dataset.code;}))return;table.dataset.v866Enhanced='1';table.classList.add('v866ProductList');
+    var anchor=table.closest('.v70DetailWrap,.twrap,.v80TableWrap')||table,bar=document.createElement('div');bar.className='v866ListFilters';bar.innerHTML='<label class="v866Search"><span>Busqueda rapida</span><input type="search" data-lf="q" placeholder="Buscar codigo o producto..."></label>'+(meta.hasClass?'<label><span>Clasificacion</span><select data-lf="class">'+option866('','Todas')+option866('CORE','CORE')+option866('COMPLEMENTO','COMPLEMENTO')+option866('SIN CLASIFICACION','Sin clasificacion')+'</select></label>':'')+(meta.hasCondition?'<label><span>Condicion</span><select data-lf="condition">'+option866('','Todas')+option866('ROTACION','Rotacion')+option866('EVACUACION','Evacuacion')+'</select></label>':'')+(meta.hasAge?'<label><span>Rango</span><select data-lf="age">'+option866('','Todos')+['91-120','121-150','151-180','181-210','211-240','241-360','+360'].map(function(a){return option866(a,a);}).join('')+'</select></label>':'')+(meta.hasCendis?'<label><span>CENDIS</span><select data-lf="cendis">'+option866('','Todos')+option866('with','Con respaldo')+option866('without','Sin respaldo')+'</select></label>':'')+(meta.hasSales?'<label><span>Venta 3m</span><select data-lf="sales">'+option866('','Todos')+option866('with','Con venta')+option866('without','Sin venta')+'</select></label>':'')+'<button type="button" data-lf-clear>Limpiar</button><strong data-lf-count></strong><div class="v866ListChips"><button type="button" data-lf-chip="all" class="on">Todos</button>'+(meta.hasClass?'<button type="button" data-lf-chip="CORE">CORE</button><button type="button" data-lf-chip="COMPLEMENTO">COMPLEMENTO</button>':'')+(meta.hasCendis?'<button type="button" data-lf-chip="without-cendis">Sin CENDIS</button>':'')+(meta.hasSales?'<button type="button" data-lf-chip="without-sales">Sin venta</button>':'')+'</div>';
+    anchor.parentNode.insertBefore(bar,anchor);var chip='all';
+    function get(k){var x=bar.querySelector('[data-lf="'+k+'"]');return t866(x&&x.value);}
+    function apply(){var q=get('q').toLowerCase(),cl=get('class'),co=normalizeText866(get('condition')),ag=get('age'),ce=get('cendis'),sa=get('sales'),shown=0;meta.rows.forEach(function(r){var ok=(!q||r.textContent.toLowerCase().indexOf(q)>=0)&&(!cl||r.dataset.class===cl)&&(!co||normalizeText866(r.dataset.condition).indexOf(co)>=0)&&(!ag||r.dataset.ageText.indexOf(ag)>=0)&&(!ce||r.dataset.cendis===ce)&&(!sa||r.dataset.sales===sa);if(ok&&chip==='CORE')ok=r.dataset.class==='CORE';if(ok&&chip==='COMPLEMENTO')ok=r.dataset.class==='COMPLEMENTO';if(ok&&chip==='without-cendis')ok=r.dataset.cendis==='without';if(ok&&chip==='without-sales')ok=r.dataset.sales==='without';r.style.display=ok?'':'none';if(ok)shown++;});var count=bar.querySelector('[data-lf-count]');if(count)count.textContent=i866(shown)+' de '+i866(meta.rows.length)+' productos';bar.querySelectorAll('[data-lf-chip]').forEach(function(b){b.classList.toggle('on',b.dataset.lfChip===chip);});}
+    bar.querySelectorAll('input,select').forEach(function(x){x.addEventListener('input',apply);x.addEventListener('change',apply);});bar.querySelector('[data-lf-clear]').onclick=function(){bar.querySelectorAll('input,select').forEach(function(x){x.value='';});chip='all';apply();};bar.querySelectorAll('[data-lf-chip]').forEach(function(b){b.onclick=function(){chip=b.dataset.lfChip;apply();};});apply();
+  }
+
+  document.addEventListener('click',function(ev){
+    var row=ev.target&&ev.target.closest&&ev.target.closest('.v866ProductListRow,.v866TrendRow');if(!row||!row.dataset.code||ev.target.closest('button,a,input,select,textarea'))return;
+    var modal=row.closest('.modalBack,.v80ModalBack');if(!modal||!modal.classList.contains('on'))return;
+    ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();if(typeof openInventoryProduct==='function')openInventoryProduct(row.dataset.code);
+  },true);
+  document.addEventListener('keydown',function(ev){var row=ev.target&&ev.target.closest&&ev.target.closest('.v866ProductListRow,.v866TrendRow');if(row&&(ev.key==='Enter'||ev.key===' ')){ev.preventDefault();row.click();}},true);
+
+  function syncProductFooter866(){
+    var modal=document.getElementById('inventoryProductModal');if(!modal)return;var foot=modal.querySelector('.modalFoot'),button=foot&&foot.querySelector('button'),nav=window.llaveroNavigationState862,top=nav&&nav.frames&&nav.frames[nav.frames.length-1],nested=!!(top&&top.childId==='inventoryProductModal');
+    if(!foot||!button)return;
+    if(nested){foot.hidden=false;button.classList.add('v866FooterBack');button.textContent='\u2190 Volver';button.onclick=function(ev){ev.preventDefault();ev.stopPropagation();if(typeof window.llaveroNavBack862==='function')window.llaveroNavBack862();};}
+    else{foot.hidden=true;button.classList.remove('v866FooterBack');}
+  }
+  var obs866=new MutationObserver(function(){clearTimeout(obs866._t);obs866._t=setTimeout(function(){mark866();installListFilters866(document.getElementById('rangeModal'));installListFilters866(document.getElementById('v80ModalBack'));syncProductFooter866();},10);});
+  obs866.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+
+  function mark866(){window.LLAVERO_BUILD='V86.6';document.documentElement.setAttribute('data-llavero-build','V86.6');document.documentElement.setAttribute('data-llavero-app-version','V86.6');document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.6');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.6');}
+  setTimeout(function(){mark866();installListFilters866(document.getElementById('rangeModal'));installListFilters866(document.getElementById('v80ModalBack'));syncProductFooter866();},140);
+})();
