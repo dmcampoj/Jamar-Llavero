@@ -6978,3 +6978,269 @@ setTimeout(function(){mark80();enhance80();},80);
   function mark869(){window.LLAVERO_BUILD='V86.9';document.documentElement.setAttribute('data-llavero-build','V86.9');document.documentElement.setAttribute('data-llavero-app-version','V86.9');document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.9');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.9');}
   setTimeout(function(){mark869();mount869(true);},180);
 })();
+
+/* ===== LLAVERO V86.10 - NAVEGACION JERARQUICA AUDITADA Y SELECTIVA ===== */
+(function llaveroV8610HierarchyAudit(){
+  'use strict';
+
+  var SELECTOR8610=[
+    '#rangeModal',
+    '#inventoryProductModal',
+    '#imageModal',
+    '#v80ModalBack',
+    '#guideDetailModalBackV48',
+    '#guideDetailModalBackV49',
+    '#guideKpiModalBack65',
+    '#leaderAuditModalBack59'
+  ].join(',');
+  var state8610={stack:[],pending:null,restoring:false,seq:0};
+
+  /* Desactiva la pila anterior sin alterar las funciones de negocio. */
+  try{
+    var old=window.llaveroNavigationState862;
+    if(old&&Array.isArray(old.frames)){
+      old.frames.length=0;
+      old.frames.push=function(){return 0;};
+      old.pending=null;
+      old.restoring=true;
+    }
+  }catch(_){ }
+
+  function isOpen8610(el){return !!(el&&el.classList&&el.classList.contains('on'));}
+  function eligible8610(el){return !!(el&&el.matches&&el.matches(SELECTOR8610));}
+  function body8610(el){return el&&el.querySelector('#rangeModalBody,#inventoryProductBody,#v80ModalBody,#guideDetailBodyV48,#guideDetailBodyV49,#guideKpiBody65,#leaderAuditBody59,.inventoryDetailBody,.v80ModalBody,.guideDetailScrollV49,.guideDetailScrollV50,.guideModalScrollV48,.guideKpiBody65,.leaderAuditBody59,.modalBody');}
+  function title8610(el){return el&&el.querySelector('.modalHead h3,.v80ModalHead h3');}
+  function sub8610(el){return el&&el.querySelector('.modalHead p,.v80ModalHead p');}
+  function footer8610(el){return el&&el.querySelector('.modalFoot');}
+  function allOpen8610(){return Array.prototype.slice.call(document.querySelectorAll(SELECTOR8610)).filter(isOpen8610);}
+  function z8610(el){var z=parseInt((el&&getComputedStyle(el).zIndex)||'0',10);return Number.isFinite(z)?z:0;}
+  function topOpen8610(){
+    var list=allOpen8610();
+    if(!list.length)return null;
+    list.sort(function(a,b){var d=z8610(a)-z8610(b);if(d)return d;return Array.prototype.indexOf.call(document.body.children,a)-Array.prototype.indexOf.call(document.body.children,b);});
+    return list[list.length-1];
+  }
+  function snap8610(el){
+    var b=body8610(el),t=title8610(el),s=sub8610(el),f=footer8610(el);
+    return {
+      id:el.id,
+      el:el,
+      body:b,
+      nodes:b?Array.prototype.slice.call(b.childNodes):[],
+      html:b?b.innerHTML:'',
+      scrollTop:b?b.scrollTop:0,
+      scrollLeft:b?b.scrollLeft:0,
+      title:t?t.textContent:'',
+      subtitle:s?s.textContent:'',
+      z:el.style.zIndex||'',
+      footerHidden:f?f.hidden:null,
+      footerDisplay:f?f.style.display:'',
+      time:Date.now()
+    };
+  }
+  function changed8610(snap){
+    if(!snap||!snap.el)return false;
+    var b=body8610(snap.el),t=title8610(snap.el),s=sub8610(snap.el);
+    return !!((b&&b.innerHTML!==snap.html)||(t&&t.textContent!==snap.title)||(s&&s.textContent!==snap.subtitle));
+  }
+  function restore8610(snap){
+    if(!snap||!snap.el)return;
+    var el=snap.el,b=body8610(el),t=title8610(el),s=sub8610(el),f=footer8610(el);
+    state8610.restoring=true;
+    try{
+      if(t)t.textContent=snap.title||'';
+      if(s)s.textContent=snap.subtitle||'';
+      if(b){b.replaceChildren.apply(b,snap.nodes);snap.body=b;}
+      if(f&&snap.footerHidden!==null){f.hidden=snap.footerHidden;f.style.display=snap.footerDisplay||'';}
+      el.classList.add('on');
+      el.style.zIndex=snap.z||'';
+      document.body.style.overflow='hidden';
+    }finally{
+      state8610.restoring=false;
+      requestAnimationFrame(function(){try{if(snap.body){snap.body.scrollTop=snap.scrollTop||0;snap.body.scrollLeft=snap.scrollLeft||0;}}catch(_){}});
+    }
+  }
+  function closeOnly8610(el){
+    if(!el)return;
+    el.classList.remove('on');
+    el.style.zIndex='';
+    if(el.id==='imageModal'){
+      var img=document.getElementById('imageModalImg');
+      if(img)img.removeAttribute('src');
+    }
+  }
+  function setLayers8610(parent,child,depth){
+    var base=2600+(depth*40);
+    if(parent)parent.style.zIndex=String(base);
+    if(child)child.style.zIndex=String(base+20);
+  }
+  function frameForChild8610(modal){
+    var f=state8610.stack[state8610.stack.length-1];
+    return f&&modal&&f.childId===modal.id?f:null;
+  }
+  function ensureBack8610(modal){
+    if(!modal)return;
+    var head=modal.querySelector('.modalHead,.v80ModalHead');
+    if(!head)return;
+    var old=head.querySelector('.hierBackV862');
+    if(old)old.hidden=true;
+    var btn=head.querySelector('.hierBackV8610'),needed=!!frameForChild8610(modal);
+    if(needed&&!btn){
+      btn=document.createElement('button');
+      btn.type='button';
+      btn.className='hierBackV8610';
+      btn.innerHTML='<span aria-hidden="true">←</span><span>Volver</span>';
+      btn.setAttribute('aria-label','Volver a la vista anterior');
+      btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();back8610();},true);
+      head.insertBefore(btn,head.firstChild);
+    }
+    if(btn)btn.hidden=!needed;
+  }
+  function sync8610(){
+    document.querySelectorAll(SELECTOR8610).forEach(ensureBack8610);
+    var product=document.getElementById('inventoryProductModal'),foot=product&&footer8610(product),frame=frameForChild8610(product);
+    if(foot){
+      var b=foot.querySelector('button');
+      if(frame){
+        foot.hidden=false;
+        if(b){b.textContent='← Volver';b.classList.add('v8610FooterBack');b.onclick=function(ev){ev.preventDefault();ev.stopPropagation();back8610();};}
+      }else{
+        foot.hidden=true;
+        if(b)b.classList.remove('v8610FooterBack');
+      }
+    }
+  }
+  function begin8610(){
+    if(state8610.restoring||state8610.pending)return;
+    var parent=topOpen8610();
+    if(!parent||!eligible8610(parent))return;
+    state8610.pending={token:'v8610-'+(++state8610.seq),parent:snap8610(parent),started:Date.now(),tries:0};
+  }
+  function cancelPending8610(){state8610.pending=null;}
+  function finalize8610(){
+    var p=state8610.pending;
+    if(!p||state8610.restoring)return;
+    var parent=p.parent,open=allOpen8610(),child=null,same=false;
+    for(var i=open.length-1;i>=0;i--){if(open[i]!==parent.el){child=open[i];break;}}
+    if(!child&&isOpen8610(parent.el)&&changed8610(parent)){child=parent.el;same=true;}
+    if(!child){
+      p.tries++;
+      if(p.tries<8&&Date.now()-p.started<1800){setTimeout(finalize8610,45);return;}
+      cancelPending8610();return;
+    }
+    var last=state8610.stack[state8610.stack.length-1];
+    if(last&&last.token===p.token){cancelPending8610();return;}
+    state8610.stack.push({token:p.token,parent:parent,childId:child.id,sameModal:same});
+    if(!same)setLayers8610(parent.el,child,state8610.stack.length);
+    else child.style.zIndex=String(2600+state8610.stack.length*40+20);
+    document.body.style.overflow='hidden';
+    cancelPending8610();
+    sync8610();
+  }
+  function scheduleFinalize8610(){setTimeout(finalize8610,0);setTimeout(finalize8610,70);}
+  function back8610(){
+    cancelPending8610();
+    var frame=state8610.stack.pop();
+    if(!frame)return false;
+    var child=document.getElementById(frame.childId);
+    state8610.restoring=true;
+    try{
+      if(frame.sameModal){restore8610(frame.parent);}
+      else{
+        closeOnly8610(child);
+        restore8610(frame.parent);
+      }
+    }finally{state8610.restoring=false;}
+    sync8610();
+    return true;
+  }
+  window.llaveroNavBack8610=back8610;
+  window.llaveroNavBack862=back8610;
+  window.llaveroCloseCurrentModal862=function(){
+    var top=topOpen8610();
+    if(top&&frameForChild8610(top))return back8610();
+    if(top)closeOnly8610(top);
+    if(!allOpen8610().length)document.body.style.overflow='';
+    sync8610();
+    return true;
+  };
+  window.llaveroNavigationState8610=state8610;
+
+  function navIntent8610(target){
+    if(!target||!target.closest)return false;
+    if(target.closest('input,select,textarea,[data-lf-clear],[data-lf-chip],.chip.filt,.guideQuickBtnV48'))return false;
+    var el=target.closest('tr,[role="button"],button,a,.mk,.kpi,.inventoryKpi');
+    if(!el)return false;
+    var on=String(el.getAttribute&&el.getAttribute('onclick')||'').toLowerCase(),d=el.dataset||{},cl=String(el.className||'').toLowerCase();
+    if(on.indexOf('open')>=0)return true;
+    if(d.code||d.productCode||d.guideCode||d.delivery||d.v68Product||d.v70DetailCode||d.transferProduct||d.v79Row)return true;
+    return /product|guide|delivery|detail|cendis|trendrow|nav66|clickablerow/.test(cl);
+  }
+
+  document.addEventListener('click',function(ev){
+    var modal=ev.target&&ev.target.closest?ev.target.closest(SELECTOR8610):null;
+    if(!modal||!isOpen8610(modal))return;
+    var top=topOpen8610(),nested=!!frameForChild8610(top);
+    if(ev.target.closest('.hierBackV8610'))return;
+    if(top===modal&&nested&&(ev.target===modal||ev.target.closest('.modalClose,.v80ModalClose'))){
+      ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();back8610();return;
+    }
+    if(navIntent8610(ev.target)){begin8610();scheduleFinalize8610();}
+  },true);
+  document.addEventListener('keydown',function(ev){
+    if(ev.key==='Escape'){
+      var top=topOpen8610();
+      if(top&&frameForChild8610(top)){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();back8610();return;}
+    }
+    if((ev.key==='Enter'||ev.key===' ')&&navIntent8610(ev.target)){begin8610();scheduleFinalize8610();}
+  },true);
+
+  function wrap8610(name){
+    var fn=window[name];
+    if(typeof fn!=='function'||fn.__v8610Wrapped)return;
+    function wrapped(){
+      begin8610();
+      var out=fn.apply(this,arguments);
+      scheduleFinalize8610();
+      return out;
+    }
+    wrapped.__v8610Wrapped=true;
+    wrapped.__v8610Original=fn;
+    window[name]=wrapped;
+  }
+  [
+    'openInventoryProduct','openImageModal','openGuideDetailV48','openGuideDetailV49','openGuideKpiDetail65',
+    'openAgeRange74','openClassDetail71','openCCDetail68','openCendisSummary71','openCendisModule868',
+    'openInventoryClass869','openTrendDetail79','openTrendDetail80','openStoreDailyDetail79','openStoreDailyDetail80',
+    'openDelivery80','openDelivery862','openTransferProduct80','openTransferProduct862','openTransferKpi80','openTransferKpi862',
+    'openRotationMetric','openEvacuationMetric','openStoreExposure80','openLeaderStore74','openGuideImpact71',
+    'openSalesClass68','openSalesCategory68','openSalesSub68','openBestProductDetail','openProduct70'
+  ].forEach(wrap8610);
+
+  var observer8610=new MutationObserver(function(){
+    if(state8610.restoring)return;
+    clearTimeout(observer8610._t);
+    observer8610._t=setTimeout(function(){finalize8610();sync8610();},20);
+  });
+  observer8610.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+
+  function resetOnMainNavigation8610(){
+    state8610.stack.length=0;
+    cancelPending8610();
+    document.querySelectorAll('.hierBackV8610').forEach(function(b){b.hidden=true;});
+  }
+  var setView8610=window.setView;
+  if(typeof setView8610==='function')window.setView=function(){resetOnMainNavigation8610();return setView8610.apply(this,arguments);};
+  var refresh8610=window.refresh;
+  if(typeof refresh8610==='function')window.refresh=function(){resetOnMainNavigation8610();return refresh8610.apply(this,arguments);};
+
+  function mark8610(){
+    window.LLAVERO_BUILD='V86.10';
+    document.documentElement.setAttribute('data-llavero-build','V86.10');
+    document.documentElement.setAttribute('data-llavero-app-version','V86.10');
+    document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.10');
+    var chip=document.querySelector('.appVersionChip b');
+    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.10');
+  }
+  setTimeout(function(){mark8610();sync8610();},180);
+})();

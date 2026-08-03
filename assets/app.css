@@ -3914,3 +3914,12 @@ body.dark .v867CendisCard,body.dark .v867CendisBlock{background:transparent}body
 body.dark .v869DetailSearch{background:#202c3a}
 @media(max-width:1180px){.v869MetricGrid.v869FourCards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.v869MetricGrid.v869TwoCards,.v869MetricGrid.v869FourCards{grid-template-columns:1fr}.v869MetricCard .v{font-size:19px!important}}
+
+/* ===== LLAVERO V86.10 - BOTON VOLVER JERARQUICO SELECTIVO ===== */
+.hierBackV8610{display:inline-flex;align-items:center;gap:6px;align-self:center;margin-right:4px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#f4f7fc;color:var(--ink2);font:800 10px/1 Arial,sans-serif;cursor:pointer;white-space:nowrap}
+.hierBackV8610:hover{background:#e9f0f8;color:var(--brand2);border-color:#bfd0e3}
+.hierBackV8610[hidden]{display:none!important}
+.modalHead:has(.hierBackV8610),.v80ModalHead:has(.hierBackV8610){grid-template-columns:auto minmax(0,1fr) auto!important}
+body.dark .hierBackV8610{background:#273545;color:#eef3f8;border-color:#405168}
+#inventoryProductModal .v8610FooterBack{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:850}
+@media(max-width:760px){.hierBackV8610 span:last-child{display:none}.hierBackV8610{padding:8px 10px}}
