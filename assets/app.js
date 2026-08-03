@@ -5457,33 +5457,7 @@ window.trendSvg=function(){return trendSvg80('exposure')};window.managementTrend
 function aggregateRows80(module){var st=store80(typeof CUR!=='undefined'?CUR:''),rows=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,st):[],s=state[module]||(state[module]={q:'',f:'all',sort:'units',dir:-1}),q=text(s.q).toLowerCase(),age=text(s.age80||s.age79||'all');rows=rows.filter(function(r){if(s.f==='core'&&r.cc!=='CORE')return false;if(s.f==='comp'&&r.cc!=='COMPLEMENTO')return false;if(s.f==='none'&&(r.cc==='CORE'||r.cc==='COMPLEMENTO'))return false;if(s.f==='sr'&&num(r.cendis)>0)return false;if(s.f==='cr'&&num(r.cendis)<=0)return false;if(s.f==='crit'&&![3,4,5,6].some(function(k){return num(r.ranges&&r.ranges[k])>0}))return false;if(s.f==='a360'&&num(r.ranges&&r.ranges[6])<=0)return false;if(s.f==='novta'&&num(r.sales)>0)return false;if(age!=='all'&&num(r.ranges&&r.ranges[Number(age)])<=0)return false;if(q&&(r.c+' '+r.p.n+' '+r.p.cat+' '+r.p.lin+' '+r.p.sub+' '+r.cc).toLowerCase().indexOf(q)<0)return false;return true});var key=s.sort||'units',dir=num(s.dir)||-1;rows.sort(function(a,b){if(module==='evac'){var a360=num(a.ranges&&a.ranges[6])>0,b360=num(b.ranges&&b.ranges[6])>0;if(a360!==b360)return a360?-1:1;var asr=num(a.cendis)<=0,bsr=num(b.cendis)<=0;if(asr!==bsr)return asr?-1:1}var av=key==='c'?a.c:key==='p'?a.p.n:key==='cendis'?a.cendis:key==='value'||key==='v'?a.value:key==='sales'?a.sales:key==='age'?Math.max.apply(null,Object.keys(a.ranges||{}).filter(function(k){return num(a.ranges[k])>0}).map(Number).concat([-1])):a.units,bv=key==='c'?b.c:key==='p'?b.p.n:key==='cendis'?b.cendis:key==='value'||key==='v'?b.value:key==='sales'?b.sales:key==='age'?Math.max.apply(null,Object.keys(b.ranges||{}).filter(function(k){return num(b.ranges[k])>0}).map(Number).concat([-1])):b.units;if(typeof av==='string')return av.localeCompare(text(bv))*dir;return (num(av)-num(bv))*dir});return rows}
 function thumb80(c){var p=product80(c),src=p.img||'';return '<span class="v80Thumb">'+(src?'<img src="'+esc80(src)+'" alt="">':'<span class="fallback">▧</span>')+'</span>'}
 function ranges80(r){var h=Object.keys(r||{}).filter(function(k){return num(r[k])>0}).map(function(k){return '<span class="v79RangeChip">'+int80(r[k])+' u · '+ageLabel80(k)+'</span>'}).join('');return h||'<span class="v71AgeEmpty">Sin unidades 91+ días</span>'}
-function renderModule80(module){
-  var rows=aggregateRows80(module),
-      all=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,store80(CUR)):[],
-      body=rows.map(function(r,i){
-        var rank=module==='evac'?'<span class="v80Rank '+(num(r.ranges&&r.ranges[6])>0?'hot':'')+'">'+(i+1)+'</span>':'',
-            visual='<div class="v88VisualStack">'+rank+thumb80(r.c)+'</div>',
-            product='<div class="v88ProductMain"><span class="code">'+esc80(r.c)+'</span><b>'+esc80(r.p.n)+'</b></div>',
-            hierarchy='<div class="v88ClassHierarchy">'+ccBadge80(r.c)+'<div class="v88HierarchyText"><strong>'+esc80(r.p.cat)+'</strong><span>'+esc80(r.p.lin)+' · '+esc80(r.p.sub)+'</span></div></div>';
-        return '<tr data-code="'+esc80(r.c)+'">'+
-          '<td class="v88ProductCell"><div class="v88ProductWrap">'+visual+product+'</div></td>'+
-          '<td class="v88MetaCell">'+hierarchy+'</td>'+
-          '<td class="v88RangesCell">'+ranges80(r.ranges)+'</td>'+
-          '<td class="num"><b>'+int80(r.units)+'</b></td>'+
-          '<td class="num">'+(num(r.cendis)>0?'<span class="tag cr">'+int80(r.cendis)+' u</span>':'<span class="tag sr">SIN RESPALDO</span>')+'</td>'+
-          '<td class="num v88Money">'+money80(r.value)+'</td>'+
-          '<td class="num"><b>'+int80(r.sales)+'</b></td>'+
-        '</tr>';
-      }).join(''),
-      el=document.getElementById(module+'-tbl');
-  if(el){
-    el.innerHTML='<div class="v80TableWrap v88ModuleTableWrap"><table class="v80Table v80ModuleTable v88CompactModuleTable"><thead><tr><th data-k="p">Producto</th><th>Clasificación / jerarquía</th><th data-k="age">Unidades por rango</th><th class="num" data-k="units">Uds.</th><th class="num" data-k="cendis">CENDIS</th><th class="num" data-k="value">Valor</th><th class="num" data-k="sales">Venta 3m</th></tr></thead><tbody>'+body+'</tbody></table></div>';
-    wireModule80(module,el)
-  }
-  var cnt=document.getElementById(module+'-cnt');
-  if(cnt)cnt.textContent='Mostrando '+int80(rows.length)+' de '+int80(all.length)+' productos · '+(module==='evac'?'prioridad +360 días y sin respaldo CENDIS':'rango '+(AGE80.find(function(a){return a.k===text((state[module]&&state[module].age80)||'all')})||AGE80[0]).l);
-  ensureAge80(module)
-}
+function renderModule80(module){var rows=aggregateRows80(module),all=typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71(module,store80(CUR)):[],body=rows.map(function(r,i){return '<tr data-code="'+esc80(r.c)+'"><td class="v80RankCell">'+(module==='evac'?'<span class="v80Rank '+(num(r.ranges&&r.ranges[6])>0?'hot':'')+'">'+(i+1)+'</span>':'')+'</td><td class="v80ImageCell">'+thumb80(r.c)+'</td><td><span class="code">'+esc80(r.c)+'</span></td><td class="productCell"><b>'+esc80(r.p.n)+'</b></td><td>'+ccBadge80(r.c)+'</td><td class="productCell">'+esc80(r.p.cat)+'<br><small>'+esc80(r.p.lin+' · '+r.p.sub)+'</small></td><td>'+ranges80(r.ranges)+'</td><td class="num"><b>'+int80(r.units)+'</b></td><td class="num">'+(num(r.cendis)>0?'<span class="tag cr">'+int80(r.cendis)+' u</span>':'<span class="tag sr">SIN RESPALDO</span>')+'</td><td class="num">'+money80(r.value)+'</td><td class="num">'+int80(r.sales)+'</td></tr>'}).join(''),el=document.getElementById(module+'-tbl');if(el){el.innerHTML='<div class="v80TableWrap"><table class="v80Table v80ModuleTable"><thead><tr><th>#</th><th>Imagen</th><th data-k="c">Código</th><th data-k="p">Producto</th><th>Clasificación</th><th>Jerarquía</th><th data-k="age">Unidades por rango</th><th class="num" data-k="units">Uds.</th><th class="num" data-k="cendis">CENDIS</th><th class="num" data-k="value">Valor</th><th class="num" data-k="sales">Venta 3m</th></tr></thead><tbody>'+body+'</tbody></table></div>';wireModule80(module,el)}var cnt=document.getElementById(module+'-cnt');if(cnt)cnt.textContent='Mostrando '+int80(rows.length)+' de '+int80(all.length)+' productos · '+(module==='evac'?'prioridad +360 días y sin respaldo CENDIS':'rango '+(AGE80.find(function(a){return a.k===text((state[module]&&state[module].age80)||'all')})||AGE80[0]).l);ensureAge80(module)}
 function wireModule80(module,root){root.querySelectorAll('tbody tr[data-code]').forEach(function(r){r.onclick=function(){if(typeof openInventoryProduct==='function')openInventoryProduct(r.dataset.code)}});root.querySelectorAll('th[data-k]').forEach(function(th){th.onclick=function(){var s=state[module],k=th.dataset.k;if(s.sort===k)s.dir*=-1;else{s.sort=k;s.dir=-1}renderModule80(module)}});document.querySelectorAll('.chip.filt[data-q="'+module+'"]').forEach(function(ch){ch.classList.toggle('on',(state[module].f||'all')===ch.dataset.f);ch.onclick=function(){state[module].f=ch.dataset.f;renderModule80(module)}})}
 function ensureAge80(module){var root=document.getElementById(module+'-tbl'),cbody=root&&root.closest('.cbody');if(!cbody)return;var bar=cbody.querySelector('.v80AgeBar[data-module="'+module+'"]');if(!bar){cbody.querySelectorAll('.ageFilterBar79').forEach(function(x){x.remove()});bar=document.createElement('div');bar.className='v80AgeBar';bar.dataset.module=module;bar.innerHTML='<span>Rango de antigüedad</span>'+AGE80.map(function(a){return '<button type="button" data-age="'+a.k+'">'+a.l+'</button>'}).join('');var tb=cbody.querySelector('.tbar');cbody.insertBefore(bar,tb||root);bar.querySelectorAll('button').forEach(function(b){b.onclick=function(){window.setAgeFilter80(module,b.dataset.age)}})}var cur=text((state[module]&&state[module].age80)||'all');bar.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.age===cur)})}
 window.setAgeFilter80=window.setAgeFilter79=function(module,age){state[module]=state[module]||{};state[module].age80=age;state[module].age79=age;renderModule80(module)};window.drawRot=drawRot=function(){renderModule80('rot')};window.drawEvac=drawEvac=function(){renderModule80('evac')};
@@ -5981,107 +5955,6 @@ setTimeout(function(){mark80();enhance80();},80);
   mark90();setTimeout(mark90,350);setTimeout(mark90,750);
 })();
 
+/* LLAVERO_BUILD_V93 · restaura tablas previas a V88 conservando movimientos diarios */
 
-/* ===== LLAVERO V91 · TABLAS ROTACIÓN / EVACUACIÓN MÁS CLARAS ===== */
-(function llaveroV91CompactRotEv(){
-  'use strict';
-  window.LLAVERO_BUILD='V91';
-  document.documentElement.setAttribute('data-llavero-build','V91');
-  document.documentElement.setAttribute('data-llavero-app-version','V91');
-
-  function safeV91(fn,fallback){ try{return typeof fn==='function'?fn:fallback;}catch(_){return fallback;} }
-  var esc91=safeV91(window.e71, function(v){return String(v==null?'':v);});
-  var int91=safeV91(window.i71, function(v){return String(Number(v||0));});
-  var money91=safeV91(window.m71, function(v){return '$ '+Number(v||0).toLocaleString('es-CO');});
-  var badge91=safeV91(window.ccBadge71, function(cc){return '<span>'+String(cc||'')+'</span>';});
-  var ages91=safeV91(window.ageChips71, function(){return '';});
-
-  window.productImageUrl=function(code){
-    var url='';
-    try{ url = safeText(P?.[safeCode(code)]?.img,''); }catch(_){ url=''; }
-    if(/^https?:\/\//i.test(url)) return url;
-    if(/^\/\//.test(url)) return 'https:'+url;
-    return '';
-  };
-
-  window.imageThumb=function(code,cls){
-    cls=cls||'';
-    var url=window.productImageUrl(code), p=(typeof productInfo==='function'?productInfo(code):{n:code});
-    if(!url) return '<span class="productThumb '+cls+' noImage v91ThumbFallback" title="Sin imagen disponible">🖼</span>';
-    return '<button class="productThumb '+cls+'" type="button" onclick="event.stopPropagation();openImageModal('+JSON.stringify(url)+','+JSON.stringify(p.n)+')" title="Ampliar imagen">'
-      + '<img loading="lazy" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" src="'+esc(url)+'" alt="'+esc(p.n)+'" '
-      + 'onerror="if(!this.dataset.v91Retry){this.dataset.v91Retry=1;this.referrerPolicy=\'origin\';this.src=this.src;return;}var h=this.closest(\'.productThumb\');if(h){h.classList.add(\'noImage\',\'v91ThumbFallback\');h.innerHTML=\'🖼\';}">'
-      + '</button>';
-  };
-
-  window.moduleTable71=function(module,rows){
-    var body=rows.map(function(r){
-      var cendisHtml = r.cendis>0 ? '<span class="tag cr">'+int91(r.cendis)+' u</span>' : '<span class="tag sr">SIN RESPALDO</span>';
-      return '<tr class="v71GeneralRow v91Row" tabindex="0" role="button" data-code="'+esc91(r.c)+'">'
-        + '<td class="v91ColProduct">'
-          + '<div class="v91ProductWrap">'
-            + imageThumb(r.c,'sm')
-            + '<div class="v91ProductText">'
-              + '<span class="code v91Code">'+esc91(r.c)+'</span>'
-              + '<div class="v71ProductName v91ProductName">'+esc91(r.p.n)+'</div>'
-            + '</div>'
-          + '</div>'
-        + '</td>'
-        + '<td class="v91ColClass">'
-          + '<div class="v91ClassBox">'+badge91(r.cc)
-            + '<small class="v71Hierarchy v91Hierarchy">'+esc91(r.p.cat)+' · '+esc91(r.p.lin)+' · '+esc91(r.p.sub)+'</small>'
-          + '</div>'
-        + '</td>'
-        + '<td class="v91ColAge">'+ages91(r.ranges)+'</td>'
-        + '<td class="num v91ColUnits"><b>'+int91(r.units)+'</b></td>'
-        + '<td class="num v91ColCendis">'+cendisHtml+'</td>'
-        + '<td class="num v91ColValue"><b>'+money91(r.value)+'</b></td>'
-        + '<td class="num v91ColSales">'+int91(r.sales)+'</td>'
-      + '</tr>';
-    }).join('');
-
-    return '<div class="twrap v91Wrap"><table class="v71ModuleTable v91ModuleTable"><thead><tr>'
-      + '<th data-k="p">Producto</th>'
-      + '<th>Clasificación / Jerarquía</th>'
-      + '<th data-k="age">Unidades por rango</th>'
-      + '<th class="num" data-k="units">Uds.</th>'
-      + '<th class="num" data-k="cendis">CENDIS</th>'
-      + '<th class="num" data-k="value">Valor</th>'
-      + '<th class="num" data-k="sales">Venta 3M</th>'
-      + '</tr></thead><tbody>'
-      + (body||'<tr><td colspan="7"><div class="empty">No hay productos para este filtro.</div></td></tr>')
-      + '</tbody></table></div>';
-  };
-
-  window.wireModuleTable71=function(module){
-    var root=document.getElementById(module+'-tbl');
-    if(!root) return;
-    root.querySelectorAll('.v71GeneralRow').forEach(function(tr){
-      var open=function(e){
-        if(e && e.target && e.target.closest('button,a,input,select,textarea')) return;
-        var c=tr.dataset.code;
-        if(typeof openInventoryProduct==='function') openInventoryProduct(c);
-        else if(typeof openBestProductDetail==='function') openBestProductDetail(c);
-      };
-      tr.onclick=open;
-      tr.onkeydown=function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); open(e); } };
-    });
-    root.querySelectorAll('th[data-k]').forEach(function(th){
-      th.style.cursor='pointer';
-      th.onclick=function(){
-        var st=state[module], k=th.dataset.k;
-        if(st.sort===k) st.dir*=-1; else { st.sort=k; st.dir=-1; }
-        if(module==='rot') drawRot(); else drawEvac();
-      };
-    });
-  };
-
-  function redrawIfNeeded(){
-    try{
-      if(typeof VIEW!=='undefined' && VIEW==='rot' && typeof drawRot==='function') drawRot();
-      if(typeof VIEW!=='undefined' && VIEW==='evac' && typeof drawEvac==='function') drawEvac();
-    }catch(err){ console.warn('V91 redraw warning',err); }
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',redrawIfNeeded,{once:true});
-  else setTimeout(redrawIfNeeded,0);
-})();
+(function(){window.LLAVERO_BUILD='V93';document.documentElement.setAttribute('data-llavero-build','V93');document.documentElement.setAttribute('data-llavero-app-version','V93');})();

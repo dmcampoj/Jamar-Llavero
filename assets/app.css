@@ -3694,61 +3694,6 @@ body.dark .guideSalesScope78 span{background:#343b46;border-color:#4a5260}
 }
 
 
-/* ===== LLAVERO V88 · TABLAS COMPACTAS ROTACION / EVACUACION ===== */
-/* Reduce columnas redundantes y aprovecha el ancho útil sin perder información. */
-.v88ModuleTableWrap{
-  overflow-x:auto!important;
-  max-height:62vh!important;
-}
-.v88CompactModuleTable{
-  width:100%!important;
-  min-width:880px!important;
-  table-layout:fixed!important;
-}
-.v88CompactModuleTable th,
-.v88CompactModuleTable td{
-  padding:7px 8px!important;
-}
-.v88CompactModuleTable th:nth-child(1){width:31%}
-.v88CompactModuleTable th:nth-child(2){width:25%}
-.v88CompactModuleTable th:nth-child(3){width:20%}
-.v88CompactModuleTable th:nth-child(4){width:6%}
-.v88CompactModuleTable th:nth-child(5){width:7%}
-.v88CompactModuleTable th:nth-child(6){width:7%}
-.v88CompactModuleTable th:nth-child(7){width:4%}
-.v88CompactModuleTable td:nth-child(1),
-.v88CompactModuleTable td:nth-child(2),
-.v88CompactModuleTable td:nth-child(3){white-space:normal!important}
-.v88CompactModuleTable td:nth-child(n+4){white-space:nowrap!important}
-.v88ProductWrap{display:flex;align-items:center;gap:9px;min-width:0}
-.v88VisualStack{display:flex;align-items:center;gap:5px;flex:none}
-.v88VisualStack .v80Rank{width:24px;height:24px;border-radius:7px;font-size:10px}
-.v88VisualStack .v80Thumb{width:38px;height:38px;border-radius:7px}
-.v88ProductMain{display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left}
-.v88ProductMain .code{font-size:9.5px!important;line-height:1.05;color:var(--mut)}
-.v88ProductMain b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11.5px;line-height:1.18;color:var(--ink);overflow-wrap:anywhere}
-.v88ClassHierarchy{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;min-width:0}
-.v88ClassHierarchy .tag{justify-self:start}
-.v88HierarchyText{display:flex;flex-direction:column;gap:1px;min-width:0;font-size:10px;line-height:1.18;color:var(--mut)}
-.v88HierarchyText strong{color:var(--ink2);font-size:10.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.v88HierarchyText span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-.v88RangesCell .ageUnitList{gap:2px!important}
-.v88RangesCell .ageUnitChip{padding:2px 5px!important;font-size:8.9px!important}
-.v88Money{font-size:10.2px!important;font-weight:800;color:var(--ink)}
-@media(max-width:1100px){
-  .v88CompactModuleTable{min-width:820px!important}
-  .v88CompactModuleTable th:nth-child(1){width:30%}
-  .v88CompactModuleTable th:nth-child(2){width:24%}
-  .v88CompactModuleTable th:nth-child(3){width:20%}
-  .v88ClassHierarchy{grid-template-columns:1fr;gap:4px}
-}
-@media(max-width:760px){
-  .v88CompactModuleTable{min-width:780px!important}
-  .v88ModuleTableWrap{max-height:66vh!important}
-  .v88ProductMain b{font-size:11px}
-}
-
-
 /* ===== LLAVERO V89 · navegación jerárquica de vistas detalladas ===== */
 .modalBack.v89-modal-parent-hidden{
   display:flex!important;
@@ -3807,120 +3752,34 @@ body.dark .v90Kpi,body.dark .v90Toolbar{background:#222f40}.v90Kpi.on{background
 @media(max-width:720px){.v90Kpis{grid-template-columns:repeat(2,1fr)}.v90Toolbar{display:flex;overflow-x:auto}.v90Toolbar>*{flex:0 0 165px}.v90Toolbar .search{flex-basis:240px}.v90TableWrap{max-height:64vh}.v90Kpi b{font-size:18px}}
 
 
-/* ===== LLAVERO V91 · AJUSTE VISUAL TABLAS ROTACIÓN / EVACUACIÓN ===== */
-#rot-tbl .twrap,
-#evac-tbl .twrap{
-  overflow-x:auto !important;
-  overflow-y:auto !important;
-  max-height:58vh !important;
+/* ===== LLAVERO V93 · RESTAURA TABLAS ANTERIORES A V88 ===== */
+#rot-tbl .v80TableWrap,
+#evac-tbl .v80TableWrap{
+  overflow-x:auto!important;
+  overflow-y:auto!important;
+  max-height:62vh!important;
 }
-#rot-tbl .v91ModuleTable,
-#evac-tbl .v91ModuleTable{
-  width:100% !important;
-  min-width:980px !important;
-  table-layout:fixed !important;
-  border-collapse:separate;
-  border-spacing:0;
+#rot-tbl .v80ModuleTable,
+#evac-tbl .v80ModuleTable{
+  width:max-content!important;
+  min-width:1220px!important;
+  table-layout:auto!important;
 }
-#rot-tbl .v91ModuleTable th,
-#evac-tbl .v91ModuleTable th{
-  white-space:normal !important;
-  font-size:10px !important;
-  line-height:1.15 !important;
+#rot-tbl .v80ModuleTable th,
+#evac-tbl .v80ModuleTable th,
+#rot-tbl .v80ModuleTable td,
+#evac-tbl .v80ModuleTable td{
+  white-space:normal!important;
 }
-#rot-tbl .v91ModuleTable td,
-#evac-tbl .v91ModuleTable td{
-  padding:10px 10px !important;
-  height:auto !important;
-  min-height:66px !important;
-  vertical-align:middle !important;
-  font-size:11.4px !important;
-}
-#rot-tbl .v91ModuleTable tbody tr,
-#evac-tbl .v91ModuleTable tbody tr{
-  height:auto !important;
-}
-#rot-tbl .v91ModuleTable th:nth-child(1),#rot-tbl .v91ModuleTable td:nth-child(1),
-#evac-tbl .v91ModuleTable th:nth-child(1),#evac-tbl .v91ModuleTable td:nth-child(1){width:32% !important;}
-#rot-tbl .v91ModuleTable th:nth-child(2),#rot-tbl .v91ModuleTable td:nth-child(2),
-#evac-tbl .v91ModuleTable th:nth-child(2),#evac-tbl .v91ModuleTable td:nth-child(2){width:24% !important;}
-#rot-tbl .v91ModuleTable th:nth-child(3),#rot-tbl .v91ModuleTable td:nth-child(3),
-#evac-tbl .v91ModuleTable th:nth-child(3),#evac-tbl .v91ModuleTable td:nth-child(3){width:18% !important;}
-#rot-tbl .v91ModuleTable th:nth-child(4),#rot-tbl .v91ModuleTable td:nth-child(4),
-#evac-tbl .v91ModuleTable th:nth-child(4),#evac-tbl .v91ModuleTable td:nth-child(4){width:6% !important;}
-#rot-tbl .v91ModuleTable th:nth-child(5),#rot-tbl .v91ModuleTable td:nth-child(5),
-#evac-tbl .v91ModuleTable th:nth-child(5),#evac-tbl .v91ModuleTable td:nth-child(5){width:10% !important;}
-#rot-tbl .v91ModuleTable th:nth-child(6),#rot-tbl .v91ModuleTable td:nth-child(6),
-#evac-tbl .v91ModuleTable th:nth-child(6),#evac-tbl .v91ModuleTable td:nth-child(6){width:10% !important;}
-#rot-tbl .v91ModuleTable th:nth-child(7),#rot-tbl .v91ModuleTable td:nth-child(7),
-#evac-tbl .v91ModuleTable th:nth-child(7),#evac-tbl .v91ModuleTable td:nth-child(7){width:7% !important;}
-
-.v91ProductWrap{
-  display:grid;
-  grid-template-columns:48px minmax(0,1fr);
-  gap:10px;
-  align-items:center;
-}
-.v91ProductText{min-width:0;display:flex;flex-direction:column;gap:4px;}
-.v91Code{
-  font-size:10px !important;
-  line-height:1 !important;
-  color:var(--mut) !important;
-  white-space:nowrap !important;
-}
-.v91ProductName{
-  display:block !important;
-  font-weight:800 !important;
-  line-height:1.18 !important;
-  color:var(--ink) !important;
-  white-space:normal !important;
-  overflow:visible !important;
-  text-overflow:clip !important;
-  word-break:break-word;
-}
-.v91ClassBox{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:6px;
-  min-width:0;
-}
-.v91Hierarchy{
-  display:block !important;
-  font-size:10px !important;
-  line-height:1.22 !important;
-  color:var(--mut) !important;
-  white-space:normal !important;
-}
-#rot-tbl .productThumb.sm,
-#evac-tbl .productThumb.sm{
-  width:48px !important;
-  height:48px !important;
-  flex:0 0 48px;
-  border-radius:10px;
-  background:#fff;
-}
-.v91ThumbFallback{
-  font-size:16px !important;
-}
-#rot-tbl .v91ModuleTable .tag,
-#evac-tbl .v91ModuleTable .tag{
-  white-space:nowrap !important;
-}
-#rot-tbl .v91ModuleTable .num,
-#evac-tbl .v91ModuleTable .num{
-  text-align:right !important;
-  white-space:nowrap !important;
-}
-#rot-tbl .v91ModuleTable .ageChips,
-#evac-tbl .v91ModuleTable .ageChips,
-#rot-tbl .v91ModuleTable [class*="age"],
-#evac-tbl .v91ModuleTable [class*="age"]{
-  white-space:normal;
-}
-@media (max-width:1100px){
-  #rot-tbl .v91ModuleTable,
-  #evac-tbl .v91ModuleTable{min-width:920px !important;}
-  #rot-tbl .v91ModuleTable td,
-  #evac-tbl .v91ModuleTable td{padding:8px 8px !important;font-size:11px !important;}
+#rot-tbl .v80ImageCell,
+#evac-tbl .v80ImageCell{width:64px;min-width:64px;text-align:center}
+#rot-tbl .v80RankCell,
+#evac-tbl .v80RankCell{width:38px;min-width:38px;text-align:center}
+#rot-tbl .productCell,
+#evac-tbl .productCell{min-width:230px!important;max-width:330px!important}
+#rot-tbl .v80Thumb,
+#evac-tbl .v80Thumb{width:42px!important;height:42px!important}
+@media(max-width:980px){
+  #rot-tbl .v80ModuleTable,
+  #evac-tbl .v80ModuleTable{min-width:1120px!important}
 }
