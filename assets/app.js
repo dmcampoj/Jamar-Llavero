@@ -6841,3 +6841,140 @@ setTimeout(function(){mark80();enhance80();},80);
   function mark868(){window.LLAVERO_BUILD='V86.8';document.documentElement.setAttribute('data-llavero-build','V86.8');document.documentElement.setAttribute('data-llavero-app-version','V86.8');document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.8');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.8');}
   setTimeout(function(){mark868();reconcileCards868();},140);
 })();
+
+/* ===== LLAVERO V86.9 · CARDS ESTILO PROXIMOS A ROTAR ===== */
+(function llaveroV869CardsProxStyle(){
+  'use strict';
+
+  function text869(v){return String(v==null?'':v);}
+  function num869(v){var n=Number(v);return Number.isFinite(n)?n:0;}
+  function int869(v){try{return typeof fInt==='function'?fInt(num869(v)):Math.round(num869(v)).toLocaleString('es-CO');}catch(_){return String(Math.round(num869(v)));}}
+  function money869(v){try{return typeof fMoneyCOP==='function'?fMoneyCOP(num869(v)):(typeof fMoney==='function'?fMoney(num869(v)):'$ '+Math.round(num869(v)).toLocaleString('es-CO'));}catch(_){return '$ '+Math.round(num869(v)).toLocaleString('es-CO');}}
+  function esc869(v){try{return typeof esc==='function'?esc(text869(v)):text869(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}catch(_){return text869(v);}}
+  function norm869(v){var s=text869(v).trim().toUpperCase();try{return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');}catch(_){return s;}}
+  function store869(){try{return (S&&S[CUR])||{};}catch(_){return {};}}
+  function product869(code){try{return (typeof productInfo==='function'?productInfo(code):(P&&P[code]))||{n:code,cat:'—',lin:'—',sub:'—'};}catch(_){return {n:code,cat:'—',lin:'—',sub:'—'};}}
+  function class869(code,row){var x=norm869((row&&row.cc)||(P&&P[code]&&P[code].cc));return x==='CORE'?'CORE':x==='COMPLEMENTO'?'COMPLEMENTO':'SIN CLASIFICACIÓN';}
+  function badge869(code,row){var x=class869(code,row),cl=x==='CORE'?'core':x==='COMPLEMENTO'?'comp':'none';return '<span class="ccBadge68 '+cl+'">'+esc869(x)+'</span>';}
+
+  function inventoryClassStats869(kind){
+    var rows=[];
+    try{rows=(typeof normalizeInventoryRows==='function'?normalizeInventoryRows(store869()):[]).filter(function(r){return num869(r.stock)>0&&class869(r.c,r)===kind;});}catch(_){rows=[];}
+    return {rows:rows,refs:rows.length,units:rows.reduce(function(a,r){return a+num869(r.stock);},0),value:rows.reduce(function(a,r){return a+num869(r.valorInventario);},0)};
+  }
+  function cendisStats869(module,mode){
+    var rows=[];
+    try{rows=typeof window.aggregateModuleProducts71==='function'?window.aggregateModuleProducts71(module,store869()):[];}catch(_){rows=[];}
+    rows=rows.filter(function(r){return mode==='with'?num869(r.cendis)>0:num869(r.cendis)<=0;});
+    return {rows:rows,refs:rows.length,units:rows.reduce(function(a,r){return a+num869(r.units);},0),value:rows.reduce(function(a,r){return a+num869(r.value);},0)};
+  }
+
+  function metricCard869(opts){
+    return '<div class="mk '+opts.tone+' proxKpiClickable v869MetricCard" data-v868-cendis-card="'+(opts.cendis?'1':'0')+'" data-v869-card="'+esc869(opts.id)+'" role="button" tabindex="0" onclick="'+opts.action+'" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'+opts.action+'}">'
+      +'<div class="l">'+esc869(opts.label)+'</div>'
+      +'<div class="v">'+esc869(opts.value)+'</div>'
+      +'<div class="meta">'+esc869(opts.meta)+'</div>'
+      +'</div>';
+  }
+
+  function classificationCards869(){
+    var core=inventoryClassStats869('CORE'),comp=inventoryClassStats869('COMPLEMENTO');
+    return '<div class="v869MetricSection" data-v869-class-section>'
+      +'<div class="v869MetricTitle"><b>Clasificación del inventario</b><span>Referencias y unidades actualmente disponibles en la tienda.</span></div>'
+      +'<div class="mkpis v869MetricGrid v869TwoCards">'
+      +metricCard869({id:'core',tone:'g',label:'CORE',value:int869(core.refs)+' referencias',meta:int869(core.units)+' unidades · '+money869(core.value),action:"openInventoryClass869('CORE')"})
+      +metricCard869({id:'complemento',tone:'a',label:'COMPLEMENTO',value:int869(comp.refs)+' referencias',meta:int869(comp.units)+' unidades · '+money869(comp.value),action:"openInventoryClass869('COMPLEMENTO')"})
+      +'</div></div>';
+  }
+
+  function cendisCards869(){
+    var rn=cendisStats869('rot','without'),ry=cendisStats869('rot','with'),en=cendisStats869('evac','without'),ey=cendisStats869('evac','with');
+    return '<div class="v869MetricSection" data-v869-cendis-section>'
+      +'<div class="v869MetricTitle"><b>Respaldo CENDIS por condición</b><span>Rotación y Evacuación conservan productos, unidades y valor.</span></div>'
+      +'<div class="mkpis v869MetricGrid v869FourCards">'
+      +metricCard869({id:'rot-without',tone:'b',label:'ROTACIÓN · SIN RESPALDO CENDIS',value:int869(rn.refs)+' productos',meta:int869(rn.units)+' unidades · '+money869(rn.value),action:"openCendisModule868('rot','without')",cendis:true})
+      +metricCard869({id:'rot-with',tone:'r',label:'ROTACIÓN · CON RESPALDO CENDIS',value:int869(ry.refs)+' productos',meta:int869(ry.units)+' unidades · '+money869(ry.value),action:"openCendisModule868('rot','with')",cendis:true})
+      +metricCard869({id:'evac-without',tone:'b',label:'EVACUACIÓN · SIN RESPALDO CENDIS',value:int869(en.refs)+' productos',meta:int869(en.units)+' unidades · '+money869(en.value),action:"openCendisModule868('evac','without')",cendis:true})
+      +metricCard869({id:'evac-with',tone:'e',label:'EVACUACIÓN · CON RESPALDO CENDIS',value:int869(ey.refs)+' productos',meta:int869(ey.units)+' unidades · '+money869(ey.value),action:"openCendisModule868('evac','with')",cendis:true})
+      +'</div></div>';
+  }
+
+  function removeDuplicates869(content){
+    if(!content)return;
+    content.querySelectorAll('.v867CendisBlock,[data-v868-cendis-card]:not(.v869MetricCard)').forEach(function(el){el.remove();});
+    content.querySelectorAll('.inventoryKpis .inventoryKpi,.kgrid .kpi').forEach(function(card){
+      var lab=card.querySelector('.ikLabel,.lab'),name=norm869(lab&&lab.textContent);
+      if(name==='CON RESPALDO CENDIS'||name==='CON RESPALDO EN CENDIS'||name==='SIN RESPALDO CENDIS'||name==='SIN RESPALDO EN CENDIS')card.remove();
+    });
+  }
+
+  function mount869(force){
+    if(typeof VIEW==='undefined'||(VIEW!=='inventario'&&VIEW!=='resumen'))return;
+    var content=document.getElementById('content');if(!content)return;
+    removeDuplicates869(content);
+    if(force){content.querySelectorAll('[data-v869-class-section],[data-v869-cendis-section]').forEach(function(el){el.remove();});}
+    if(VIEW==='inventario'){
+      var kpis=content.querySelector('.inventoryKpis');
+      if(kpis&&!content.querySelector('[data-v869-class-section]'))kpis.insertAdjacentHTML('afterend',classificationCards869());
+      var classSection=content.querySelector('[data-v869-class-section]');
+      if(classSection&&!content.querySelector('[data-v869-cendis-section]'))classSection.insertAdjacentHTML('afterend',cendisCards869());
+    }else{
+      var grid=content.querySelector('.kgrid');
+      if(grid&&!content.querySelector('[data-v869-cendis-section]'))grid.insertAdjacentHTML('afterend',cendisCards869());
+    }
+  }
+
+  function ensureModal869(){
+    var back=document.getElementById('v80ModalBack');
+    if(!back){
+      back=document.createElement('div');back.id='v80ModalBack';back.className='v80ModalBack';
+      back.innerHTML='<div class="v80Modal" role="dialog" aria-modal="true"><div class="v80ModalHead"><div><h3 id="v80ModalTitle"></h3><p id="v80ModalSub"></p></div><button type="button" class="v80ModalClose" aria-label="Cerrar">×</button></div><div class="v80ModalBody" id="v80ModalBody"></div></div>';
+      document.body.appendChild(back);
+    }
+    var close=back.querySelector('.v80ModalClose');
+    if(close&&!close.dataset.v869Close){close.dataset.v869Close='1';close.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();if(typeof window.llaveroCloseCurrentModal862==='function')window.llaveroCloseCurrentModal862();else back.classList.remove('on');});}
+    return back;
+  }
+
+  function age869(ranges){
+    var out=[];Object.keys(ranges||{}).forEach(function(k){var u=num869(ranges[k]);if(u>0)out.push('<span class="v867Range">'+int869(u)+' u · '+esc869(k)+'</span>');});
+    return out.join('')||'<span class="mut">Sin rango</span>';
+  }
+  function state869(r){
+    var e=(r.estados||[]).map(function(x){return '<span class="tag '+(norm869(x).indexOf('EVAC')>=0?'sr':'cr')+'">'+esc869(x)+'</span>';}).join(' ');
+    return e||'<span class="mut">Sin condición</span>';
+  }
+
+  window.openInventoryClass869=function(kind){
+    var data=inventoryClassStats869(kind),st=store869();
+    var rows=data.rows.map(function(r){var p=r.p||product869(r.c);return '<tr data-code="'+esc869(r.c)+'" role="button" tabindex="0" onclick="openInventoryProduct('+JSON.stringify(r.c)+')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openInventoryProduct('+JSON.stringify(r.c)+')}">'
+      +'<td>'+(typeof imageThumb==='function'?imageThumb(r.c,'sm'):'')+'</td>'
+      +'<td><span class="code">'+esc869(r.c)+'</span></td>'
+      +'<td class="productCell"><b>'+esc869(p.n||r.c)+'</b><small>'+esc869((p.cat||'—')+' · '+(p.lin||'—')+' · '+(p.sub||'—'))+'</small></td>'
+      +'<td>'+badge869(r.c,r)+'</td>'
+      +'<td>'+state869(r)+'</td>'
+      +'<td class="num"><b>'+int869(r.stock)+'</b></td>'
+      +'<td>'+age869(r.rangos||{})+'</td>'
+      +'<td class="num">'+(num869(r.dispCendis)>0?'<span class="tag cr">'+int869(r.dispCendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td>'
+      +'<td class="num">'+money869(r.valorInventario)+'</td></tr>';}).join('');
+    if(!rows)rows='<tr><td colspan="9"><div class="empty">No hay referencias '+esc869(kind)+' con inventario en la tienda.</div></td></tr>';
+    var html='<div class="v80Kpis"><div class="v80Kpi"><label>Referencias</label><b>'+int869(data.refs)+'</b><small>'+esc869(kind)+'</small></div><div class="v80Kpi"><label>Unidades</label><b>'+int869(data.units)+'</b><small>Inventario en tienda</small></div><div class="v80Kpi"><label>Valor</label><b>'+money869(data.value)+'</b><small>Valor del inventario</small></div></div>'
+      +'<div class="v869DetailSearch"><input type="search" placeholder="Buscar código o producto..." oninput="filterInventoryClass869(this)"><span data-v869-count>'+int869(data.refs)+' resultados</span></div>'
+      +'<div class="v80TableWrap"><table class="v80Table v869ClassTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Clasificación</th><th>Estado</th><th class="num">Unidades</th><th>Rangos</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    var modal=ensureModal869(),title=modal.querySelector('#v80ModalTitle'),sub=modal.querySelector('#v80ModalSub'),body=modal.querySelector('#v80ModalBody');
+    if(title)title.textContent='Inventario '+kind;if(sub)sub.textContent=(st.name||CUR)+' · referencias y unidades en tienda';if(body)body.innerHTML=html;
+    modal.classList.add('on');document.body.style.overflow='hidden';
+  };
+  window.filterInventoryClass869=function(input){
+    var root=input&&input.closest('.v80ModalBody');if(!root)return;var q=text869(input.value).toLowerCase(),rows=Array.from(root.querySelectorAll('.v869ClassTable tbody tr[data-code]')),shown=0;
+    rows.forEach(function(r){var ok=!q||r.textContent.toLowerCase().indexOf(q)>=0;r.style.display=ok?'':'none';if(ok)shown++;});var c=root.querySelector('[data-v869-count]');if(c)c.textContent=int869(shown)+' resultados';
+  };
+
+  var timer869=0;
+  var observer869=new MutationObserver(function(){clearTimeout(timer869);timer869=setTimeout(function(){mount869(false);},45);});
+  observer869.observe(document.documentElement,{subtree:true,childList:true});
+  var refresh869=window.refresh;if(typeof refresh869==='function')window.refresh=function(){var out=refresh869.apply(this,arguments);setTimeout(function(){mount869(true);},80);return out;};
+  var setView869=window.setView;if(typeof setView869==='function')window.setView=function(v){var out=setView869.apply(this,arguments);setTimeout(function(){mount869(true);},90);return out;};
+  function mark869(){window.LLAVERO_BUILD='V86.9';document.documentElement.setAttribute('data-llavero-build','V86.9');document.documentElement.setAttribute('data-llavero-app-version','V86.9');document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.9');var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.9');}
+  setTimeout(function(){mark869();mount869(true);},180);
+})();

@@ -3887,3 +3887,30 @@ body.dark .v867CendisCard,body.dark .v867CendisBlock{background:transparent}body
 .v868CendisNative:focus-visible{outline:2px solid rgba(229,43,47,.45)!important;outline-offset:2px}
 .kgrid .v868CendisNative{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
 .kgrid .v868CendisNative:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(23,59,99,.12);border-color:rgba(229,50,50,.30)}
+
+/* ===== LLAVERO V86.9 · CARDS ESTILO PROXIMOS A ROTAR ===== */
+.v869MetricSection{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.v869MetricTitle{display:flex;flex-direction:column;gap:2px;padding:0 2px}
+.v869MetricTitle b{font-size:11px;color:var(--ink)}
+.v869MetricTitle span{font-size:9px;color:var(--mut)}
+.v869MetricGrid{display:grid!important;gap:8px!important;flex-wrap:unset!important}
+.v869MetricGrid.v869TwoCards{grid-template-columns:repeat(2,minmax(0,1fr))}
+.v869MetricGrid.v869FourCards{grid-template-columns:repeat(4,minmax(0,1fr))}
+.v869MetricCard{min-width:0!important;width:auto!important;display:block!important;text-align:left!important}
+.v869MetricCard .l{white-space:normal;line-height:1.25}
+.v869MetricCard .v{font-size:20px!important;line-height:1.05!important;margin-top:5px!important;white-space:normal}
+.v869MetricCard .meta{font-size:10px!important;line-height:1.25!important;margin-top:6px!important}
+.v869MetricCard[data-v869-card="core"] .v{color:var(--ok)!important}
+.v869MetricCard[data-v869-card="complemento"] .v{color:var(--amb)!important}
+.v869MetricCard[data-v869-card="rot-without"] .v,
+.v869MetricCard[data-v869-card="evac-without"] .v{color:var(--bad)!important}
+.v869MetricCard:focus-visible{outline:2px solid rgba(47,107,255,.28);outline-offset:2px}
+.v869DetailSearch{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:8px;border:1px solid var(--line);border-radius:11px;background:#f8fafc}
+.v869DetailSearch input{flex:1;min-width:0;border:1px solid var(--line2);border-radius:9px;padding:8px 10px;background:var(--card);color:var(--ink)}
+.v869DetailSearch span{font-size:10px;font-weight:800;color:var(--mut);white-space:nowrap}
+.v869ClassTable tbody tr[data-code]{cursor:pointer}
+.v869ClassTable tbody tr[data-code]:hover{background:#f7faff!important}
+.v869ClassTable .productCell small{display:block;color:var(--mut);margin-top:2px}
+body.dark .v869DetailSearch{background:#202c3a}
+@media(max-width:1180px){.v869MetricGrid.v869FourCards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.v869MetricGrid.v869TwoCards,.v869MetricGrid.v869FourCards{grid-template-columns:1fr}.v869MetricCard .v{font-size:19px!important}}
