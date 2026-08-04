@@ -6325,7 +6325,7 @@ setTimeout(function(){mark80();enhance80();},80);
     if(modalRow){
       /* V86.13: las filas del detalle CENDIS no pertenecen al flujo de Traslados.
          Antes este listener global las bloqueaba con stopImmediatePropagation sin abrir nada. */
-      if(modalRow.closest('.v867CendisTable'))return;
+      if(modalRow.closest('.v867CendisTable,.v869ClassTable'))return;
       if(ev.target.closest('button,a,input,select,textarea'))return;
       ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
       if(modalRow.dataset.guideCode&&typeof window.openGuideFromTransfer862==='function')window.openGuideFromTransfer862(modalRow.dataset.guideCode);
@@ -7708,4 +7708,109 @@ setTimeout(function(){mark80();enhance80();},80);
   }
 
   setTimeout(function(){mark8613();enhance8613();},260);
+})();
+
+
+/* ===== LLAVERO V86.14 · CLIC EN PRODUCTOS CORE / COMPLEMENTO ===== */
+(function llaveroV8614InventoryClassRows(){
+  'use strict';
+
+  function normalize8614(value){
+    try{return typeof safeCode==='function'?safeCode(value):String(value==null?'':value).trim();}
+    catch(_){return String(value==null?'':value).trim();}
+  }
+
+  function open8614(row,ev){
+    var code=normalize8614(row&&row.dataset&&row.dataset.code);
+    if(!code)return false;
+    if(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+    }
+    if(typeof window.openInventoryProduct==='function'){
+      window.openInventoryProduct(code);
+      return true;
+    }
+    if(typeof window.openBestProductDetail==='function'){
+      window.openBestProductDetail(code);
+      return true;
+    }
+    return false;
+  }
+
+  function wire8614(root){
+    (root||document).querySelectorAll('#v80ModalBody .v869ClassTable tbody tr[data-code],#rangeModalBody .v869ClassTable tbody tr[data-code]').forEach(function(row){
+      row.dataset.v8614Wired='1';
+      row.classList.add('v8614ClassProductRow');
+      row.setAttribute('role','button');
+      row.setAttribute('tabindex','0');
+      row.setAttribute('aria-label','Abrir detalle del producto '+normalize8614(row.dataset.code));
+      row.title='Abrir detalle completo del producto';
+      row.onclick=function(ev){return open8614(row,ev);};
+      row.onkeydown=function(ev){
+        if(ev.key==='Enter'||ev.key===' ')open8614(row,ev);
+      };
+    });
+  }
+
+  function bindBody8614(body){
+    if(!body||body.dataset.v8614ClassDelegated==='1')return;
+    body.dataset.v8614ClassDelegated='1';
+    body.addEventListener('click',function(ev){
+      var row=ev.target&&ev.target.closest&&ev.target.closest('.v869ClassTable tbody tr[data-code]');
+      if(!row||!body.contains(row))return;
+      if(ev.target.closest('input,select,textarea,a,button'))return;
+      open8614(row,ev);
+    },true);
+    body.addEventListener('keydown',function(ev){
+      if(ev.key!=='Enter'&&ev.key!==' ')return;
+      var row=ev.target&&ev.target.closest&&ev.target.closest('.v869ClassTable tbody tr[data-code]');
+      if(!row||!body.contains(row))return;
+      open8614(row,ev);
+    },true);
+  }
+
+  function enhance8614(){
+    wire8614(document);
+    bindBody8614(document.getElementById('v80ModalBody'));
+    bindBody8614(document.getElementById('rangeModalBody'));
+  }
+
+  var baseOpenClass8614=window.openInventoryClass869;
+  if(typeof baseOpenClass8614==='function'&&!baseOpenClass8614.__v8614Wrapped){
+    function wrapped(){
+      var out=baseOpenClass8614.apply(this,arguments);
+      requestAnimationFrame(enhance8614);
+      setTimeout(enhance8614,20);
+      setTimeout(enhance8614,80);
+      return out;
+    }
+    wrapped.__v8614Wrapped=true;
+    wrapped.__v8614Original=baseOpenClass8614;
+    window.openInventoryClass869=wrapped;
+  }
+
+  var observer8614=new MutationObserver(function(records){
+    var relevant=false;
+    records.forEach(function(record){
+      record.addedNodes&&record.addedNodes.forEach(function(node){
+        if(!node||node.nodeType!==1)return;
+        if((node.matches&&node.matches('.v869ClassTable,tr[data-code]'))||(node.querySelector&&node.querySelector('.v869ClassTable tbody tr[data-code]')))relevant=true;
+      });
+    });
+    if(relevant){clearTimeout(observer8614._t);observer8614._t=setTimeout(enhance8614,5);}
+  });
+  observer8614.observe(document.documentElement,{subtree:true,childList:true});
+
+  function mark8614(){
+    window.LLAVERO_BUILD='V86.14';
+    document.documentElement.setAttribute('data-llavero-build','V86.14');
+    document.documentElement.setAttribute('data-llavero-app-version','V86.14');
+    document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.14');
+    var chip=document.querySelector('.appVersionChip b');
+    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.14');
+  }
+
+  setTimeout(function(){mark8614();enhance8614();},280);
 })();
