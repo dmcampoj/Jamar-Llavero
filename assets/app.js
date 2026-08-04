@@ -6323,6 +6323,9 @@ setTimeout(function(){mark80();enhance80();},80);
     }
     var modalRow=ev.target&&ev.target.closest&&ev.target.closest('#v80ModalBack tr[data-guide-code],#v80ModalBack tr[data-code],#v80ModalBack tr[data-delivery]');
     if(modalRow){
+      /* V86.13: las filas del detalle CENDIS no pertenecen al flujo de Traslados.
+         Antes este listener global las bloqueaba con stopImmediatePropagation sin abrir nada. */
+      if(modalRow.closest('.v867CendisTable'))return;
       if(ev.target.closest('button,a,input,select,textarea'))return;
       ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
       if(modalRow.dataset.guideCode&&typeof window.openGuideFromTransfer862==='function')window.openGuideFromTransfer862(modalRow.dataset.guideCode);
@@ -7605,4 +7608,104 @@ setTimeout(function(){mark80();enhance80();},80);
   }
 
   setTimeout(function(){mark8612();wireRows8612(document);},240);
+})();
+
+
+/* ===== LLAVERO V86.13 · CLIC REAL EN PRODUCTOS CENDIS ===== */
+(function llaveroV8613CendisRowsFunctional(){
+  'use strict';
+
+  function code8613(row){
+    try{return typeof safeCode==='function'?safeCode(row&&row.dataset&&row.dataset.code):String(row&&row.dataset&&row.dataset.code||'').trim();}
+    catch(_){return String(row&&row.dataset&&row.dataset.code||'').trim();}
+  }
+
+  function open8613(row,ev){
+    var c=code8613(row);
+    if(!c)return false;
+    if(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+    }
+    if(typeof window.openCendisProduct8612==='function')return window.openCendisProduct8612(c,row);
+    if(typeof window.openInventoryProduct==='function'){window.openInventoryProduct(c);return true;}
+    if(typeof window.openBestProductDetail==='function'){window.openBestProductDetail(c);return true;}
+    return false;
+  }
+
+  function wire8613(root){
+    (root||document).querySelectorAll('#v80ModalBody .v867CendisTable tbody tr[data-code],#rangeModalBody .v867CendisTable tbody tr[data-code]').forEach(function(row){
+      row.dataset.v8613Wired='1';
+      row.classList.add('v8612CendisRow');
+      row.setAttribute('role','button');
+      row.setAttribute('tabindex','0');
+      row.setAttribute('aria-label','Abrir detalle del producto '+code8613(row));
+      row.title='Abrir detalle completo del producto';
+      row.onclick=function(ev){return open8613(row,ev);};
+      row.onkeydown=function(ev){
+        if(ev.key==='Enter'||ev.key===' '){open8613(row,ev);}
+      };
+    });
+  }
+
+  function bindBody8613(body){
+    if(!body||body.dataset.v8613Delegated==='1')return;
+    body.dataset.v8613Delegated='1';
+    body.addEventListener('click',function(ev){
+      var row=ev.target&&ev.target.closest&&ev.target.closest('.v867CendisTable tbody tr[data-code]');
+      if(!row||!body.contains(row))return;
+      if(ev.target.closest('input,select,textarea,a,button'))return;
+      open8613(row,ev);
+    },true);
+    body.addEventListener('keydown',function(ev){
+      if(ev.key!=='Enter'&&ev.key!==' ')return;
+      var row=ev.target&&ev.target.closest&&ev.target.closest('.v867CendisTable tbody tr[data-code]');
+      if(!row||!body.contains(row))return;
+      open8613(row,ev);
+    },true);
+  }
+
+  function enhance8613(){
+    wire8613(document);
+    bindBody8613(document.getElementById('v80ModalBody'));
+    bindBody8613(document.getElementById('rangeModalBody'));
+  }
+
+  var baseOpen=window.openCendisModule868;
+  if(typeof baseOpen==='function'&&!baseOpen.__v8613Wrapped){
+    function wrapped(){
+      var out=baseOpen.apply(this,arguments);
+      requestAnimationFrame(enhance8613);
+      setTimeout(enhance8613,20);
+      setTimeout(enhance8613,80);
+      return out;
+    }
+    wrapped.__v8613Wrapped=true;
+    wrapped.__v8613Original=baseOpen;
+    window.openCendisModule868=wrapped;
+  }
+
+  var observer=new MutationObserver(function(records){
+    var relevant=false;
+    records.forEach(function(record){
+      record.addedNodes&&record.addedNodes.forEach(function(node){
+        if(!node||node.nodeType!==1)return;
+        if((node.matches&&node.matches('.v867CendisTable,tr[data-code]'))||(node.querySelector&&node.querySelector('.v867CendisTable tbody tr[data-code]')))relevant=true;
+      });
+    });
+    if(relevant){clearTimeout(observer._t);observer._t=setTimeout(enhance8613,5);}
+  });
+  observer.observe(document.documentElement,{subtree:true,childList:true});
+
+  function mark8613(){
+    window.LLAVERO_BUILD='V86.13';
+    document.documentElement.setAttribute('data-llavero-build','V86.13');
+    document.documentElement.setAttribute('data-llavero-app-version','V86.13');
+    document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.13');
+    var chip=document.querySelector('.appVersionChip b');
+    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.13');
+  }
+
+  setTimeout(function(){mark8613();enhance8613();},260);
 })();
