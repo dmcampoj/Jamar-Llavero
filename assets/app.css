@@ -3923,3 +3923,10 @@ body.dark .v869DetailSearch{background:#202c3a}
 body.dark .hierBackV8610{background:#273545;color:#eef3f8;border-color:#405168}
 #inventoryProductModal .v8610FooterBack{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:850}
 @media(max-width:760px){.hierBackV8610 span:last-child{display:none}.hierBackV8610{padding:8px 10px}}
+
+/* ===== LLAVERO V86.11 · FILAS CENDIS CLICKEABLES ===== */
+.v867CendisTable tbody tr[data-code]{cursor:pointer;transition:background .14s ease,box-shadow .14s ease}
+.v867CendisTable tbody tr[data-code]:hover{background:#f4f8fd!important;box-shadow:inset 3px 0 0 var(--brand)}
+.v867CendisTable tbody tr[data-code]:focus{outline:2px solid var(--brand);outline-offset:-2px;background:#f4f8fd!important}
+body.dark .v867CendisTable tbody tr[data-code]:hover,
+body.dark .v867CendisTable tbody tr[data-code]:focus{background:#223246!important}

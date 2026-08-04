@@ -7244,3 +7244,141 @@ setTimeout(function(){mark80();enhance80();},80);
   }
   setTimeout(function(){mark8610();sync8610();},180);
 })();
+
+/* ===== LLAVERO V86.11 · ETIQUETAS DE GUIAS + DETALLE CENDIS CLICKEABLE ===== */
+(function llaveroV8611GuideLabelsAndCendisRows(){
+  'use strict';
+
+  function replaceGuideLabels8611(root){
+    if(!root)return;
+    var walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:function(node){
+      var parent=node.parentElement;
+      if(!parent||/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA)$/i.test(parent.tagName))return NodeFilter.FILTER_REJECT;
+      return /CAN\s*(?:MIN\s*SUM|SUM|MIN)/i.test(node.nodeValue||'')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
+    }}),nodes=[],node;
+    while((node=walker.nextNode()))nodes.push(node);
+    nodes.forEach(function(textNode){
+      textNode.nodeValue=(textNode.nodeValue||'')
+        .replace(/CAN\s*MIN\s*SUM/gi,'Presencia')
+        .replace(/CAN\s*SUM/gi,'Existencia')
+        .replace(/CAN\s*MIN/gi,'Presencia');
+    });
+  }
+
+  function guideRoots8611(){
+    return document.querySelectorAll([
+      '#guideDetailModalBackV48',
+      '#guideDetailModalBackV49',
+      '#guideKpiModalBack65',
+      '#guideDetailBodyV48',
+      '#guideDetailBodyV49',
+      '#guideKpiBody65',
+      '.guideDetailModalV48',
+      '.guideDetailModalV49'
+    ].join(','));
+  }
+
+  function refreshGuideLabels8611(){
+    guideRoots8611().forEach(replaceGuideLabels8611);
+  }
+
+  function wrapGuideRenderer8611(name){
+    var fn=window[name];
+    if(typeof fn!=='function'||fn.__v8611LabelsWrapped)return;
+    function wrapped(){
+      var out=fn.apply(this,arguments);
+      requestAnimationFrame(refreshGuideLabels8611);
+      setTimeout(refreshGuideLabels8611,30);
+      return out;
+    }
+    wrapped.__v8611LabelsWrapped=true;
+    wrapped.__v8611Original=fn;
+    window[name]=wrapped;
+  }
+
+  ['renderGuideDetailV49','openGuideDetailV49','openGuideDetailV48','openGuideKpiDetail65'].forEach(wrapGuideRenderer8611);
+
+  function cendisRow8611(target){
+    if(!target||!target.closest)return null;
+    return target.closest([
+      '#v80ModalBody .v867CendisTable tbody tr[data-code]',
+      '#rangeModalBody .v867CendisTable tbody tr[data-code]'
+    ].join(','));
+  }
+
+  function openCendisProduct8611(row,ev){
+    if(!row)return false;
+    var code=String(row.dataset.code||'').trim();
+    if(!code)return false;
+    if(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    if(typeof window.openInventoryProduct==='function'){
+      window.openInventoryProduct(code);
+      return true;
+    }
+    if(typeof window.openBestProductDetail==='function'){
+      window.openBestProductDetail(code);
+      return true;
+    }
+    return false;
+  }
+
+  document.addEventListener('click',function(ev){
+    var row=cendisRow8611(ev.target);
+    if(!row)return;
+    openCendisProduct8611(row,ev);
+  },false);
+
+  document.addEventListener('keydown',function(ev){
+    if(ev.key!=='Enter'&&ev.key!==' ')return;
+    var row=cendisRow8611(ev.target);
+    if(!row)return;
+    openCendisProduct8611(row,ev);
+  },false);
+
+  function enhanceCendisRows8611(root){
+    (root||document).querySelectorAll([
+      '#v80ModalBody .v867CendisTable tbody tr[data-code]',
+      '#rangeModalBody .v867CendisTable tbody tr[data-code]'
+    ].join(',')).forEach(function(row){
+      row.classList.add('v866ProductListRow');
+      row.setAttribute('role','button');
+      row.setAttribute('tabindex','0');
+      row.setAttribute('aria-label','Abrir detalle del producto '+String(row.dataset.code||''));
+      row.title='Abrir detalle del producto';
+    });
+  }
+
+  var observer8611=new MutationObserver(function(records){
+    var guideChanged=false,cendisChanged=false;
+    records.forEach(function(record){
+      record.addedNodes&&record.addedNodes.forEach(function(node){
+        if(!node||node.nodeType!==1)return;
+        if(node.matches&&node.matches('#guideDetailModalBackV48,#guideDetailModalBackV49,#guideKpiModalBack65,.guideDetailModalV48,.guideDetailModalV49'))guideChanged=true;
+        if(node.querySelector&&node.querySelector('.guideDetailTable,.guideDetailTableV49,.guideKpiTable65'))guideChanged=true;
+        if(node.matches&&node.matches('.v867CendisTable,[data-code]'))cendisChanged=true;
+        if(node.querySelector&&node.querySelector('.v867CendisTable tbody tr[data-code]'))cendisChanged=true;
+      });
+    });
+    if(guideChanged){clearTimeout(observer8611._guideTimer);observer8611._guideTimer=setTimeout(refreshGuideLabels8611,10);}
+    if(cendisChanged){clearTimeout(observer8611._cendisTimer);observer8611._cendisTimer=setTimeout(function(){enhanceCendisRows8611(document);},10);}
+  });
+  observer8611.observe(document.documentElement,{subtree:true,childList:true});
+
+  function mark8611(){
+    window.LLAVERO_BUILD='V86.11';
+    document.documentElement.setAttribute('data-llavero-build','V86.11');
+    document.documentElement.setAttribute('data-llavero-app-version','V86.11');
+    document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.11');
+    var chip=document.querySelector('.appVersionChip b');
+    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.11');
+  }
+
+  setTimeout(function(){
+    mark8611();
+    refreshGuideLabels8611();
+    enhanceCendisRows8611(document);
+  },220);
+})();
