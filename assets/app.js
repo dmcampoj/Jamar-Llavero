@@ -7382,3 +7382,227 @@ setTimeout(function(){mark80();enhance80();},80);
     enhanceCendisRows8611(document);
   },220);
 })();
+
+/* ===== LLAVERO V86.12 · DETALLE DE PRODUCTOS DESDE VISTAS CENDIS ===== */
+(function llaveroV8612CendisProductDetailFix(){
+  'use strict';
+
+  var context8612=null;
+
+  function normalizeCode8612(code){
+    try{return typeof safeCode==='function'?safeCode(code):String(code==null?'':code).trim();}
+    catch(_){return String(code==null?'':code).trim();}
+  }
+
+  function activeCendisParent8612(row){
+    return (row&&row.closest&&row.closest('#v80ModalBack.on,#rangeModal.on'))
+      || document.querySelector('#v80ModalBack.on')
+      || document.querySelector('#rangeModal.on');
+  }
+
+  function productModal8612(){return document.getElementById('inventoryProductModal');}
+
+  function currentInventory8612(code){
+    try{
+      var store=(typeof S!=='undefined'&&typeof CUR!=='undefined'&&S[CUR])||{};
+      var rows=typeof normalizeInventoryRows==='function'?normalizeInventoryRows(store):[];
+      return rows.find(function(r){return normalizeCode8612(r.c||r.codigo)===code;})||null;
+    }catch(_){return null;}
+  }
+
+  function applyProductLayer8612(parent){
+    var modal=productModal8612();
+    if(!modal||!modal.classList.contains('on'))return false;
+    if(parent){
+      parent.classList.add('v8612CendisParent');
+      parent.style.zIndex='3000';
+    }
+    modal.classList.add('v8612CendisProduct');
+    modal.style.zIndex='3040';
+    document.body.style.overflow='hidden';
+
+    var head=modal.querySelector('.modalHead');
+    if(head){
+      var back=head.querySelector('.v8612CendisBack');
+      if(!back){
+        back=document.createElement('button');
+        back.type='button';
+        back.className='hierBackV8610 v8612CendisBack';
+        back.innerHTML='<span aria-hidden="true">←</span><span>Volver</span>';
+        back.setAttribute('aria-label','Volver al listado CENDIS');
+        back.addEventListener('click',function(ev){
+          ev.preventDefault();ev.stopPropagation();
+          if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+          backToCendis8612();
+        },true);
+        head.insertBefore(back,head.firstChild);
+      }
+      back.hidden=false;
+    }
+
+    var foot=modal.querySelector('.modalFoot');
+    if(foot){
+      foot.hidden=false;
+      var btn=foot.querySelector('button');
+      if(btn){
+        btn.textContent='← Volver';
+        btn.classList.add('v8612FooterBack');
+        btn.onclick=function(ev){
+          ev.preventDefault();ev.stopPropagation();
+          if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+          backToCendis8612();
+        };
+      }
+    }
+    return true;
+  }
+
+  function fallbackOpen8612(code){
+    var fn=window.openInventoryProduct;
+    if(typeof fn!=='function')return false;
+    fn(code);
+    var modal=productModal8612();
+    if(modal&&modal.classList.contains('on'))return true;
+    var original=fn.__v8610Original||fn.__v862Original||null;
+    if(typeof original==='function'){
+      original(code);
+      return !!(modal&&modal.classList.contains('on'));
+    }
+    return false;
+  }
+
+  window.openCendisProduct8612=function(code,row){
+    var c=normalizeCode8612(code);
+    if(!c)return false;
+    var inv=currentInventory8612(c);
+    if(!inv){
+      if(typeof toast==='function')toast('No se encontró inventario actual para el producto '+c,'err');
+      return false;
+    }
+    var parent=activeCendisParent8612(row);
+    var parentBody=parent&&parent.querySelector('#v80ModalBody,#rangeModalBody,.v80ModalBody,.modalBody');
+    context8612={
+      code:c,
+      parent:parent,
+      parentZ:parent?parent.style.zIndex:'',
+      scrollTop:parentBody?parentBody.scrollTop:0,
+      scrollLeft:parentBody?parentBody.scrollLeft:0
+    };
+    var opened=fallbackOpen8612(c);
+    if(!opened){
+      context8612=null;
+      if(typeof toast==='function')toast('No fue posible abrir el detalle del producto '+c,'err');
+      return false;
+    }
+    requestAnimationFrame(function(){applyProductLayer8612(parent);});
+    setTimeout(function(){applyProductLayer8612(parent);},30);
+    return true;
+  };
+
+  function backToCendis8612(){
+    var nav=window.llaveroNavigationState8610;
+    var top=nav&&Array.isArray(nav.stack)&&nav.stack[nav.stack.length-1];
+    if(top&&top.childId==='inventoryProductModal'&&typeof window.llaveroNavBack8610==='function'){
+      window.llaveroNavBack8610();
+    }else{
+      var modal=productModal8612();
+      if(modal){modal.classList.remove('on','v8612CendisProduct');modal.style.zIndex='';}
+      if(context8612&&context8612.parent){
+        context8612.parent.classList.add('on');
+        context8612.parent.classList.remove('v8612CendisParent');
+        context8612.parent.style.zIndex=context8612.parentZ||'';
+      }
+    }
+    var ctx=context8612;
+    context8612=null;
+    var modal2=productModal8612();
+    if(modal2){
+      var back=modal2.querySelector('.v8612CendisBack');if(back)back.hidden=true;
+      var foot=modal2.querySelector('.modalFoot'),btn=foot&&foot.querySelector('button');
+      if(btn){btn.classList.remove('v8612FooterBack');btn.textContent='Cerrar';btn.onclick=function(){if(typeof closeInventoryProduct==='function')closeInventoryProduct();};}
+    }
+    if(ctx&&ctx.parent){
+      var body=ctx.parent.querySelector('#v80ModalBody,#rangeModalBody,.v80ModalBody,.modalBody');
+      requestAnimationFrame(function(){if(body){body.scrollTop=ctx.scrollTop||0;body.scrollLeft=ctx.scrollLeft||0;}});
+      document.body.style.overflow='hidden';
+    }else if(!document.querySelector('.modalBack.on,.v80ModalBack.on'))document.body.style.overflow='';
+    return true;
+  }
+  window.backToCendis8612=backToCendis8612;
+
+  function wireRows8612(root){
+    (root||document).querySelectorAll('#v80ModalBody .v867CendisTable tbody tr[data-code],#rangeModalBody .v867CendisTable tbody tr[data-code]').forEach(function(row){
+      if(row.dataset.v8612Wired==='1')return;
+      row.dataset.v8612Wired='1';
+      row.classList.add('v8612CendisRow');
+      row.setAttribute('role','button');
+      row.setAttribute('tabindex','0');
+      row.title='Abrir detalle completo del producto';
+      row.addEventListener('click',function(ev){
+        if(ev.target&&ev.target.closest&&ev.target.closest('input,select,textarea,a'))return;
+        ev.preventDefault();ev.stopPropagation();
+        if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+        window.openCendisProduct8612(row.dataset.code,row);
+      },true);
+      row.addEventListener('keydown',function(ev){
+        if(ev.key!=='Enter'&&ev.key!==' ')return;
+        ev.preventDefault();ev.stopPropagation();
+        if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+        window.openCendisProduct8612(row.dataset.code,row);
+      },true);
+    });
+  }
+
+  var baseOpenCendis8612=window.openCendisModule868;
+  if(typeof baseOpenCendis8612==='function'){
+    window.openCendisModule868=function(){
+      var out=baseOpenCendis8612.apply(this,arguments);
+      requestAnimationFrame(function(){wireRows8612(document);});
+      setTimeout(function(){wireRows8612(document);},25);
+      return out;
+    };
+  }
+
+  document.addEventListener('click',function(ev){
+    var modal=productModal8612();
+    if(!context8612||!modal||!modal.classList.contains('on'))return;
+    var close=ev.target&&ev.target.closest&&ev.target.closest('#inventoryProductModal .modalClose,#inventoryProductModal .modalFoot button');
+    if(ev.target===modal||close){
+      ev.preventDefault();ev.stopPropagation();
+      if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+      backToCendis8612();
+    }
+  },true);
+
+  document.addEventListener('keydown',function(ev){
+    if(ev.key!=='Escape'||!context8612)return;
+    var modal=productModal8612();
+    if(!modal||!modal.classList.contains('on'))return;
+    ev.preventDefault();ev.stopPropagation();
+    if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+    backToCendis8612();
+  },true);
+
+  var observer8612=new MutationObserver(function(records){
+    var relevant=false;
+    records.forEach(function(record){
+      record.addedNodes&&record.addedNodes.forEach(function(node){
+        if(!node||node.nodeType!==1)return;
+        if((node.matches&&node.matches('.v867CendisTable,tr[data-code]'))||(node.querySelector&&node.querySelector('.v867CendisTable tbody tr[data-code]')))relevant=true;
+      });
+    });
+    if(relevant){clearTimeout(observer8612._timer);observer8612._timer=setTimeout(function(){wireRows8612(document);},10);}
+  });
+  observer8612.observe(document.documentElement,{subtree:true,childList:true});
+
+  function mark8612(){
+    window.LLAVERO_BUILD='V86.12';
+    document.documentElement.setAttribute('data-llavero-build','V86.12');
+    document.documentElement.setAttribute('data-llavero-app-version','V86.12');
+    document.title=document.title.replace(/V\d+(?:\.\d+)?/,'V86.12');
+    var chip=document.querySelector('.appVersionChip b');
+    if(chip)chip.textContent=(chip.textContent||'').replace(/V\d+(?:\.\d+)?$/,'V86.12');
+  }
+
+  setTimeout(function(){mark8612();wireRows8612(document);},240);
+})();

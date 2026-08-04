@@ -3930,3 +3930,15 @@ body.dark .hierBackV8610{background:#273545;color:#eef3f8;border-color:#405168}
 .v867CendisTable tbody tr[data-code]:focus{outline:2px solid var(--brand);outline-offset:-2px;background:#f4f8fd!important}
 body.dark .v867CendisTable tbody tr[data-code]:hover,
 body.dark .v867CendisTable tbody tr[data-code]:focus{background:#223246!important}
+
+/* ===== LLAVERO V86.12 · DETALLE DE PRODUCTOS DESDE VISTAS CENDIS ===== */
+#v80ModalBack.v8612CendisParent,
+#rangeModal.v8612CendisParent{z-index:3000!important}
+#inventoryProductModal.v8612CendisProduct{z-index:3040!important;display:flex!important}
+#inventoryProductModal .v8612CendisBack{display:inline-flex!important}
+#inventoryProductModal .v8612CendisBack[hidden]{display:none!important}
+#inventoryProductModal .v8612FooterBack{background:var(--brand)!important;color:#fff!important;border-color:var(--brand)!important;font-weight:850!important}
+.v8612CendisRow{cursor:pointer!important}
+.v8612CendisRow:hover{background:#f4f8fd!important;box-shadow:inset 3px 0 0 var(--brand)}
+.v8612CendisRow:focus-visible{outline:2px solid var(--brand);outline-offset:-2px;background:#f4f8fd!important}
+body.dark .v8612CendisRow:hover,body.dark .v8612CendisRow:focus-visible{background:#223246!important}
