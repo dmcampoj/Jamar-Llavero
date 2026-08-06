@@ -1,0 +1,3 @@
+/data/*.json.gz
+  Content-Encoding: gzip
+  Content-Type: application/json
