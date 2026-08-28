@@ -642,7 +642,25 @@ function v170DownloadReport(){
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
   .m{border:1px solid #e2e8f0;border-radius:10px;padding:10px}.m b{display:block;font-size:16px}.m span{font-size:10px;color:#68738a;text-transform:uppercase}
   table{width:100%;border-collapse:collapse;font-size:11.5px}td,th{padding:6px 8px;border-bottom:1px solid #eef1f5;text-align:left}
-  ul{padding-left:18px}li{margin-bottom:6px}</style></head><body>
+  ul{padding-left:18px}li{margin-bottom:6px}
+  .v170SugList{list-style:none;padding:0;margin:8px 0}
+  .v170SugItem{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:7px;background:#fafbfc}
+  .v170SugItem.sugHigh{background:#fff0f1;border-color:#f0ccd0}.v170SugItem.sugMed{background:#fff7e8;border-color:#f0dab0}
+  .v170SugItem.sugLow{background:#eef4ff;border-color:#cfdcf5}.v170SugItem.sugOk{background:#ecf9f3;border-color:#cdebdc}
+  .v170SugDot{flex:none;font-size:10px;line-height:1.6}.sugHigh .v170SugDot{color:#bb2e39}.sugMed .v170SugDot{color:#9c6208}.sugLow .v170SugDot{color:#2563eb}.sugOk .v170SugDot{color:#0c7852}
+  .v170SugTxt{flex:1}.v170SugGo{display:none}
+  .v170Timeline{margin-top:4px}
+  .v170TlRow{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;padding:8px 2px;border-bottom:1px solid #eef1f5}
+  .v170TlDate{font-weight:800;min-width:64px}
+  .v170TlStatus{min-width:74px}
+  .v170TlMetrics{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#4b5768}
+  .dailyStatus{display:inline-block;padding:2px 8px;border-radius:999px;font-size:9.5px;font-weight:800;text-transform:uppercase}
+  .dailyStatus.good{background:#ecf9f3;color:#0c7852}.dailyStatus.bad{background:#fff0f1;color:#bb2e39}
+  .dailyStatus.mid{background:#fff7e8;color:#9c6208}.dailyStatus.base{background:#eef1f5;color:#4b5768}
+  .perfGood{color:#0c7852;font-weight:700}.perfBad{color:#bb2e39;font-weight:700}.perfFlat{color:#68738a;font-weight:700}
+  .metricNegDot{color:#bb2e39;font-weight:700}
+  h3{font-size:12px;margin:14px 0 6px;color:#1b2431}
+  </style></head><body>
   <h1>Reporte de tienda · ${esc(V170_LABELS[mode]||mode)}</h1>
   <p class="sub">${esc(storeName)} · corte más reciente ${esc(v170Fecha(agg.lastDate||''))}${agg.baseDate&&agg.baseDate!==agg.lastDate?' · base del periodo '+esc(v170Fecha(agg.baseDate)):''}</p>
   <h2>Resumen ejecutivo</h2>${narrative}

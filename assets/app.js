@@ -224,7 +224,7 @@
   function periodStoreTotals(code){var rows=periodHistory(),aggs=rows.map(function(x){return aggregateSnapshot(x,[code]);}),activity=aggs.length>1?aggs.slice(1):aggs;return {managed:sum(activity,function(x){return x.managed;}),newCritical:sum(activity,function(x){return x.newCritical;}),transferResolved:sum(activity,function(x){return x.transferResolved;}),actionsResolved:sum(activity,function(x){return x.actionsResolved;}),latest:aggs[aggs.length-1]||{},base:aggs[0]||{}};}
   function hierarchyTable(rows){
     var grouped=groupByField(rows),period=periodHistory(),body=grouped.groups.map(function(g){var a=currentAggregate(g.rows),p=periodTotals(g.rows.map(function(x){return x.code;}),period),alerts=a.alerts;return '<tr role="button" tabindex="0" data-territory-level="'+esc(grouped.field)+'" data-territory-label="'+esc(g.label)+'" onclick="V8620.drillTerritory(this.dataset.territoryLevel,this.dataset.territoryLabel)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();V8620.drillTerritory(this.dataset.territoryLevel,this.dataset.territoryLabel)}"><td><span class="name">'+esc(g.label)+'</span><div class="meta">'+int(a.stores)+' tienda(s)</div></td><td><span class="v8620Status '+(alerts>=2?'bad':alerts?'warn':'good')+'">'+int(alerts)+' alerta(s)</span></td><td class="num">'+(a.score==null?'—':a.score.toFixed(0)+'/100')+'</td><td class="num">'+int(p.managed)+'</td><td class="num">'+int(p.newCritical)+'</td><td class="num">'+int(a.persistent)+'</td><td class="num">'+int(a.older)+'</td><td class="num">'+int(a.markdown)+'</td><td class="num">'+int(a.transferOrders)+'</td><td class="num">'+pct(a.guideCoverage)+'</td><td class="num">'+int(a.guideComplete)+' / '+int(a.guides)+'</td></tr>';}).join('');return '<div class="v8620TableWrap v8620GroupTable"><table class="v8620Table"><thead><tr><th>'+esc(grouped.field==='zone'?'Zona':grouped.field==='department'?'Departamento':grouped.field==='city'?'Ciudad':'Tienda')+'</th><th>Estado</th><th class="num">Índice</th><th class="num">Gestionados periodo</th><th class="num">Nuevos periodo</th><th class="num">Persistentes</th><th class="num">+360</th><th class="num">Markdown</th><th class="num">Órdenes</th><th class="num">Cobertura ambientes</th><th class="num">Guías completas</th></tr></thead><tbody>'+body+'</tbody></table></div>';}
-  function storeMatrix(rows){var body=rows.slice().sort(function(a,b){return b.priority-a.priority;}).map(function(r){var p=periodStoreTotals(r.code),sd=p.latest.score==null||p.base.score==null?'—':(num(p.latest.score)-num(p.base.score)>=0?'+':'')+(num(p.latest.score)-num(p.base.score)).toFixed(0);return '<tr onclick="V8620.openTerritoryStore(\''+esc(r.code)+'\')"><td><span class="name">'+esc(r.name)+'</span><div class="meta">'+esc(r.zone+' · '+r.city)+'</div></td><td><span class="v8620Status '+r.status+'">'+esc(r.statusLabel)+'</span><div class="meta">'+esc(r.alertReasons.join(' · ')||'Sin alertas')+'</div></td><td class="num">'+(r.score==null?'—':r.score.toFixed(0)+'/100')+'</td><td class="num">'+sd+'</td><td class="num">'+int(p.managed)+'</td><td class="num">'+int(p.newCritical)+'</td><td class="num">'+int(r.persistent)+'</td><td class="num">'+int(r.older)+'</td><td class="num">'+int(r.markdown)+'</td><td class="num">'+int(r.transferOrders)+'</td><td class="num">'+pct(r.guideCoverage)+'</td><td class="num">'+int(r.guideComplete)+' / '+int(r.guides)+'</td></tr>';}).join('');return '<div class="v8620TableWrap"><table class="v8620Table"><thead><tr><th>Tienda</th><th>Estado y alertas</th><th class="num">Índice</th><th class="num">Δ índice</th><th class="num">Gestionados</th><th class="num">Nuevos</th><th class="num">Persistentes</th><th class="num">+360</th><th class="num">Markdown</th><th class="num">Órdenes</th><th class="num">Cobertura</th><th class="num">Guías</th></tr></thead><tbody>'+body+'</tbody></table></div>';}
+  function storeMatrix(rows){var body=rows.slice().sort(function(a,b){return b.priority-a.priority;}).map(function(r){var p=periodStoreTotals(r.code),sd=p.latest.score==null||p.base.score==null?'—':(num(p.latest.score)-num(p.base.score)>=0?'+':'')+(num(p.latest.score)-num(p.base.score)).toFixed(0);return '<tr onclick="V8620.openTerritoryStore(\''+esc(r.code)+'\')"><td><span class="name">'+esc(r.name)+'</span><div class="meta">'+esc(r.zone+' · '+r.city)+'</div></td><td><span class="v8620Status '+r.status+'">'+esc(r.statusLabel)+'</span><div class="meta">'+esc(r.alertReasons.join(' · ')||'Sin alertas')+'</div></td><td class="num">'+(r.score==null?'—':r.score.toFixed(0)+'/100')+'</td><td class="num">'+sd+'</td><td class="num">'+int(p.managed)+'</td><td class="num">'+int(p.newCritical)+'</td><td class="num">'+int(r.persistent)+'</td><td class="num">'+int(r.older)+'</td><td class="num">'+int(r.markdown)+'</td><td class="num">'+int(r.transferOrders)+'</td><td class="num">'+pct(r.guideCoverage)+'</td><td class="num">'+int(r.guideComplete)+' / '+int(r.guides)+'</td></tr>';}).join('');return '<div class="v8620TableWrap"><table class="v8620Table"><thead><tr><th>Tienda</th><th>Estado y alertas</th><th class="num">Índice</th><th class="num">Δ índice</th><th class="num">Gestionados</th><th class="num">Nuevos</th><th class="num">Persistentes</th><th class="num">+360</th><th class="num">Markdown</th><th class="num">Órdenes</th><th class="num">Completitud</th><th class="num">Guías</th></tr></thead><tbody>'+body+'</tbody></table></div>';}
 
   function scoreDeltaStore(m){var p=periodStoreTotals(m.code),a=p.latest&&p.latest.score,b=p.base&&p.base.score;return a==null||b==null?0:num(a)-num(b);}
   function territoryTrendStats(rows){var out={improving:0,worsening:0,stable:0};rows.forEach(function(m){var d=scoreDeltaStore(m);if(d>2)out.improving++;else if(d<-2)out.worsening++;else out.stable++;});return out;}
@@ -317,7 +317,13 @@
     function path(k){return data.map(function(d,i){return (i?'L':'M')+x(i).toFixed(1)+','+y(val(d,k)).toFixed(1);}).join(' ');}
     var labelStep=data.length>12?Math.ceil(data.length/10):1;
     function pts(k,color,up){return data.map(function(d,i){var v=val(d,k),cx=x(i),cy=y(v),txt=d.isBase&&!exposure?'Base 0%':v.toFixed(1)+'%',show=(i%labelStep===0||i===data.length-1),bw=Math.max(64,txt.length*7+20),ry=up?cy-39:cy+14,ty=up?cy-23:cy+31;return '<g role="button" tabindex="0" style="cursor:pointer" onclick="V8620.openTerritoryCut('+i+')" onkeydown="if(event.keyCode===13||event.keyCode===32){event.preventDefault();V8620.openTerritoryCut('+i+')}"><circle cx="'+cx+'" cy="'+cy+'" r="7" fill="'+color+'" stroke="var(--card)" stroke-width="2"><title>'+esc(d.date)+' · '+txt+'</title></circle>'+(show?'<rect x="'+(cx-bw/2)+'" y="'+ry+'" width="'+bw+'" height="25" rx="9" fill="var(--card)" stroke="'+color+'"></rect><text x="'+cx+'" y="'+ty+'" text-anchor="middle" font-size="10.5" font-weight="900" fill="'+color+'">'+txt+'</text>':'')+'</g>';}).join('');}
-    var labels=data.map(function(d,i){if(i%labelStep!==0&&i!==data.length-1)return '';return '<text x="'+x(i)+'" y="'+(H-24)+'" text-anchor="middle" font-size="11" font-weight="800" fill="var(--mut)">'+trendDate8650(d.date)+'</text>';}).join(''),zero=!exposure?'<line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(W-p.r)+'" y2="'+y(0)+'" stroke="var(--mut)" stroke-width="2" stroke-dasharray="7 6"/>':'';
+    /* V86.203: antes se ocultaba la fecha de los cortes que no cayeran en
+       labelStep (con 20 cortes, labelStep=2, y el corte 24/08 -indice impar-
+       quedaba con su punto y su porcentaje pero SIN fecha abajo, mientras
+       25/08 y 26/08 si la mostraban). Ahora se rotula TODO corte; cuando
+       quedan muy juntos se alternan en dos renglones para que no se pisen. */
+    var gapPx=data.length>1?((W-p.l-p.r)/(data.length-1)):W,denseLbl=gapPx<52;
+    var labels=data.map(function(d,i){var ly=denseLbl?((i%2)?(H-10):(H-30)):(H-24);return '<text x="'+x(i)+'" y="'+ly+'" text-anchor="middle" font-size="11" font-weight="800" fill="var(--mut)">'+trendDate8650(d.date)+'</text>';}).join(''),zero=!exposure?'<line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(W-p.r)+'" y2="'+y(0)+'" stroke="var(--mut)" stroke-width="2" stroke-dasharray="7 6"/>':'';
     var pathLabel=dashboardPath8649().join(' › '),period=periodDef8656().label;
     return '<div class="v8650TrendWrap v8657TrendWrap"><svg class="v8650TrendSvg v8657TrendSvg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">'+grid+zero+'<path d="'+path(k1)+'" fill="none" stroke="var(--rot)" stroke-width="4" stroke-linecap="round"/>'+pts(k1,'var(--rot)',true)+'<path d="'+path(k2)+'" fill="none" stroke="var(--evac)" stroke-width="4" stroke-linecap="round"/>'+pts(k2,'var(--evac)',false)+labels+'</svg></div><div class="v8650TrendLegend"><span><i style="background:var(--rot)"></i>'+(exposure?'Rotación':'Mejora Rotación')+'</span><span><i style="background:var(--evac)"></i>'+(exposure?'Evacuación':'Mejora Evacuación')+'</span></div><div class="v8650TrendContext"><span><b>Filtro:</b> '+esc(pathLabel)+'</span><span><b>Periodo:</b> '+esc(period)+' · '+int(data.length)+' cortes</span></div><div class="dashboardNote">Presiona cualquier punto para consultar el detalle del corte dentro del territorio filtrado.</div>';
   }
@@ -880,7 +886,16 @@
   function product(c){try{return typeof productInfo==='function'?productInfo(c):(P&&P[c])||{n:c};}catch(_){return {n:c};}}
   function stateOf(r){var v=r&&(r.estadoProducto!=null?r.estadoProducto:(r.estadoAbastecimiento!=null?r.estadoAbastecimiento:r.estado));if((v==null||text(v).trim()==='')&&r&&r.c){try{v=P&&P[r.c]&&P[r.c].estado;}catch(_){}}return norm(v);}
   function lowerAge(label){var z=norm(label);if(z.indexOf('SIN')>=0)return -1;if(z.indexOf('360')>=0&&(z.indexOf('MAS')>=0||z.indexOf('+')>=0))return 361;var a=(z.match(/\d+/g)||[]).map(Number);return a.length?a[0]:-1;}
-  function ageBucket(label){var x=lowerAge(label);if(x<0)return 'unknown';if(x<=60)return '0-60';if(x<=90)return '61-90';if(x<=150)return '91-150';if(x<=180)return '151-180';if(x<=210)return '181-210';if(x<=240)return '211-240';if(x<=360)return '241-360';return '360+';}
+  /* V86.202: clasificar por el limite SUPERIOR del rango, no por el inferior.
+     El archivo trae los rangos "181 - 210" y "210 - 240", que se pisan en el 210.
+     Al usar el numero inicial, "210 - 240" caia en la barra 181-210 y la barra
+     211-240 quedaba SIEMPRE en cero en las 21 tiendas. Con el limite superior
+     cada uno de los 11 rangos del archivo cae donde corresponde:
+     000-030 y 031-060 -> 0-60 | 061-090 -> 61-90 | 091-120 y 121-150 -> 91-150
+     151-180 -> 151-180 | 181-210 -> 181-210 | 210-240 -> 211-240
+     241-360 -> 241-360 | 360-Mas -> 360+ | SIN DEFINIR -> unknown */
+  function upperAge(label){var z=norm(label);if(z.indexOf('SIN')>=0)return -1;if(z.indexOf('360')>=0&&(z.indexOf('MAS')>=0||z.indexOf('+')>=0))return 100000;var a=(z.match(/\d+/g)||[]).map(Number);return a.length?a[a.length-1]:-1;}
+  function ageBucket(label){var x=upperAge(label);if(x<0)return 'unknown';if(x<=60)return '0-60';if(x<=90)return '61-90';if(x<=150)return '91-150';if(x<=180)return '151-180';if(x<=210)return '181-210';if(x<=240)return '211-240';if(x<=360)return '241-360';return '360+';}
   var AGE=[['0-60','0\u201360'],['61-90','61\u201390'],['91-150','91\u2013150'],['151-180','151\u2013180'],['181-210','181\u2013210'],['211-240','211\u2013240'],['241-360','241\u2013360'],['360+','+360']];
   function invRows(sc){try{return (normalizeInventoryRows(store(sc))||[]).filter(function(r){return num(r.stock)>0;});}catch(_){return [];}}
   function mixKind(r){var s=stateOf(r);if(s==='A')return 'basic';if(s==='O'||s==='T')return 'novel';if(s==='N')return 'off';return 'unknown';}
@@ -1243,9 +1258,29 @@
   }
   function ensureTransfer67(){pending67().forEach(function(o){if(!transferState67[o.id])transferState67[o.id]={};o.rows.forEach(function(r){var c=s(r.codigo);if(transferState67[o.id][c]==null)transferState67[o.id][c]=true;});});}
   function decision67(){ensureTransfer67();var out=[];pending67().forEach(function(o){o.rows.forEach(function(r){var c=s(r.codigo),p=prod(c);out.push({delivery:o.id,code:c,name:s(r.nombre||p.n||c),units:n(r.unidades),status:o.status,action:transferState67[o.id][c]===false?'ELIMINAR':'ENVIAR'});});});return out;}
-  function updateTransferCount67(){var rows=decision67(),send=rows.filter(function(r){return r.action==='ENVIAR';}).length,del=rows.length-send,orders=pending67().length;[['v155TransferOrders',orders],['v155TransferProducts',rows.length],['v155TransferSend',send],['v155TransferDelete',del]].forEach(function(x){var el=document.getElementById(x[0]);if(el)el.textContent=fint(x[1]);});var c=document.getElementById('v8667DecisionCount');if(c)c.textContent=fint(rows.length)+' productos · '+fint(send)+' ENVIAR · '+fint(del)+' ELIMINAR';var sum=document.getElementById('v8667FooterSummary');if(sum)sum.textContent=fint(send)+' seleccionados para enviar · '+fint(del)+' marcado'+(del===1?'':'s')+' para eliminar';}
+  function updateTransferCount67(){var rows=decision67(),send=rows.filter(function(r){return r.action==='ENVIAR';}).length,del=rows.length-send,orders=pending67().length,tn=rows.filter(function(r){return isTestNovelty67(r.code);}).length;[['v155TransferOrders',orders],['v155TransferProducts',rows.length],['v155TransferSend',send],['v155TransferDelete',del],['v155TransferTestNovelty',tn]].forEach(function(x){var el=document.getElementById(x[0]);if(el)el.textContent=fint(x[1]);});var c=document.getElementById('v8667DecisionCount');if(c)c.textContent=fint(rows.length)+' productos · '+fint(send)+' ENVIAR · '+fint(del)+' ELIMINAR';var sum=document.getElementById('v8667FooterSummary');if(sum)sum.textContent=fint(send)+' seleccionados para enviar · '+fint(del)+' marcado'+(del===1?'':'s')+' para eliminar'+(tn?' · '+fint(tn)+' de Testeo/Novedad (no se pueden eliminar)':'');}
   function transferStatusSince67(r,status){if(status==='En picking')return s(r.fechaPicking||r.fechaCreacion||'—');if(status==='En Ruta'||status==='En ruta')return s(r.fechaPicking||r.fechaCreacion||'—');return s(r.fechaCreacion||'—');}
-  function renderTransferRow67(o,r){var c=s(r.codigo),send=transferState67[o.id][c]!==false,p=prod(c),rowStatus=Array.from(r.__statuses||[]).join(' / ')||o.status;return '<div class="v8667DecisionRow v155TransferProductRow '+(send?'is-send':'is-delete')+'" data-transfer-delivery="'+esc(o.id)+'" data-transfer-code="'+esc(c)+'"><div class="v155SelectCell"><input type="checkbox" data-transfer-checkbox aria-label="Seleccionar '+esc(r.nombre||p.n||c)+' para enviar" '+(send?'checked':'')+'></div><div class="v155ImageCell">'+img(c)+'</div><div class="codeCol"><button type="button" class="v155ProductOpen" data-transfer-product-open="'+esc(c)+'"><span class="code">'+esc(c)+'</span></button></div><div class="v155ProductCell"><button type="button" class="v155ProductOpen v155ProductOpenName" data-transfer-product-open="'+esc(c)+'"><span class="name">'+esc(r.nombre||p.n||c)+'</span><span class="meta">'+esc((p.cat||'—')+' · '+(p.lin||'—')+(p.sub?' · '+p.sub:''))+'</span></button><span class="v155RowState">'+esc(rowStatus)+' · desde '+esc(transferStatusSince67(r,rowStatus))+'</span></div><div class="v155UnitsCell"><b>'+fint(r.unidades)+'</b><small>unidad'+(n(r.unidades)===1?'':'es')+'</small></div><div class="v155ImpactCell">'+transferImpactHtml67(c)+'</div><span class="v8667Action '+(send?'send':'delete')+'">'+(send?'ENVIAR':'ELIMINAR')+'</span></div>';}
+  /* Testeo/Novedad (Estado Abastecimiento T u O): estos productos NO se pueden eliminar de la entrega.
+     Se busca primero en el inventario de la tienda actual (más preciso); si el producto entrante aún no
+     tiene registro ahí, se usa el catálogo de red P[code].estado (mismo dato, sin dimensión de tienda,
+     ver build_P en build_corte.py). Regla dura: la casilla queda bloqueada en ENVIAR y "Eliminar entrega
+     completa" los respeta (ver setTransferProduct8667 / setTransferOrder8667). */
+  function normSupply67(v){return s(v).trim().toUpperCase();}
+  function supplyState67(code){
+    code=s(code);
+    try{
+      var inv=Array.isArray(st().inventario)?st().inventario:[];
+      for(var i=0;i<inv.length;i++){if(s(inv[i].codigo)===code){var e=normSupply67(inv[i].estadoAbastecimiento);if(e)return e;break;}}
+    }catch(_){}
+    try{var pr=(typeof P!=='undefined'&&P&&P[code])||null;if(pr)return normSupply67(pr.estado);}catch(_){}
+    return '';
+  }
+  function isTestNovelty67(code){var e=supplyState67(code);return e==='T'||e==='O';}
+  /* V86.211: solo TESTEO (estado T) queda bloqueado. Novedad (estado O) se
+     sigue marcando con su etiqueta, pero SI se puede quitar de la entrega. */
+  function isBlockedSupply67(code){return supplyState67(code)==='T';}
+  function testNoveltyLabel67(code){var e=supplyState67(code);return e==='T'?'Testeo':e==='O'?'Novedad':'Testeo/Novedad';}
+  function renderTransferRow67(o,r){var c=s(r.codigo),tn=isTestNovelty67(c),lock=isBlockedSupply67(c),send=lock?true:transferState67[o.id][c]!==false,p=prod(c),rowStatus=Array.from(r.__statuses||[]).join(' / ')||o.status;return '<div class="v8667DecisionRow v155TransferProductRow '+(send?'is-send':'is-delete')+'" data-transfer-delivery="'+esc(o.id)+'" data-transfer-code="'+esc(c)+'"><div class="v155SelectCell"><input type="checkbox" data-transfer-checkbox aria-label="Seleccionar '+esc(r.nombre||p.n||c)+' para enviar" '+(send?'checked':'')+(lock?' disabled title="Producto de Testeo: no se puede eliminar de la entrega."':'')+'></div><div class="v155ImageCell">'+img(c)+'</div><div class="codeCol"><button type="button" class="v155ProductOpen" data-transfer-product-open="'+esc(c)+'"><span class="code">'+esc(c)+'</span></button></div><div class="v155ProductCell"><button type="button" class="v155ProductOpen v155ProductOpenName" data-transfer-product-open="'+esc(c)+'"><span class="name">'+esc(r.nombre||p.n||c)+'</span><span class="meta">'+esc((p.cat||'—')+' · '+(p.lin||'—')+(p.sub?' · '+p.sub:''))+'</span></button><span class="v155RowState">'+esc(rowStatus)+' · desde '+esc(transferStatusSince67(r,rowStatus))+'</span>'+(tn?'<span class="v155TestNoveltyBadge'+(lock?'':' isNovedad')+'" title="Producto de '+esc(testNoveltyLabel67(c))+' (Estado Abastecimiento '+esc(supplyState67(c))+'). '+(lock?'No se puede eliminar de la entrega.':'Se puede eliminar de la entrega.')+'">⚠ '+esc(testNoveltyLabel67(c))+(lock?' · no se puede eliminar':'')+'</span>':'')+'</div><div class="v155UnitsCell"><b>'+fint(r.unidades)+'</b><small>unidad'+(n(r.unidades)===1?'':'es')+'</small></div><div class="v155ImpactCell">'+transferImpactHtml67(c)+'</div><span class="v8667Action '+(send?'send':'delete')+'">'+(send?'ENVIAR':'ELIMINAR')+'</span></div>';}
   function renderTransfer67(){
     ensureTransfer67();var body=document.getElementById('v8667DecisionBody');if(!body)return;var q=norm((document.getElementById('v8667DecisionQ')||{}).value),impactFilter=s((document.getElementById('v8667DecisionImpact')||{}).value),orders=pending67();
     var anyFilter=!!(q||impactFilter);
@@ -1265,15 +1300,15 @@
     updateTransferCount67();
   }
   window.clearTransferFilters8667=function(){var q=document.getElementById('v8667DecisionQ'),sel=document.getElementById('v8667DecisionImpact');if(q)q.value='';if(sel)sel.value='';renderTransfer67();};
-  window.setTransferProduct8667=function(id,c,v){ensureTransfer67();id=s(id);c=s(c);if(!transferState67[id])transferState67[id]={};transferState67[id][c]=!!v;document.querySelectorAll('#v8667DecisionBody .v155TransferProductRow').forEach(function(row){if(row.dataset.transferDelivery!==id||row.dataset.transferCode!==c)return;var cb=row.querySelector('[data-transfer-checkbox]'),act=row.querySelector('.v8667Action');if(cb)cb.checked=!!v;row.classList.toggle('is-send',!!v);row.classList.toggle('is-delete',!v);if(act){act.className='v8667Action '+(v?'send':'delete');act.textContent=v?'ENVIAR':'ELIMINAR';}});updateTransferCount67();};
-  window.setTransferOrder8667=function(id,v){ensureTransfer67();id=s(id);var o=pending67().find(function(x){return x.id===id;});if(!o)return;o.rows.forEach(function(r){var c=s(r.codigo);transferState67[id][c]=!!v;window.setTransferProduct8667(id,c,!!v);});updateTransferCount67();};
+  window.setTransferProduct8667=function(id,c,v){ensureTransfer67();id=s(id);c=s(c);if(isBlockedSupply67(c)&&!v){if(typeof toast==='function')toast('Producto de Testeo: no se puede eliminar de la entrega.','err');v=true;}if(!transferState67[id])transferState67[id]={};transferState67[id][c]=!!v;document.querySelectorAll('#v8667DecisionBody .v155TransferProductRow').forEach(function(row){if(row.dataset.transferDelivery!==id||row.dataset.transferCode!==c)return;var cb=row.querySelector('[data-transfer-checkbox]'),act=row.querySelector('.v8667Action');if(cb)cb.checked=!!v;row.classList.toggle('is-send',!!v);row.classList.toggle('is-delete',!v);if(act){act.className='v8667Action '+(v?'send':'delete');act.textContent=v?'ENVIAR':'ELIMINAR';}});updateTransferCount67();};
+  window.setTransferOrder8667=function(id,v){ensureTransfer67();id=s(id);var o=pending67().find(function(x){return x.id===id;});if(!o)return;var blocked=0;o.rows.forEach(function(r){var c=s(r.codigo);if(!v&&isBlockedSupply67(c)){blocked++;transferState67[id][c]=true;window.setTransferProduct8667(id,c,true);return;}transferState67[id][c]=!!v;window.setTransferProduct8667(id,c,!!v);});if(!v&&blocked&&typeof toast==='function')toast(blocked+' producto'+(blocked===1?'':'s')+' de Testeo se mantuvieron en ENVIAR (no se pueden eliminar).','err');updateTransferCount67();};
   window.filterTransferDecisions8667=function(){renderTransfer67();};
   function workbook67(){var rows=decision67(),data=[['ORDEN_ENTREGA','CODIGO_PRODUCTO','NOMBRE_PRODUCTO','ACCION']].concat(rows.map(function(r){return[r.delivery,r.code,r.name,r.action];}));if(window.XLSX){var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(data);ws['!cols']=[{wch:20},{wch:18},{wch:56},{wch:14}];XLSX.utils.book_append_sheet(wb,ws,'Gestion traslados');return{wb:wb,rows:rows,data:data};}return{rows:rows,data:data};}
   window.exportTransferDecisions8667=function(){var x=workbook67();if(!x.rows.length){if(typeof toast==='function')toast('No hay entregas pendientes para exportar.','err');return;}var name='Gestion_Traslados_'+CUR+'_'+s(DB&&DB.meta&&DB.meta.fecha||'corte');if(window.XLSX){XLSX.writeFile(x.wb,name+'.xlsx');return;}var html='<html><head><meta charset="UTF-8"></head><body><table>'+x.data.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+esc(c)+'</td>';}).join('')+'</tr>';}).join('')+'</table></body></html>',blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.xls';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},300);};
   window.emailTransferDecisions8667=function(){var rows=decision67();if(!rows.length)return;window.exportTransferDecisions8667();var send=rows.filter(function(r){return r.action==='ENVIAR';}).length,del=rows.length-send,subject=encodeURIComponent('Gestión de traslados pendientes · '+(st().name||CUR)),body=encodeURIComponent('Adjunto reporte de gestión de entregas pendientes.\n\nENVIAR: '+send+' productos\nELIMINAR: '+del+' productos\n\nEl Excel fue generado para adjuntarlo.');setTimeout(function(){window.location.href='mailto:?subject='+subject+'&body='+body;},250);};
   function wireTransferChecklist67(){var body=document.getElementById('rangeModalBody');if(!body||body.dataset.v155TransferEvents==='1')return;body.dataset.v155TransferEvents='1';body.addEventListener('change',function(e){var cb=e.target&&e.target.closest&&e.target.closest('[data-transfer-checkbox]');if(!cb)return;var row=cb.closest('.v155TransferProductRow');if(!row)return;e.stopPropagation();window.setTransferProduct8667(row.dataset.transferDelivery,row.dataset.transferCode,cb.checked);});body.addEventListener('click',function(e){var product=e.target&&e.target.closest&&e.target.closest('[data-transfer-product-open]');if(product){e.preventDefault();e.stopPropagation();window.openTransferProductDetail155(product.dataset.transferProductOpen);return;}var order=e.target&&e.target.closest&&e.target.closest('[data-transfer-order-action]');if(order){e.preventDefault();e.stopPropagation();window.setTransferOrder8667(order.dataset.transferOrderId,order.dataset.transferOrderAction==='send');}});}
   window.openTransferProductDetail155=function(code){code=s(code);if(!code)return;try{if(typeof window.openInventoryProduct==='function'){window.openInventoryProduct(code);return;}if(typeof window.openBestProductDetail==='function'){window.openBestProductDetail(code);return;}if(typeof window.openProductFromSales==='function')window.openProductFromSales(code);}catch(e){console.error('Detalle de producto en Traslados',e);}};
-  window.openTransferDecisions8666=window.openTransferDecisions8667=function(){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide','v155TransferModal');if(tt)tt.textContent='Traslados · selección de entregas pendientes';if(ss)ss.textContent=(st().name||CUR)+' · solo órdenes en estado PENDIENTE · marca únicamente lo que SÍ debe enviarse';body.innerHTML='<div class="v155TransferChecklist"><div class="v155TransferTop"><div class="v155TransferKpis"><div class="v155TransferKpi"><span class="ico">⇄</span><div><b id="v155TransferOrders">0</b><span>Entregas</span></div></div><div class="v155TransferKpi products"><span class="ico">▣</span><div><b id="v155TransferProducts">0</b><span>Productos</span></div></div><div class="v155TransferKpi send"><span class="ico">✓</span><div><b id="v155TransferSend">0</b><span>Para enviar</span></div></div><div class="v155TransferKpi delete"><span class="ico">⌫</span><div><b id="v155TransferDelete">0</b><span>Para eliminar</span></div></div></div><div class="v155ImpactLegend"><b>Impacto del producto</b><span class="amb"><i></i>Ambiente</span><span class="rot"><i></i>Rotación</span><span class="evac"><i></i>Evacuación</span><span class="none"><i></i>Sin condición</span></div></div><div class="v8667TransferTools v155TransferTools"><input id="v8667DecisionQ" placeholder="Buscar orden, código o producto" oninput="filterTransferDecisions8667()"><select id="v8667DecisionImpact" onchange="filterTransferDecisions8667()"><option value="">Impacto: todos</option><option value="amb">Ambiente</option><option value="rot">Rotación</option><option value="evac">Evacuación</option><option value="none">Sin condición</option></select><button type="button" class="v8667ClearFilters" onclick="clearTransferFilters8667()">Limpiar filtros</button><span class="badge mut" id="v8667DecisionCount"></span></div><div id="v8667DecisionBody"></div><div class="v8667TransferFooter"><div><span class="summary" id="v8667FooterSummary"></span><small>Los productos desmarcados permanecen visibles y se identifican únicamente como ELIMINAR.</small></div><div><button type="button" onclick="emailTransferDecisions8667()">Preparar correo</button> <button type="button" class="primary" onclick="exportTransferDecisions8667()">Generar Excel ENVIAR / ELIMINAR</button></div></div><div class="v155ImpactInfo"><div><b>Ambiente</b><span>El producto hace parte de una necesidad de guía en exhibición; se informa la guía y el piso.</span></div><div><b>Rotación</b><span>El producto tiene antigüedad mayor a 90 días.</span></div><div><b>Evacuación</b><span>El producto está fuera de surtido.</span></div><div><b>Sin condición</b><span>No impacta ambientes, rotación ni evacuación.</span></div></div></div>';modal.classList.add('on');wireTransferChecklist67();renderTransfer67();};
+  window.openTransferDecisions8666=window.openTransferDecisions8667=function(){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide','v155TransferModal');if(tt)tt.textContent='Traslados · selección de entregas pendientes';if(ss)ss.textContent=(st().name||CUR)+' · solo órdenes en estado PENDIENTE · marca únicamente lo que SÍ debe enviarse';body.innerHTML='<div class="v155TransferChecklist"><div class="v155TransferTop"><div class="v155TransferKpis"><div class="v155TransferKpi"><span class="ico">⇄</span><div><b id="v155TransferOrders">0</b><span>Entregas</span></div></div><div class="v155TransferKpi products"><span class="ico">▣</span><div><b id="v155TransferProducts">0</b><span>Productos</span></div></div><div class="v155TransferKpi send"><span class="ico">✓</span><div><b id="v155TransferSend">0</b><span>Para enviar</span></div></div><div class="v155TransferKpi delete"><span class="ico">⌫</span><div><b id="v155TransferDelete">0</b><span>Para eliminar</span></div></div><div class="v155TransferKpi testnovelty"><span class="ico">⚠</span><div><b id="v155TransferTestNovelty">0</b><span>Testeo/Novedad</span></div></div></div><div class="v155ImpactLegend"><b>Impacto del producto</b><span class="amb"><i></i>Ambiente</span><span class="rot"><i></i>Rotación</span><span class="evac"><i></i>Evacuación</span><span class="none"><i></i>Sin condición</span></div></div><div class="v8667TransferTools v155TransferTools"><input id="v8667DecisionQ" placeholder="Buscar orden, código o producto" oninput="filterTransferDecisions8667()"><select id="v8667DecisionImpact" onchange="filterTransferDecisions8667()"><option value="">Impacto: todos</option><option value="amb">Ambiente</option><option value="rot">Rotación</option><option value="evac">Evacuación</option><option value="none">Sin condición</option></select><button type="button" class="v8667ClearFilters" onclick="clearTransferFilters8667()">Limpiar filtros</button><span class="badge mut" id="v8667DecisionCount"></span></div><div id="v8667DecisionBody"></div><div class="v8667TransferFooter"><div><span class="summary" id="v8667FooterSummary"></span><small>Los productos desmarcados permanecen visibles y se identifican únicamente como ELIMINAR.</small></div><div><button type="button" onclick="emailTransferDecisions8667()">Preparar correo</button> <button type="button" class="primary" onclick="exportTransferDecisions8667()">Generar Excel ENVIAR / ELIMINAR</button></div></div><div class="v155ImpactInfo"><div><b>Ambiente</b><span>El producto hace parte de una necesidad de guía en exhibición; se informa la guía y el piso.</span></div><div><b>Rotación</b><span>El producto tiene antigüedad mayor a 90 días.</span></div><div><b>Evacuación</b><span>El producto está fuera de surtido.</span></div><div><b>Sin condición</b><span>No impacta ambientes, rotación ni evacuación.</span></div></div></div>';modal.classList.add('on');wireTransferChecklist67();renderTransfer67();};
   function patchTransferCard67(){if(view()!=='traslados')return;var card=document.querySelector('[data-v8666-transfer-decision]');if(!card)return;var span=card.querySelector('.v8666TransferDecisionHead span');if(span)span.textContent='Marca los productos que SÍ deben enviarse. Los desmarcados quedarán como ELIMINAR en el Excel.';var btn=card.querySelector('button');if(btn){btn.textContent='Seleccionar entregas';btn.onclick=function(){window.openTransferDecisions8667();};}}
 
   function mark67(){try{window.LLAVERO_BUILD=VERSION;document.documentElement.setAttribute('data-llavero-build',VERSION);document.documentElement.setAttribute('data-llavero-app-version',VERSION);var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent='11/08/2026 · '+VERSION;document.title='Llavero · Inventarios Jamar · 11/08/2026 · '+VERSION;}catch(_){} }
@@ -2474,7 +2509,12 @@ var v127PerfCache={store:null,date:'',inv:null,sets:null,data:Object.create(null
 function v127EnsureCache(){var store=st(),date='';try{date=s(DB&&DB.meta&&DB.meta.fecha)}catch(_){}if(v127PerfCache.store!==store||v127PerfCache.date!==date){v127PerfCache.store=store;v127PerfCache.date=date;v127PerfCache.inv=null;v127PerfCache.sets=null;v127PerfCache.data=Object.create(null)}return v127PerfCache}
 function invMap(){var c=v127EnsureCache();if(c.inv)return c.inv;var m=Object.create(null);rawInventory().forEach(function(r){m[s(r.codigo)]=r});c.inv=m;return m}
 function ageLow(label){var m=s(label).match(/(\d+)/);return m?Number(m[1]):-1}
-function ageBuckets(r){var out=[];Object.entries((r&&r.rangos)||{}).forEach(function(e){if(n(e[1])<=0)return;var lo=ageLow(e[0]),k=lo<0?'unknown':lo<=60?'0-60':lo<=90?'61-90':lo<=150?'91-150':lo<=180?'151-180':lo<=210?'181-210':lo<=240?'211-240':lo<=360?'241-360':'360+';if(out.indexOf(k)<0)out.push(k)});return out}
+/* V86.202: mismo criterio que ageBucket() -- se clasifica por el limite SUPERIOR
+   del rango para que "210 - 240" no caiga en 181-210 (los rangos del archivo se
+   pisan en el 210). Si no, el filtro de antiguedad del inventario contradecia a
+   la tarjeta de Markdown para los mismos productos. */
+function ageHigh(label){var z=norm(label);if(z.indexOf('SIN')>=0)return -1;if(z.indexOf('360')>=0&&(z.indexOf('MAS')>=0||z.indexOf('+')>=0))return 100000;var a=(s(label).match(/\d+/g)||[]).map(Number);return a.length?a[a.length-1]:-1}
+function ageBuckets(r){var out=[];Object.entries((r&&r.rangos)||{}).forEach(function(e){if(n(e[1])<=0)return;var hi=ageHigh(e[0]),k=hi<0?'unknown':hi<=60?'0-60':hi<=90?'61-90':hi<=150?'91-150':hi<=180?'151-180':hi<=210?'181-210':hi<=240?'211-240':hi<=360?'241-360':'360+';if(out.indexOf(k)<0)out.push(k)});return out}
 function transferStatus(r){var e=norm(r&&r.estatus);if(e.indexOf('ENTREG')>=0)return'Entregado';if(e.indexOf('PICK')>=0)return'En picking';if(e.indexOf('RUTA')>=0)return'En ruta';if(e.indexOf('PEND')>=0)return'Pendiente';var p=norm(r&&r.statusGlobalPicking),m=norm(r&&r.statusMovimiento),w=norm(r&&r.lugarPuestaDispos);if(p==='C'&&m==='C')return'Entregado';if(p==='C'&&m==='A')return'En ruta';if(p==='A'&&m==='A'&&w.indexOf('WMS')>=0)return'En picking';return'Pendiente'}
 function pendingTransferRows(){return (Array.isArray(st().trDetalle)?st().trDetalle:[]).filter(function(r){return transferStatus(r)!=='Entregado'})}
 function openRange(title,sub,html){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return false;if(tt)tt.textContent=title;if(ss)ss.textContent=sub||'';body.innerHTML=html;modal.classList.add('on');document.body.style.overflow='hidden';return true}
@@ -2832,9 +2872,9 @@ function updateLeaderCount(){
   var el=document.getElementById('v129LeaderCount');if(el)el.textContent=fmtInt(leaderSelected.size)+' seleccionados';
 }
 function filterLeader(){
-  var q=txt((document.getElementById('v129LeaderQ')||{}).value).toLowerCase(),st=txt((document.getElementById('v129LeaderStore')||{}).value)||'all';
+  var q=txt((document.getElementById('v129LeaderQ')||{}).value).toLowerCase(),st=txt((document.getElementById('v129LeaderStore')||{}).value)||'all',pol=txt((document.getElementById('v129LeaderPolicy')||{}).value)||'all';
   document.querySelectorAll('#v129LeaderTable tbody tr[data-key]').forEach(function(tr){
-    var ok=(!q||txt(tr.dataset.search).indexOf(q)>=0)&&(st==='all'||tr.dataset.store===st);tr.style.display=ok?'':'none';
+    var ok=(!q||txt(tr.dataset.search).indexOf(q)>=0)&&(st==='all'||tr.dataset.store===st)&&(pol==='all'||tr.dataset.policy===pol);tr.style.display=ok?'':'none';
   });
 }
 function selectLeaderVisible(on){
@@ -2867,9 +2907,10 @@ function openLeaderAllV129(){
     body.innerHTML='<div class="v129LeaderEmpty"><b>No hay productos para gestión del Líder.</b><span>Con las reglas vigentes no se encontraron productos en estado Gestionar descuento con sugerido mayor al 50%.</span></div>';modal.classList.add('on');return;
   }
   var stores=Array.from(new Set(rows.map(function(r){return r.storeName}))).sort(function(a,b){return a.localeCompare(b,'es')});
+  var policies=Array.from(new Set(rows.map(function(r){return txt(r.policyApplied||'')}).filter(Boolean))).sort(function(a,b){return a.localeCompare(b,'es')});
   var trs=rows.map(function(r){
     var k=r.storeCode+'|'+r.code;
-    return '<tr data-key="'+esc(k)+'" data-store="'+esc(r.storeName)+'" data-search="'+esc(rowSearch(r))+'">'+
+    return '<tr data-key="'+esc(k)+'" data-store="'+esc(r.storeName)+'" data-policy="'+esc(txt(r.policyApplied||''))+'" data-search="'+esc(rowSearch(r))+'">'+
       '<td class="sel"><input type="checkbox" checked aria-label="Seleccionar '+esc(r.code)+'"></td>'+
       '<td class="img">'+leaderImage(r.code)+'</td>'+
       '<td class="store"><b>'+esc(r.storeName)+'</b><div class="v129LeaderMeta">'+esc(r.storeCode)+'</div></td>'+
@@ -2881,10 +2922,11 @@ function openLeaderAllV129(){
   body.innerHTML='<div class="v129LeaderNote">✓ <span>Esta vista usa la lógica final de Markdown de cada tienda. Solo incluye productos en <b>Gestionar descuento</b> cuyo descuento sugerido es <b>mayor al 50%</b>, que corresponden al Líder de Área.</span></div>'+
     '<div class="v129LeaderToolbar"><button type="button" data-v129-all="1">Seleccionar visibles</button><button type="button" data-v129-none="1">Quitar visibles</button>'+
     '<input id="v129LeaderQ" type="search" placeholder="Buscar tienda, código o producto"><select id="v129LeaderStore"><option value="all">Todas las tiendas</option>'+stores.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join('')+'</select>'+
+    '<select id="v129LeaderPolicy"><option value="all">Rotación y Evacuación</option>'+policies.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join('')+'</select>'+
     '<span class="count" id="v129LeaderCount">'+fmtInt(rows.length)+' seleccionados</span><button type="button" class="primary" data-v129-export="1">Generar Excel consolidado</button></div>'+
     '<div class="v129LeaderTableWrap"><table class="v129LeaderTable" id="v129LeaderTable"><thead><tr><th class="sel"><input type="checkbox" checked aria-label="Seleccionar visibles"></th><th class="img">Imagen</th><th class="store">Tienda</th><th class="codecol">Código</th><th>Producto</th><th class="num pctcol">Actual/Muestra</th><th class="num pctcol">Oferta</th><th class="num pctcol">Sugerido</th><th class="statecol">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>';
   body.querySelector('[data-v129-all]').onclick=function(){selectLeaderVisible(true)};body.querySelector('[data-v129-none]').onclick=function(){selectLeaderVisible(false)};body.querySelector('[data-v129-export]').onclick=exportLeader;
-  document.getElementById('v129LeaderQ').oninput=filterLeader;document.getElementById('v129LeaderStore').onchange=filterLeader;
+  document.getElementById('v129LeaderQ').oninput=filterLeader;document.getElementById('v129LeaderStore').onchange=filterLeader;var v129PolicySel=document.getElementById('v129LeaderPolicy');if(v129PolicySel)v129PolicySel.onchange=filterLeader;
   var headCb=body.querySelector('thead input[type=checkbox]');if(headCb)headCb.onchange=function(){selectLeaderVisible(this.checked)};
   body.querySelectorAll('tbody tr[data-key]').forEach(function(tr){
     var cb=tr.querySelector('input[type=checkbox]');if(cb)cb.onchange=function(e){e.stopPropagation();if(this.checked)leaderSelected.add(tr.dataset.key);else leaderSelected.delete(tr.dataset.key);updateLeaderCount()};
@@ -2972,7 +3014,10 @@ function patchAmbientes(){
   var bar=root.querySelector('.v132ModuleFilters[data-v132-module="ambientes"]');
   if(!bar){
     bar=document.createElement('div');bar.className='v132ModuleFilters ambientes';bar.dataset.v132Module='ambientes';
-    var q=s((window.state&&state.guias&&state.guias.q)||''),f=s((window.state&&state.guias&&state.guias.f)||'all')||'all';
+    /* V86.217: "state" no es propiedad de window (se declara a nivel de script),
+       asi que esta guarda daba siempre falso y el filtro de guias no se aplicaba. */
+    var __st=(typeof state!=='undefined'&&state)?state:null;
+    var q=s((__st&&__st.guias&&__st.guias.q)||''),f=s((__st&&__st.guias&&__st.guias.f)||'all')||'all';
     bar.innerHTML='<div class="v132FilterField"><label>Búsqueda rápida</label><input type="search" data-v132-amb="q" value="'+esc(q)+'" placeholder="Guía, producto o código..."></div>'+
       '<div class="v132FilterField"><label>Estado / gestión</label><select data-v132-amb="f">'+ambOptions(f)+'</select></div>'+actionField()+'<span class="v132FilterCount"></span>';
     table.parentNode.insertBefore(bar,table);
@@ -4090,28 +4135,43 @@ window.openTransferImpact148=function(){
 };
 
 /* ===== LLAVERO V86.160 · Impacto por entregar unificado por orden (única implementación activa) ===== */
+/* Testeo/Novedad (Estado Abastecimiento T u O): estos productos no se pueden eliminar de la entrega.
+   Mismo criterio que en la selección de entregas (V8667): primero el inventario de la tienda actual,
+   y si el producto entrante aún no tiene registro ahí, el catálogo de red P[code].estado. Solo informativo. */
+function supplyState160(code){
+  code=s(code);
+  try{
+    var inv=Array.isArray(st().inventario)?st().inventario:[];
+    for(var i=0;i<inv.length;i++){if(s(inv[i].codigo)===code){var e=s(inv[i].estadoAbastecimiento).trim().toUpperCase();if(e)return e;break;}}
+  }catch(_){}
+  try{var pr=(typeof P!=='undefined'&&P&&P[code])||null;if(pr)return s(pr.estado).trim().toUpperCase();}catch(_){}
+  return '';
+}
+function isTestNovelty160(code){var e=supplyState160(code);return e==='T'||e==='O';}
+function testNoveltyLabel160(code){var e=supplyState160(code);return e==='T'?'Testeo':e==='O'?'Novedad':'Testeo/Novedad';}
 function pendingOrEnRouteRows160(){return (Array.isArray(st().trDetalle)?st().trDetalle:[]).filter(function(r){var s=transferStatus(r);return s==='Pendiente'||s==='En picking'||s==='En ruta';});}
 function transferOrderImpactRows160(){
   var rows=pendingOrEnRouteRows160(),sets=conditionSets(),orders={};
   rows.forEach(function(r){
-    var code=s(r.codigo),guides=guideRefsForPending(code),rot=sets.rot.has(code),evac=sets.evac.has(code);
-    if(!(rot||evac||guides.length))return;
+    var code=s(r.codigo),guides=guideRefsForPending(code),rot=sets.rot.has(code),evac=sets.evac.has(code),tn=isTestNovelty160(code);
+    if(!(rot||evac||guides.length||tn))return;
     var order=s(r.entrega||'Sin identificar'),status=transferStatus(r);
     var o=orders[order]||(orders[order]={order:order,status:status,since:transferStateSince155(r,status),eta:s(r.fechaEntrega||'—'),products:{}});
-    var p=o.products[code]||(o.products[code]={code:code,name:s(r.nombre)||s(prod(code).n)||code,units:0,rot:rot,evac:evac,guides:guides});
+    var p=o.products[code]||(o.products[code]={code:code,name:s(r.nombre)||s(prod(code).n)||code,units:0,rot:rot,evac:evac,guides:guides,tn:tn,tnLabel:tn?testNoveltyLabel160(code):''});
     p.units+=n(r.unidades);
   });
   return Object.values(orders).map(function(o){o.products=Object.values(o.products).sort(function(a,b){return b.units-a.units;});return o;}).sort(function(a,b){return s(a.order).localeCompare(s(b.order),'es');});
 }
 window.openTransferPendingImpact=function(){
-  var data=transferOrderImpactRows160(),allProducts=new Set(),rotSet=new Set(),evacSet=new Set(),ambSet=new Set();
-  data.forEach(function(o){o.products.forEach(function(p){allProducts.add(p.code);if(p.rot)rotSet.add(p.code);if(p.evac)evacSet.add(p.code);if(p.guides.length)ambSet.add(p.code);});});
+  var data=transferOrderImpactRows160(),allProducts=new Set(),rotSet=new Set(),evacSet=new Set(),ambSet=new Set(),tnSet=new Set();
+  data.forEach(function(o){o.products.forEach(function(p){allProducts.add(p.code);if(p.rot)rotSet.add(p.code);if(p.evac)evacSet.add(p.code);if(p.guides.length)ambSet.add(p.code);if(p.tn)tnSet.add(p.code);});});
   var statusCls={'Pendiente':'st-pendiente','En picking':'st-gestion','En ruta':'st-ruta8615'};
   function impactBadges(p){
     var parts=[];
     p.guides.forEach(function(g){parts.push('<button type="button" class="v155ImpactBadge amb v155ImpactLink" data-v155-guide="'+esc(g.code)+'"><i></i><span><b>Ambiente '+esc(g.code)+'</b><small>'+esc(g.name+' · Piso '+g.floor)+'</small></span></button>');});
     if(p.rot)parts.push('<span class="v155ImpactBadge rot"><i></i><span><b>Rotación</b><small>Antigüedad mayor a 90 días</small></span></span>');
     if(p.evac)parts.push('<span class="v155ImpactBadge evac"><i></i><span><b>Evacuación</b><small>Fuera de surtido</small></span></span>');
+    if(p.tn)parts.push('<span class="v155ImpactBadge tn"><i></i><span><b>'+esc(p.tnLabel)+'</b><small>No se puede eliminar de la entrega</small></span></span>');
     return '<div class="v155ImpactBadges v160InlineBadges">'+parts.join('')+'</div>';
   }
   var orderCards=data.map(function(o){
@@ -4136,15 +4196,16 @@ window.openTransferPendingImpact=function(){
   showRange(
     'Productos con impacto por entregar',
     (st().name||CUR)+' · solo órdenes Pendiente, En picking o En ruta',
-    '<div class="v127DetailSummary v160Summary5">'+
+    '<div class="v127DetailSummary v160Summary6">'+
       '<div><label>Órdenes</label><b>'+fi(data.length)+'</b></div>'+
       '<div><label>Productos únicos</label><b>'+fi(allProducts.size)+'</b></div>'+
       '<div><label>Rotación</label><b>'+fi(rotSet.size)+'</b></div>'+
       '<div><label>Evacuación</label><b>'+fi(evacSet.size)+'</b></div>'+
       '<div><label>Ambientes</label><b>'+fi(ambSet.size)+'</b></div>'+
+      '<div class="v160TnStat"><label>Testeo/Novedad</label><b>'+fi(tnSet.size)+'</b></div>'+
     '</div>'+
     '<div class="v160OrderList">'+(orderCards||'<div class="empty">No hay órdenes Pendiente, En picking o En ruta con impacto.</div>')+'</div>'+
-    '<div class="v127Hint">Se muestran únicamente órdenes con estado Pendiente, En picking o En ruta; las entregadas no aparecen. El producto, la orden y el ambiente abren su detalle sin modificar ninguna selección.</div>'
+    '<div class="v127Hint">Se muestran únicamente órdenes con estado Pendiente, En picking o En ruta; las entregadas no aparecen. El producto, la orden y el ambiente abren su detalle sin modificar ninguna selección. Los productos marcados como Testeo/Novedad no se pueden eliminar de la entrega.</div>'
   );
 };
 /* Redirige toda implementación previa (v117/v127/v145/v147/v148 y la tarjeta original v8615 con kind "critical") a esta única versión activa. */
@@ -4172,7 +4233,7 @@ function bindTransferCard(){if(currentView()!=='traslados')return;
      que internamente solo cuenta estatus "Pendiente" (pendingRows()), así que órdenes En picking/En ruta con
      impacto quedaban en 0 en la tarjeta aunque el modal sí las mostrara. */
   var rows=[];(typeof transferOrderImpactRows160==='function'?transferOrderImpactRows160():[]).forEach(function(o){(o.products||[]).forEach(function(p){rows.push(p);});});
-  var rc=new Set(rows.filter(function(r){return r.rot;}).map(function(r){return r.code;})).size,ec=new Set(rows.filter(function(r){return r.evac;}).map(function(r){return r.code;})).size,ac=new Set(rows.filter(function(r){return r.guides&&r.guides.length;}).map(function(r){return r.code;})).size,total=new Set(rows.map(function(r){return r.code;})).size;document.querySelectorAll('#content .transferMetricCard8616,#content .v80TransferKpi,#content .transferKpi8615').forEach(function(card){if(!isImpactCard(card))return;var val=card.querySelector('strong,b,.val'),sub=card.querySelector('small,.sub');if(val)val.textContent=fi(total);if(sub)sub.textContent=fi(rc)+' Rotación · '+fi(ec)+' Evacuación · '+fi(ac)+' Ambientes';card.onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}window.openTransferImpact148();};card.style.cursor='pointer';});}
+  var rc=new Set(rows.filter(function(r){return r.rot;}).map(function(r){return r.code;})).size,ec=new Set(rows.filter(function(r){return r.evac;}).map(function(r){return r.code;})).size,ac=new Set(rows.filter(function(r){return r.guides&&r.guides.length;}).map(function(r){return r.code;})).size,tc=new Set(rows.filter(function(r){return r.tn;}).map(function(r){return r.code;})).size,total=new Set(rows.map(function(r){return r.code;})).size;document.querySelectorAll('#content .transferMetricCard8616,#content .v80TransferKpi,#content .transferKpi8615').forEach(function(card){if(!isImpactCard(card))return;var val=card.querySelector('strong,b,.val'),sub=card.querySelector('small,.sub');if(val)val.textContent=fi(total);if(sub)sub.textContent=fi(rc)+' Rotación · '+fi(ec)+' Evacuación · '+fi(ac)+' Ambientes'+(tc?' · '+fi(tc)+' Testeo/Novedad':'');card.onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}window.openTransferImpact148();};card.style.cursor='pointer';});}
 
 /* V86.155 · restauración funcional V154: cuatro reglas, sin simplificar ni eliminar información. */
 function renderMarkdownRuleCards155(){
@@ -4233,3 +4294,1964 @@ window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,80)
 window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)});
 })();
 
+/* ==== LLAVERO V86.200 · Cambios en descuento de muestra (Markdown) ====
+   Tarjeta que avisa al administrador de tienda cuando el "descuento de
+   muestra" (descuentoAdministrado) de un producto subió, bajó, se agregó o
+   se retiró respecto al corte anterior, para que actualicen el cartón físico
+   de descuento en tienda. Alimentada por D.changes (ver
+   pipeline/discount_changes.py y pipeline/apply_daily_discount_muestra.py),
+   que se recalcula cada vez que llega un archivo nuevo de "descuento de
+   muestra" (proceso diario). Solo tarjeta por tienda, sin vista consolidada
+   de Líder (alcance confirmado por el usuario). Se agrega como módulo nuevo
+   al final del archivo, envolviendo drawMarkdown8617 tal como sea en ese
+   momento (garantizado el último, por ser el código que se ejecuta al final),
+   siguiendo el mismo patrón ya usado por el resto de tarjetas de Markdown. */
+(function(){
+  'use strict';
+  function txt200(v){return v==null?'':String(v);}
+  function esc200(v){return txt200(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function fi200(v){try{return Number(v||0).toLocaleString('es-CO');}catch(_){return String(v||0);}}
+  function pct200(v){return v==null?'—':(Math.round(Number(v)*10)/10).toFixed(1).replace('.0','')+'%';}
+  function fecha200(v){
+    var s=txt200(v);if(!s)return '—';
+    var m=s.match(/^(\d{4})(\d{2})(\d{2})$/);if(m)return m[3]+'/'+m[2]+'/'+m[1];
+    var m2=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m2)return m2[3]+'/'+m2[2]+'/'+m2[1];
+    return s;
+  }
+  function currentView200(){try{return (document.body&&document.body.dataset.v8620View)||'';}catch(_){return '';}}
+  function catalog200(){return window.__LLAVERO_DISCOUNT_DATA__||null;}
+  function srcFor200(sc){var cat=catalog200();if(!cat)return sc;return (cat.map&&cat.map[sc])||sc;}
+  function prodName200(code){
+    /* nota: prod() aquí NO es alcanzable -- vive dentro de otro IIFE (el bloque
+       V86.155) y no queda expuesto a nivel global; se usa el catálogo P
+       (const P=DB.P, declarado a nivel superior en index.html) directamente,
+       igual que hace prod() internamente. */
+    try{
+      var cat=(typeof window.P!=='undefined'&&window.P)||(typeof P!=='undefined'&&P);
+      var p=cat&&cat[code];
+      return (p&&(p.n||p.nombre))||code;
+    }catch(_){return code;}
+  }
+  function entriesFor200(sc){
+    var cat=catalog200();if(!cat||!cat.changes||!cat.changes.bySrc)return [];
+    var src=srcFor200(sc);
+    return cat.changes.bySrc[src]||[];
+  }
+  /* Clases propias (v200Kpi*) en vez de las genéricas k-rot/k-evac/k-vta/k-amb:
+     "body.admin-mode .kpi.k-vta{display:none!important}" (app.css) ocultaba la
+     tarjeta de "Nuevos" para los administradores de tienda, que son justo el
+     usuario objetivo de este aviso. Con clases propias ninguna regla previa
+     puede ocultarlas ni recolorearlas. */
+  /* V86.214: los nombres tecnicos (Subieron/Bajaron/Nuevos/Retirados) confundian
+     incluso al usuario, asi que la etiqueta principal pasa a ser LA ACCION que
+     debe hacer el administrador con el carton fisico, y el nombre tecnico queda
+     como subtitulo para no perder la trazabilidad. Ademas se agrega una guia
+     visual "ayer -> hoy -> que hacer" al inicio de la tarjeta. */
+  var KIND_DEFS200=[
+    ['up','Subir el cartón','Subieron · el descuento quedó más alto que ayer','v200KpiUp','↑'],
+    ['down','Bajar o quitar el cartón','Bajaron · el descuento quedó más bajo que ayer','v200KpiDown','↓'],
+    ['new','Entraron a la lista','Nuevos · ayer no estaban en el archivo de descuento','v200KpiNew','+'],
+    ['removed','Quitar el cartón','Retirados · ya no vienen en el archivo de descuento','v200KpiOut','–']
+  ];
+  function legend200(){
+    var rows=[
+      ['v200KpiUp','↑','Subir el cartón','50%','80%','El descuento subió. Cambia el cartón al nuevo porcentaje.'],
+      ['v200KpiDown','↓','Bajar o quitar el cartón','80%','0%','El descuento bajó. Si quedó en 0%, quita el cartón.'],
+      ['v200KpiNew','+','Entraron a la lista','—','70%','Ayer no estaba y hoy sí. Si trae porcentaje, pon el cartón; si entra en 0%, no lleva.'],
+      ['v200KpiOut','–','Quitar el cartón','50%','—','Ya no viene en el archivo (normalmente se acabó en la tienda). Quita el cartón.']
+    ];
+    return '<details class="v200Legend"><summary>¿Cómo se lee esta tarjeta?</summary>'+
+      '<div class="v200LegendNote">Cada día se compara el archivo de descuento de ayer contra el de hoy. Solo pueden pasar cuatro cosas:</div>'+
+      '<div class="twrap"><table class="v8618Table v200LegendTable"><thead><tr><th></th><th>Situación</th><th class="num">Ayer</th><th class="num">Hoy</th><th>Qué hacer en la tienda</th></tr></thead><tbody>'+
+      rows.map(function(r){
+        return '<tr><td class="v200LegChip '+r[0]+'"><span>'+r[1]+'</span></td><td><b>'+esc200(r[2])+'</b></td><td class="num">'+esc200(r[3])+'</td><td class="num"><b>'+esc200(r[4])+'</b></td><td>'+esc200(r[5])+'</td></tr>';
+      }).join('')+'</tbody></table></div>'+
+      '<div class="v200LegendNote">La columna <b>Sugerido</b> de cada lista es lo que pide la política para ese producto: te sirve para saber qué número debería ir en el cartón.</div></details>';
+  }
+  function buildSection200(label,list){
+    if(!list.length)return '';
+    var rows=list.map(function(e){
+      return '<tr data-md-product="'+esc200(e.code)+'" tabindex="0" title="Abrir detalle del producto" onclick="if(typeof openMarkdownProduct8618===\'function\')openMarkdownProduct8618(this.dataset.mdProduct)" onkeydown="if(event.key===\'Enter\'&&typeof openMarkdownProduct8618===\'function\')openMarkdownProduct8618(this.dataset.mdProduct)">'+
+        '<td><span class="code">'+esc200(e.code)+'</span></td>'+
+        '<td><b class="mdProductName8634">'+esc200(prodName200(e.code))+'</b></td>'+
+        '<td class="num">'+pct200(e.prev)+'</td>'+
+        '<td class="num"><b>'+pct200(e.cur)+'</b></td>'+
+        '<td>'+esc200(fecha200(e.curFecha))+'</td>'+
+        '<td>'+esc200(e.usuario||'—')+'</td>'+
+      '</tr>';
+    }).join('');
+    return '<details class="v170ProductDetails"><summary>'+esc200(label)+' <b>('+fi200(list.length)+')</b></summary>'+
+      '<div class="twrap"><table class="v8618Table"><thead><tr><th>Código</th><th>Producto</th><th class="num">Antes</th><th class="num">Ahora</th><th>Fecha</th><th>Usuario</th></tr></thead><tbody>'+rows+'</tbody></table></div></details>';
+  }
+  function cardHtml200(sc){
+    var cat=catalog200();
+    if(!cat||!cat.changes)return '';
+    var list=entriesFor200(sc);
+    var basedOn=cat.changes.basedOn||{};
+    var byKind={up:[],down:[],new:[],removed:[]};
+    list.forEach(function(e){if(byKind[e.kind])byKind[e.kind].push(e);});
+    var total=list.length;
+    var kpis=KIND_DEFS200.map(function(d){
+      return '<div class="kpi v8618Card v200Kpi '+d[3]+'"><div class="top"><div class="ico">'+d[4]+'</div></div><div class="lab">'+esc200(d[1])+'</div><div class="val">'+fi200(byKind[d[0]].length)+'</div><div class="sub">'+esc200(d[2])+'</div></div>';
+    }).join('');
+    var sections=KIND_DEFS200.map(function(d){return buildSection200(d[1],byKind[d[0]]);}).join('');
+    var rango=esc200(fecha200(basedOn.prevFecha))+' → '+esc200(fecha200(basedOn.curFecha));
+    /* Cuando el descuento administrado cambió de archivo fuente entre los dos
+       cortes, "Nuevos" y "Retirados" reflejan la diferencia de cobertura entre
+       los dos archivos, no un movimiento real. Se advierte explícitamente en
+       vez de dejar que se lea como gestión del día. El aviso desaparece solo
+       en cuanto los dos cortes comparados vengan del mismo archivo. */
+    var warn=basedOn.sourceChanged?('<div class="v200SourceWarn"><b>Atención: en este corte cambió el archivo de origen del descuento de muestra</b> ('+esc200(basedOn.prevSource||'—')+' → '+esc200(basedOn.curSource||'—')+'). Por eso <b>Subieron</b> y <b>Bajaron</b> sí son comparaciones válidas producto a producto, pero <b>Nuevos</b> y <b>Retirados</b> corresponden a productos que un archivo trae y el otro no, no a descuentos que se hayan puesto o quitado en tienda. Desde el próximo archivo diario la comparación es contra la misma fuente y este aviso desaparece.</div>'):'';
+    var body=total?(warn+legend200()+'<div class="v8618KpiGrid">'+kpis+'</div>'+sections):
+      (warn+legend200()+'<div class="empty">Sin cambios de descuento de muestra para esta tienda desde el corte anterior ('+rango+').</div>');
+    return '<div class="card" id="v200DiscountChangesCard"><div class="chead"><div class="cnum n1">!</div><div><div class="tt">Cambios en descuento de muestra</div><div class="ds">Avisa si el descuento administrado subió o bajó desde el corte anterior, para actualizar el cartón físico del producto en tienda · Corte '+rango+'</div></div><div class="rt"><span class="badge '+(total?'hot':'')+'">'+fi200(total)+' cambio'+(total===1?'':'s')+'</span></div></div><div class="cbody">'+body+'</div></div>';
+  }
+  /* La tarjeta va como punto 3, inmediatamente después de "Estado actual vs.
+     política". Se ancla por el título de esa tarjeta (no por posición fija),
+     porque el orden de los puntos de Markdown lo arman varios parches y una
+     posición dura se rompería si alguno inserta algo antes. */
+  function anchorCard200(root){
+    var cards=Array.from(root.querySelectorAll(':scope > .card'));
+    for(var i=0;i<cards.length;i++){
+      var t=cards[i].querySelector('.chead .tt');
+      if(t&&txt200(t.textContent).trim().toLowerCase().indexOf('estado actual vs')===0)return cards[i];
+    }
+    return null;
+  }
+  /* Los números de los puntos vienen escritos a mano en el HTML de
+     viewMarkdown8617 (1..8). Al insertar una tarjeta en medio quedarían
+     desfasados, así que se renumeran en orden de aparición. Se respeta el
+     estilo de color n1..n5 que ya usa cada tarjeta. */
+  function renumber200(root){
+    var cards=Array.from(root.querySelectorAll(':scope > .card')),k=0;
+    cards.forEach(function(c){
+      var num=c.querySelector('.chead .cnum');if(!num)return;
+      k++;num.textContent=String(k);
+    });
+  }
+  function inject200(){
+    if(currentView200()!=='markdown')return;
+    var root=document.getElementById('content');if(!root)return;
+    var html=cardHtml200(txt200(window.CUR||(typeof CUR!=='undefined'?CUR:'')));
+    if(!html)return;
+    var existing=document.getElementById('v200DiscountChangesCard');
+    if(existing){existing.outerHTML=html;renumber200(root);return;}
+    var anchor=anchorCard200(root);
+    if(anchor)anchor.insertAdjacentHTML('afterend',html);
+    else{
+      var firstCard=root.querySelector(':scope > .card');
+      if(firstCard)firstCard.insertAdjacentHTML('beforebegin',html);
+      else root.insertAdjacentHTML('afterbegin',html);
+    }
+    renumber200(root);
+  }
+  function wrapDraw200(){
+    var fn=window.drawMarkdown8617;
+    if(typeof fn!=='function')return typeof window.drawMarkdown8617==='function'&&window.drawMarkdown8617.__v200;
+    if(fn.__v200)return true;
+    var w=function(){var out=fn.apply(this,arguments);setTimeout(inject200,0);setTimeout(inject200,180);return out;};
+    w.__v200=true;
+    window.drawMarkdown8617=w;
+    try{drawMarkdown8617=w;}catch(_){}
+    return true;
+  }
+  function install200(){
+    if(!wrapDraw200()){setTimeout(install200,150);return;}
+    document.addEventListener('change',function(e){if(e.target&&e.target.id==='store')setTimeout(inject200,120);},true);
+    [200,600,1200].forEach(function(ms){setTimeout(inject200,ms);});
+    console.info('LLAVERO V86.200 · Cambios en descuento de muestra (Markdown)');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install200,{once:true});else install200();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install200,120);});
+  window.addEventListener('llavero:view-stable',function(){setTimeout(inject200,60);});
+})();
+
+
+/* ==== LLAVERO V86.201 · "Productos a gestionar por antigüedad": números reales ====
+   Bug encontrado (preexistente, no introducido por V86.200):
+   La tarjeta se dibuja UNA sola vez dentro de viewMarkdown8617 (index.html) con
+   el conjunto de filas ORIGINAL mdRows18(). Los parches posteriores que dejan el
+   módulo de Markdown en su estado final recalculan todo lo demás con el conjunto
+   autoritativo window.mdRows8664(), pero NO alcanzan a rehacer esta tarjeta:
+   patchMarkdown() sí lo intenta, pero su rama está protegida por
+   "typeof mdAgeChart8646==='function'" y esa función vive dentro de un IIFE de
+   index.html, así que NO es global y la condición siempre da falso.
+   Resultado: las barras se quedaban con los conteos viejos (p. ej. 6) mientras el
+   detalle que abre esa misma barra —ya migrado a mdRows8664 vía V8694.age()— sí
+   traía los productos correctos (79), y el KPI "Productos a gestionar" mostraba
+   el total correcto. Las tres cifras se contradecían.
+   Corrección de mínimo cambio: no se rehace el marcado (los onclick ya están
+   bien), solo se reescriben el número y la altura de cada barra a partir de
+   mdRows8664 con statusKey==='manage', que es exactamente el mismo criterio que
+   usa V8694.age() al abrir el detalle y el que suma el KPI. */
+(function(){
+  'use strict';
+  function authRows201(){
+    try{
+      var sc=(window.CUR||(typeof CUR!=='undefined'?CUR:''));
+      if(typeof window.mdRows8664!=='function')return null;
+      return window.mdRows8664(sc)||[];
+    }catch(_){return null;}
+  }
+  function bucketOf201(el){
+    var oc=el.getAttribute('onclick')||'';
+    var m=oc.match(/age\(\s*'([^']+)'\s*\)/);
+    return m?m[1]:'';
+  }
+  function fixAgeChart201(){
+    try{
+      if((document.body&&document.body.dataset.v8620View)!=='markdown')return;
+      var bars=document.querySelectorAll('#content .mdAgeChart8646 .mdAgeBar8646');
+      if(!bars.length)return;
+      var rows=authRows201();
+      if(!rows||!rows.length)return;
+      var manage=rows.filter(function(r){return r.statusKey==='manage';});
+      var counts={},list=[];
+      Array.prototype.forEach.call(bars,function(bar){
+        var b=bucketOf201(bar);
+        /* Si el marcado todavía trae las claves viejas (age_exact_91_150) se
+           normaliza; así el arreglo funciona con cualquiera de las dos formas. */
+        b=String(b).replace(/^age_exact_/,'').replace(/_plus$/,'+').replace(/_/g,'-');
+        var c=manage.filter(function(r){return String(r.ageBucket)===b;}).length;
+        counts[b]=c;list.push({bar:bar,c:c});
+      });
+      var mx=Math.max.apply(null,list.map(function(x){return x.c;}).concat([1]));
+      list.forEach(function(x){
+        var num=x.bar.querySelector('b');
+        if(num)num.textContent=(typeof window.fi==='function'?window.fi(x.c):Number(x.c).toLocaleString('es-CO'));
+        var fill=x.bar.querySelector('.mdAgeTrack8646 i');
+        if(fill)fill.style.height=(x.c?Math.max(5,Math.round(x.c/mx*124)):0)+'px';
+      });
+    }catch(err){console.error('LLAVERO V86.201 age chart',err);}
+  }
+  function wrapDraw201(){
+    var fn=window.drawMarkdown8617;
+    if(typeof fn!=='function')return false;
+    if(fn.__v201)return true;
+    var w=function(){var out=fn.apply(this,arguments);setTimeout(fixAgeChart201,0);setTimeout(fixAgeChart201,220);return out;};
+    w.__v201=true;
+    window.drawMarkdown8617=w;
+    try{drawMarkdown8617=w;}catch(_){}
+    return true;
+  }
+  function install201(){
+    if(!wrapDraw201()){setTimeout(install201,150);return;}
+    document.addEventListener('change',function(e){if(e.target&&e.target.id==='store')setTimeout(fixAgeChart201,160);},true);
+    [260,700,1400].forEach(function(ms){setTimeout(fixAgeChart201,ms);});
+    console.info('LLAVERO V86.201 · Antigüedad de Markdown recalculada con el conjunto autoritativo');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install201,{once:true});else install201();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install201,140);});
+  window.addEventListener('llavero:view-stable',function(){setTimeout(fixAgeChart201,80);});
+})();
+
+/* ==== LLAVERO V86.210 · Dashboard general para Líder de Área ====
+   Vista de avance nacional / por zona con alertas accionables.
+   - Respeta los filtros de zona, departamento, ciudad y tienda que YA tiene el
+     Dashboard: el alcance se lee de esos mismos selectores, así "nacional" es
+     simplemente "sin filtro de zona".
+   - Rankings normalizados por el inventario de cada tienda (instrucción
+     explícita del usuario: hay tiendas más pequeñas y no pueden competir en
+     valor absoluto contra las grandes). Se muestran las tres medidas:
+     % del inventario propio (criterio de orden), unidades y valor.
+   - "La más caída" = la que más empeoró entre el corte base y el corte final
+     seleccionados arriba; si no hay rango elegido, contra el corte anterior.
+   - Ambientes: cobertura consolidada por guía en el alcance visible; al abrir
+     una guía se ve en qué tiendas está incompleta y qué posiciones le faltan.
+   No se duplica lo que ya existía: las tarjetas "Mayor exposición en
+   Rotación/Evacuación" ya ordenaban por % del inventario propio, así que se
+   conservan y solo se les agregan unidades y valor (ver enrichExposure210). */
+(function(){
+  'use strict';
+  function t210(v){return v==null?'':String(v);}
+  function e210(v){return t210(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function n210(v){var x=Number(v);return isFinite(x)?x:0;}
+  function i210(v){try{return Math.round(n210(v)).toLocaleString('es-CO');}catch(_){return String(Math.round(n210(v)));}}
+  function p210(v,d){return n210(v).toFixed(d==null?1:d)+'%';}
+  function m210(v){var x=n210(v);if(Math.abs(x)>=1e9)return '$ '+(x/1e9).toFixed(2)+' MM';if(Math.abs(x)>=1e6)return '$ '+(x/1e6).toFixed(1)+' M';return '$ '+i210(x);}
+  function dmy210(v){var s=t210(v).slice(0,10),m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:s;}
+  function view210(){try{return (document.body&&document.body.dataset.v8620View)||'';}catch(_){return '';}}
+  function stores210(){try{return (typeof S!=='undefined'&&S)?S:{};}catch(_){return {};}}
+  function terr210(){return window.TERRITORIES8617||{};}
+
+  /* --- alcance: se lee de los mismos selectores del Dashboard --- */
+  function selBy210(firstOptText){
+    var sels=Array.prototype.slice.call(document.querySelectorAll('#content select'));
+    for(var i=0;i<sels.length;i++){
+      var o=sels[i].options[0];
+      if(o&&t210(o.textContent).trim().toLowerCase().indexOf(firstOptText)===0)return sels[i];
+    }
+    return null;
+  }
+  function scope210(){
+    var S1=stores210(),T=terr210(),all=Object.keys(S1);
+    var z=selBy210('todas las zonas'),d=selBy210('todos los departamentos'),c=selBy210('todas las ciudades'),s=selBy210('todas las tiendas');
+    var zv=z?z.value:'all',dv=d?d.value:'all',cv=c?c.value:'all',sv=s?s.value:'all';
+    var codes=all.filter(function(k){
+      var t=T[k]||{};
+      if(zv&&zv!=='all'&&t.zone!==zv)return false;
+      if(dv&&dv!=='all'&&t.department!==dv)return false;
+      if(cv&&cv!=='all'&&t.city!==cv)return false;
+      if(sv&&sv!=='all'&&k!==sv)return false;
+      return true;
+    });
+    var label=sv&&sv!=='all'?((T[sv]&&T[sv].name)||sv):cv&&cv!=='all'?cv:dv&&dv!=='all'?dv:zv&&zv!=='all'?zv:'Nacional';
+    return {codes:codes.length?codes:all,label:label,isNational:!(zv!=='all'||dv!=='all'||cv!=='all'||sv!=='all')};
+  }
+
+  /* --- cortes: usa el rango que el usuario ya eligió arriba --- */
+  function hist210(){
+    try{
+      var h=(typeof readDailyHistory==='function')?readDailyHistory():[];
+      return (Array.isArray(h)?h:[]).slice().sort(function(a,b){return t210(a.date).localeCompare(t210(b.date));});
+    }catch(_){return [];}
+  }
+  function cuts210(){
+    var h=hist210();if(!h.length)return {base:null,last:null};
+    var dates=h.map(function(x){return t210(x.date).slice(0,10);});
+    var sels=Array.prototype.slice.call(document.querySelectorAll('#content select')).filter(function(s){
+      return s.options.length>2&&/^\d{2}\/\d{2}\/\d{4}$/.test(t210(s.options[0].textContent).trim());
+    });
+    var from='',to='';
+    if(sels.length>=2){from=t210(sels[0].value).slice(0,10);to=t210(sels[1].value).slice(0,10);}
+    function snap(dt){for(var i=0;i<h.length;i++){if(t210(h[i].date).slice(0,10)===dt)return h[i];}return null;}
+    var last=(to&&snap(to))||h[h.length-1];
+    var base=(from&&snap(from))||h[h.length-2]||null;
+    if(base&&last&&t210(base.date)===t210(last.date)){
+      var idx=dates.indexOf(t210(last.date).slice(0,10));
+      base=idx>0?h[idx-1]:null;
+    }
+    return {base:base,last:last};
+  }
+
+  /* --- métricas por tienda en el alcance --- */
+  function row210(code){
+    var S1=stores210(),st=S1[code];if(!st)return null;
+    var inv={totalVal:0,totalUnits:0,rotPct:0,evacPct:0};
+    try{if(typeof storeInventoryMetrics==='function')inv=storeInventoryMetrics(st)||inv;}catch(_){}
+    var rot=[],evac=[];
+    try{rot=(typeof normalizeRotRows==='function'?normalizeRotRows(st):[])||[];}catch(_){}
+    try{evac=(typeof normalizeEvacRows==='function'?normalizeEvacRows(st):[])||[];}catch(_){}
+    /* normalizeRotRows expone el valor en "val" y normalizeEvacRows en "v";
+       se aceptan las dos formas para no perder el valor de Evacuación. */
+    function sum(a,k){return a.reduce(function(x,r){return x+n210(k==='val'?(r.val!=null?r.val:r.v):r[k]);},0);}
+    var amb=st.amb||{},T=terr210()[code]||{};
+    return {
+      code:code,name:t210(st.name)||code,zone:t210(T.zone),city:t210(T.city),
+      invVal:n210(inv.totalVal),invUnits:n210(inv.totalUnits),
+      rotPct:n210(inv.rotPct),evacPct:n210(inv.evacPct),
+      rotUnits:sum(rot,'u'),rotVal:sum(rot,'val'),rotRefs:rot.length,
+      evacUnits:sum(evac,'u'),evacVal:sum(evac,'val'),evacRefs:evac.length,
+      ambTotal:n210(amb.nG),ambCompletas:n210(amb.gCompletas),ambPct:n210(amb.compTotalPct),ambFalt:n210(amb.faltTot)
+    };
+  }
+  function rows210(codes){
+    return codes.map(row210).filter(Boolean);
+  }
+  function deltas210(codes){
+    var c=cuts210(),base=c.base,last=c.last,out={};
+    codes.forEach(function(k){
+      var b=base&&base.stores&&base.stores[k],l=last&&last.stores&&last.stores[k];
+      out[k]=(b&&l)?{rot:n210(l.rotPct)-n210(b.rotPct),evac:n210(l.evacPct)-n210(b.evacPct),ok:true}:{rot:0,evac:0,ok:false};
+    });
+    out.__base=base?t210(base.date).slice(0,10):'';
+    out.__last=last?t210(last.date).slice(0,10):'';
+    return out;
+  }
+
+  /* --- ambientes consolidados por guía dentro del alcance --- */
+  function guides210(codes){
+    var S1=stores210(),map={};
+    codes.forEach(function(k){
+      var st=S1[k];if(!st||!Array.isArray(st.guias))return;
+      st.guias.forEach(function(g){
+        var gc=t210(g&&g[0]);if(!gc)return;
+        var tot=n210(g[3]),have=n210(g[4]);
+        var e=map[gc]||(map[gc]={code:gc,name:t210(g[1])||gc,cat:t210(g[2]),req:0,have:0,stores:0,completas:0,detalle:[]});
+        e.req+=tot;e.have+=have;e.stores++;
+        if(tot&&have>=tot)e.completas++;
+        e.detalle.push({store:k,name:t210(st.name)||k,req:tot,have:have,falt:Math.max(0,tot-have)});
+      });
+    });
+    return Object.keys(map).map(function(k){
+      var e=map[k];e.pct=e.req?Math.round(1000*e.have/e.req)/10:0;
+      e.detalle.sort(function(a,b){return (a.req?a.have/a.req:1)-(b.req?b.have/b.req:1);});
+      return e;
+    }).filter(function(e){return e.req>0;});
+  }
+
+  /* --- tarjetas --- */
+  function kpi210(cls,ico,lab,val,sub){
+    return '<div class="kpi v210Kpi '+cls+'"><div class="top"><div class="ico">'+ico+'</div></div><div class="lab">'+e210(lab)+'</div><div class="val">'+val+'</div><div class="sub">'+sub+'</div></div>';
+  }
+  function cardAvance210(sc,rs,dl){
+    var invVal=rs.reduce(function(a,r){return a+r.invVal;},0),invU=rs.reduce(function(a,r){return a+r.invUnits;},0);
+    var rotV=rs.reduce(function(a,r){return a+r.rotVal;},0),rotU=rs.reduce(function(a,r){return a+r.rotUnits;},0);
+    var evV=rs.reduce(function(a,r){return a+r.evacVal;},0),evU=rs.reduce(function(a,r){return a+r.evacUnits;},0);
+    var req=rs.reduce(function(a,r){return a+n210((stores210()[r.code].amb||{}).reqTotal);},0);
+    var have=rs.reduce(function(a,r){return a+n210((stores210()[r.code].amb||{}).haveTotal);},0);
+    var comp=rs.reduce(function(a,r){return a+r.ambCompletas;},0),tot=rs.reduce(function(a,r){return a+r.ambTotal;},0);
+    var rotPct=invVal?rotV/invVal*100:0,evPct=invVal?evV/invVal*100:0,ambPct=req?have/req*100:0;
+    var dR=0,dE=0,nOk=0;
+    rs.forEach(function(r){var d=dl[r.code];if(d&&d.ok){dR+=d.rot;dE+=d.evac;nOk++;}});
+    if(nOk){dR/=nOk;dE/=nOk;}
+    function arrow(v,goodDown){var better=goodDown?v<0:v>0;if(Math.abs(v)<0.05)return '<span class="v210Flat">sin cambio</span>';return '<span class="'+(better?'v210Good':'v210Bad')+'">'+(v>0?'▲':'▼')+' '+Math.abs(v).toFixed(1)+' pp</span>';}
+    var rango=(dl.__base&&dl.__last)?('del corte '+dmy210(dl.__base)+' al '+dmy210(dl.__last)):'contra el corte anterior';
+    return '<div class="card v210Card" id="v210Avance"><div class="chead"><div class="cnum n2">A</div><div><div class="tt">Avance · '+e210(sc.label)+'</div><div class="ds">'+i210(rs.length)+' tienda'+(rs.length===1?'':'s')+' en el alcance · variación '+e210(rango)+'</div></div><div class="rt"><span class="badge '+(sc.isNational?'':'warm')+'">'+(sc.isNational?'Nacional':'Zona filtrada')+'</span></div></div><div class="cbody"><div class="v8618KpiGrid v210Grid">'+
+      kpi210('v210Inv','▦','Inventario del alcance',m210(invVal),i210(invU)+' unidades')+
+      kpi210('v210Rot','↻','En Rotación',p210(rotPct),i210(rotU)+' u · '+m210(rotV)+' · '+arrow(dR,true))+
+      kpi210('v210Evac','↓','En Evacuación',p210(evPct),i210(evU)+' u · '+m210(evV)+' · '+arrow(dE,true))+
+      kpi210('v210Amb','▣','Guías completas (tienda × guía)',i210(comp)+' de '+i210(tot),p210(ambPct)+' de las posiciones cubiertas')+
+    '</div><div class="dashboardNote">Rotación y Evacuación se miden sobre el valor del inventario del alcance. La variación es el promedio del cambio en puntos porcentuales de cada tienda entre los dos cortes seleccionados arriba.</div></div></div>';
+  }
+  function alertTile210(titulo,r,detalle,tono){
+    if(!r)return '<div class="v210Alert"><div class="v210AlertHead">'+e210(titulo)+'</div><div class="v210AlertEmpty">Sin datos suficientes</div></div>';
+    return '<div class="v210Alert '+tono+'" role="button" tabindex="0" data-v210-store="'+e210(r.code)+'" title="Abrir '+e210(r.name)+'"><div class="v210AlertHead">'+e210(titulo)+'</div><div class="v210AlertStore">'+e210(r.name)+'</div><div class="v210AlertMain">'+detalle.main+'</div><div class="v210AlertSub">'+detalle.sub+'</div></div>';
+  }
+  function cardAlertas210(sc,rs,dl){
+    var byRot=rs.slice().sort(function(a,b){return b.rotPct-a.rotPct;})[0];
+    var byEvac=rs.slice().sort(function(a,b){return b.evacPct-a.evacPct;})[0];
+    var withD=rs.filter(function(r){return dl[r.code]&&dl[r.code].ok;});
+    var worstRot=withD.slice().sort(function(a,b){return dl[b.code].rot-dl[a.code].rot;})[0];
+    var worstEvac=withD.slice().sort(function(a,b){return dl[b.code].evac-dl[a.code].evac;})[0];
+    /* Si en el rango elegido NINGUNA tienda empeoró, no se deja la tarjeta
+       vacía (se lee como si estuviera rota): se muestra la que menos mejoró y
+       se dice explícitamente que ninguna se cayó. */
+    var rotEmpeoro=!!(worstRot&&dl[worstRot.code].rot>0);
+    var evacEmpeoro=!!(worstEvac&&dl[worstEvac.code].evac>0);
+    var peorAmb=rs.slice().filter(function(r){return r.ambTotal;}).sort(function(a,b){return a.ambPct-b.ambPct;})[0];
+    var rango=(dl.__base&&dl.__last)?(dmy210(dl.__base)+' → '+dmy210(dl.__last)):'corte anterior';
+    return '<div class="card v210Card" id="v210Alertas"><div class="chead"><div class="cnum n1">!</div><div><div class="tt">Alertas de '+e210(sc.label)+'</div><div class="ds">Dónde mirar primero. Cada alerta abre la tienda.</div></div><div class="rt"><span class="badge">'+e210(rango)+'</span></div></div><div class="cbody"><div class="v210Alerts">'+
+      alertTile210('Más inventario para rotar',byRot,{main:p210(byRot&&byRot.rotPct),sub:byRot?(i210(byRot.rotUnits)+' u · '+m210(byRot.rotVal)+' · '+i210(byRot.rotRefs)+' referencias'):''},'hot')+
+      alertTile210('Más inventario para evacuar',byEvac,{main:p210(byEvac&&byEvac.evacPct),sub:byEvac?(i210(byEvac.evacUnits)+' u · '+m210(byEvac.evacVal)+' · '+i210(byEvac.evacRefs)+' referencias'):''},'hot')+
+      alertTile210(rotEmpeoro?'La que más se cayó en Rotación':'Rotación · la que menos mejoró',worstRot,{main:worstRot?((dl[worstRot.code].rot>0?'+':'')+dl[worstRot.code].rot.toFixed(1)+' pp'):'—',sub:worstRot?((rotEmpeoro?'':'ninguna tienda empeoró · ')+'quedó en '+p210(worstRot.rotPct)+' de su inventario'):''},rotEmpeoro?'bad':'warn')+
+      alertTile210(evacEmpeoro?'La que más se cayó en Evacuación':'Evacuación · la que menos mejoró',worstEvac,{main:worstEvac?((dl[worstEvac.code].evac>0?'+':'')+dl[worstEvac.code].evac.toFixed(1)+' pp'):'—',sub:worstEvac?((evacEmpeoro?'':'ninguna tienda empeoró · ')+'quedó en '+p210(worstEvac.evacPct)+' de su inventario'):''},evacEmpeoro?'bad':'warn')+
+      alertTile210('Menor cobertura de ambientes',peorAmb,{main:p210(peorAmb&&peorAmb.ambPct),sub:peorAmb?(i210(peorAmb.ambCompletas)+' de '+i210(peorAmb.ambTotal)+' guías completas · faltan '+i210(peorAmb.ambFalt)+' posiciones'):''},'warn')+
+    '</div><div class="dashboardNote">"Se cayó" significa que subió el porcentaje de su propio inventario comprometido entre los dos cortes seleccionados. Si en ese rango ninguna tienda empeoró, la tarjeta muestra la que menos mejoró y lo advierte.</div></div></div>';
+  }
+  function cardAmbientes210(sc,rs){
+    var gs=guides210(rs.map(function(r){return r.code;}));
+    if(!gs.length)return '';
+    var ord=gs.slice().sort(function(a,b){return b.pct-a.pct||a.name.localeCompare(b.name,'es');});
+    /* "Completa en todas las tiendas del alcance" a nivel nacional da casi
+       siempre cero y no sirve para decidir. Se reportan dos lecturas útiles:
+       en cuántas tiendas al menos una guía llegó al 100%, y el promedio de
+       guías completas por tienda. */
+    var enAlguna=gs.filter(function(g){return g.completas>0;}).length;
+    var enTodas=gs.filter(function(g){return g.stores&&g.completas>=g.stores;}).length;
+    var promTienda=rs.length?rs.reduce(function(a,r){return a+r.ambCompletas;},0)/rs.length:0;
+    var req=gs.reduce(function(a,g){return a+g.req;},0),have=gs.reduce(function(a,g){return a+g.have;},0);
+    function tabla(list,cls){
+      return '<div class="twrap"><table class="v8618Table v210GuideTable"><thead><tr><th>Guía</th><th class="num">Completitud</th><th class="num">Posiciones</th><th class="num">Tiendas</th></tr></thead><tbody>'+list.map(function(g){
+        return '<tr data-v210-guide="'+e210(g.code)+'" tabindex="0" title="Ver en qué tiendas está incompleta"><td><b>'+e210(g.name)+'</b><div class="muted">'+e210(g.code)+(g.cat?' · '+e210(g.cat):'')+'</div></td><td class="num"><b class="'+(g.pct>=95?'v210Good':g.pct>=70?'':'v210Bad')+'">'+p210(g.pct)+'</b></td><td class="num">'+i210(g.have)+' / '+i210(g.req)+'</td><td class="num">'+i210(g.completas)+' de '+i210(g.stores)+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+    }
+    return '<div class="card v210Card" id="v210Ambientes"><div class="chead"><div class="cnum n3">▣</div><div><div class="tt">Ambientes por completitud · '+e210(sc.label)+'</div><div class="ds">Una guía está completa cuando todas sus posiciones están cubiertas en la tienda. Abre una guía para ver dónde falta.</div></div><div class="rt"><span class="badge warm">'+i210(gs.length)+' guías</span></div></div><div class="cbody"><div class="v8618KpiGrid v210Grid">'+
+      kpi210('v210Amb','▣','Completitud · guías completas en alguna tienda',i210(enAlguna)+' de '+i210(gs.length),i210(enTodas)+' están completas en TODAS las tiendas del alcance')+
+      kpi210('v210Inv','%','Posiciones cubiertas',p210(req?have/req*100:0),i210(have)+' de '+i210(req)+' posiciones cubiertas')+
+      kpi210('v210Rot','↑','Mejor completitud',ord.length?p210(ord[0].pct):'—',ord.length?e210(ord[0].name):'')+
+      kpi210('v210Evac','↓','Menor completitud',ord.length?p210(ord[ord.length-1].pct):'—',ord.length?e210(ord[ord.length-1].name):'')+
+    '</div><div class="v210TwoCol"><div><div class="v170SugTitle">Mayor cobertura</div>'+tabla(ord.slice(0,10))+'</div><div><div class="v170SugTitle">Menor cobertura · atender primero</div>'+tabla(ord.slice(-10).reverse())+'</div></div><div class="dashboardNote">Promedio de guías completas por tienda en el alcance: <b>'+promTienda.toFixed(1)+'</b>. Selecciona cualquier guía para ver tienda por tienda cuántas posiciones le faltan.</div></div></div>';
+  }
+
+  /* --- detalle de una guía --- */
+  function openGuide210(code){
+    var sc=scope210(),gs=guides210(sc.codes),g=gs.filter(function(x){return x.code===code;})[0];
+    if(!g)return;
+    var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');
+    if(!modal||!body)return;
+    var filas=g.detalle.map(function(d){
+      var pct=d.req?Math.round(1000*d.have/d.req)/10:0;
+      return '<tr><td><b>'+e210(d.name)+'</b><div class="muted">'+e210(d.store)+'</div></td><td class="num"><b class="'+(pct>=100?'v210Good':pct>=70?'':'v210Bad')+'">'+p210(pct)+'</b></td><td class="num">'+i210(d.have)+' / '+i210(d.req)+'</td><td class="num">'+(d.falt?('<b class="v210Bad">'+i210(d.falt)+'</b>'):'<span class="v210Good">completa</span>')+'</td></tr>';
+    }).join('');
+    if(tt)tt.textContent='Ambiente · '+g.name;
+    if(ss)ss.textContent=sc.label+' · '+p210(g.pct)+' de cobertura · '+i210(g.completas)+' de '+i210(g.stores)+' tiendas completas';
+    body.innerHTML='<div class="twrap"><table class="v8618Table"><thead><tr><th>Tienda</th><th class="num">Completitud</th><th class="num">Posiciones</th><th class="num">Faltan</th></tr></thead><tbody>'+filas+'</tbody></table></div><div class="dashboardNote">Las tiendas se ordenan de menor a mayor cobertura. "Faltan" son las posiciones de la guía que no están cubiertas en esa tienda.</div>';
+    modal.classList.add('on');
+  }
+  function openStore210(code){
+    try{if(typeof closeRangeModal==='function')closeRangeModal();}catch(_){}
+    try{if(typeof window.openTerritoryStore8618==='function'){window.openTerritoryStore8618(code);return;}}catch(_){}
+    try{CUR=code;var s=document.getElementById('store');if(s)s.value=code;if(typeof window.setView==='function')window.setView('resumen');}catch(_){}
+  }
+
+  /* --- las tarjetas existentes de exposición ya ordenan por % del inventario
+         propio; se conservan y solo se les agrega unidades y valor --- */
+  function enrichExposure210(rs){
+    var byName={};rs.forEach(function(r){byName[t210(r.name).trim().toLowerCase()]=r;});
+    Array.prototype.forEach.call(document.querySelectorAll('#content .card'),function(card){
+      var tt=card.querySelector('.tt'),ttx=tt?t210(tt.textContent).trim():'';
+      var kind=ttx.indexOf('Mayor exposición en Rotación')===0?'rot':ttx.indexOf('Mayor exposición en Evacuación')===0?'evac':'';
+      if(!kind)return;
+      Array.prototype.forEach.call(card.querySelectorAll('.cbody *'),function(el){
+        if(el.children.length||el.dataset.v210Done)return;
+        var key=t210(el.textContent).trim().toLowerCase().replace(/^\d+\.\s*/,'');
+        var r=byName[key];if(!r)return;
+        el.dataset.v210Done='1';
+        var u=kind==='rot'?r.rotUnits:r.evacUnits,v=kind==='rot'?r.rotVal:r.evacVal;
+        el.insertAdjacentHTML('beforeend',' <span class="v210Inline">'+i210(u)+' u · '+m210(v)+'</span>');
+      });
+    });
+  }
+
+  /* --- inyección --- */
+  var lastSig210='';
+  function inject210(){
+    if(view210()!=='dashboard')return;
+    var root=document.getElementById('content');if(!root)return;
+    var sc=scope210();if(!sc.codes.length)return;
+    var rs=rows210(sc.codes);if(!rs.length)return;
+    var dl=deltas210(sc.codes);
+    var sig=sc.codes.join(',')+'|'+dl.__base+'|'+dl.__last;
+    var host=document.getElementById('v210Host');
+    if(host&&sig===lastSig210)return;
+    lastSig210=sig;
+    /* V86.218: "Avance" y "Alertas" quedaron reemplazados por los rankings y el
+       comparativo por nivel. Se dejan de GENERAR aqui (antes se quitaban despues
+       del render y volvian a aparecer en cada redibujado del Dashboard). */
+    var html='<div id="v210Host" class="v210Host">'+cardAmbientes210(sc,rs)+'</div>';
+    if(host)host.outerHTML=html;
+    else{
+      /* debajo de la barra de filtros para que el alcance se lea primero */
+      var filters=root.querySelector('.v8649DashboardFilters,.v8649Filters')||root.firstElementChild;
+      if(filters)filters.insertAdjacentHTML('afterend',html);
+      else root.insertAdjacentHTML('afterbegin',html);
+    }
+    enrichExposure210(rs);
+  }
+  var timer210=null;
+  function schedule210(){clearTimeout(timer210);timer210=setTimeout(inject210,120);}
+  function install210(){
+    var root=document.getElementById('content');
+    if(!root){setTimeout(install210,200);return;}
+    /* El Dashboard se vuelve a dibujar completo cada vez que cambia un filtro y
+       esa función no es global, así que se observa el contenedor en vez de
+       envolverla. La firma evita re-inyectar sin necesidad. */
+    try{new MutationObserver(function(){if(view210()==='dashboard')schedule210();}).observe(root,{childList:true});}catch(_){}
+    document.addEventListener('change',function(e){if(e.target&&e.target.tagName==='SELECT'){lastSig210='';schedule210();}},true);
+    document.addEventListener('click',function(e){
+      var g=e.target&&e.target.closest?e.target.closest('[data-v210-guide]'):null;
+      if(g){e.preventDefault();e.stopPropagation();openGuide210(g.dataset.v210Guide);return;}
+      var s=e.target&&e.target.closest?e.target.closest('[data-v210-store]'):null;
+      if(s){e.preventDefault();e.stopPropagation();openStore210(s.dataset.v210Store);return;}
+    },true);
+    [400,900,1800,3000].forEach(function(ms){setTimeout(inject210,ms);});
+    console.info('LLAVERO V86.210 · Dashboard de zona: avance, alertas y ambientes');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install210,{once:true});else install210();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install210,200);});
+})();
+
+/* ==== LLAVERO V86.212 · Ajustes de Ambientes, Markdown y politica ====
+   1) Ambientes: "Concentracion por tipo de ambiente" se sube para que quede
+      justo debajo del bloque que encabeza "Como esta la tienda", en vez de
+      quedar suelta entre el impacto y los filtros de la tabla.
+   2) Markdown punto 4 ("Productos a gestionar por politica"): las cuatro
+      tarjetas CORE/COMPLEMENTO tenian el onclick ROTO. policyChart81 arma
+      onclick="V8694.policy("CORE","rot")" con JSON.stringify, y como el
+      atributo ya viene delimitado por comillas dobles, el navegador corta el
+      handler en el primer caracter " -> quedaba literalmente "V8694.policy("
+      y al hacer clic lanzaba "Unexpected end of input" sin abrir nada. Se
+      re-cablean por data-atributos y delegacion, sin comillas dentro del HTML.
+   3) Tarjeta "Cambios en descuento de muestra": se agrega la columna
+      "Sugerido" con el descuento que manda la politica para ese producto, que
+      es justo lo que el administrador necesita para saber que carton poner
+      cuando un producto entra como NUEVO. */
+(function(){
+  'use strict';
+  function t212(v){return v==null?'':String(v);}
+  function view212(){try{return (document.body&&document.body.dataset.v8620View)||'';}catch(_){return '';}}
+
+  /* ---------- 1) Ambientes ---------- */
+  function moveConcentration212(){
+    if((typeof VIEW!=='undefined'?VIEW:'')!=='amb')return;
+    var conc=document.getElementById('v155GuideConcentration');if(!conc)return;
+    var body=conc.parentElement;if(!body)return;
+    var mk=body.querySelector(':scope > .mkpis');if(!mk)return;
+    if(mk.nextElementSibling===conc)return;           /* ya esta en su lugar */
+    mk.insertAdjacentElement('afterend',conc);
+  }
+
+  /* ---------- 2) tarjetas de politica ---------- */
+  var CC212=[['CORE','rot'],['CORE','evac'],['COMPLEMENTO','rot'],['COMPLEMENTO','evac']];
+  function fixPolicyCards212(){
+    if(view212()!=='markdown')return;
+    var cards=document.querySelectorAll('#content .v8681PolicyCard,#content .v8666PolicyCard');
+    if(!cards.length)return;
+    Array.prototype.forEach.call(cards,function(card,i){
+      if(card.dataset.v212)return;
+      var lab=t212((card.querySelector('b')||{}).textContent).toUpperCase();
+      var cc=lab.indexOf('COMPLEMENT')>=0?'COMPLEMENTO':'CORE';
+      var kind=lab.indexOf('EVAC')>=0?'evac':'rot';
+      if(!lab&&CC212[i]){cc=CC212[i][0];kind=CC212[i][1];}
+      card.dataset.v212='1';
+      card.dataset.v212Cc=cc;
+      card.dataset.v212Kind=kind;
+      card.removeAttribute('onclick');   /* el atributo venia truncado y tiraba error */
+      card.type='button';
+      card.style.cursor='pointer';
+      card.setAttribute('role','button');
+    });
+  }
+  function openPolicy212(cc,kind){
+    try{
+      if(window.V8695&&typeof window.V8695.policy==='function'){window.V8695.policy(cc,kind);return;}
+      if(window.V8694&&typeof window.V8694.policy==='function'){window.V8694.policy(cc,kind);return;}
+      if(typeof window.openMdPolicy8666==='function'){window.openMdPolicy8666(kind);return;}
+    }catch(err){console.error('LLAVERO V86.212 politica',err);}
+  }
+
+  /* ---------- 3) descuento sugerido en la tarjeta de cambios ---------- */
+  function suggestedMap212(){
+    var m={};
+    try{
+      var sc=t212(window.CUR||(typeof CUR!=='undefined'?CUR:''));
+      var rows=(typeof window.mdRows8664==='function'?window.mdRows8664(sc):[])||[];
+      rows.forEach(function(r){if(r&&r.code!=null)m[t212(r.code)]=r.discount;});
+    }catch(_){}
+    return m;
+  }
+  function addSuggested212(){
+    if(view212()!=='markdown')return;
+    var card=document.getElementById('v200DiscountChangesCard');if(!card)return;
+    var tables=card.querySelectorAll('table.v8618Table');if(!tables.length)return;
+    var map=suggestedMap212(),touched=false;
+    Array.prototype.forEach.call(tables,function(tb){
+      if(tb.dataset.v212Sug)return;
+      var head=tb.tHead&&tb.tHead.rows[0];if(!head)return;
+      /* la columna va despues de "Ahora" para leerse: antes -> ahora -> sugerido */
+      var idx=-1;
+      for(var i=0;i<head.cells.length;i++){if(t212(head.cells[i].textContent).trim().toLowerCase()==='ahora'){idx=i;break;}}
+      if(idx<0)return;
+      tb.dataset.v212Sug='1';touched=true;
+      var th=document.createElement('th');th.className='num';th.textContent='Sugerido';
+      head.insertBefore(th,head.cells[idx+1]||null);
+      Array.prototype.forEach.call(tb.tBodies[0]?tb.tBodies[0].rows:[],function(tr){
+        var code=t212(tr.dataset.mdProduct),v=map[code];
+        var td=document.createElement('td');td.className='num v212Sug';
+        td.innerHTML=(v==null||v==='')?'<span class="muted">sin política</span>'
+          :'<b>'+(Math.round(Number(v)*10)/10).toFixed(1).replace('.0','')+'%</b>';
+        tr.insertBefore(td,tr.cells[idx+1]||null);
+      });
+    });
+    if(touched){
+      var note=card.querySelector('.v212Note');
+      if(!note){
+        var body=card.querySelector('.cbody');
+        if(body)body.insertAdjacentHTML('beforeend','<div class="dashboardNote v212Note">"Sugerido" es el descuento que manda la política para ese producto según su antigüedad y condición. En los <b>Nuevos</b> es el cartón que debería quedar puesto; en los <b>Retirados</b> es lo que la política pediría si el producto vuelve a entrar.</div>');
+      }
+    }
+  }
+
+  function run212(){moveConcentration212();fixPolicyCards212();addSuggested212();}
+  var t=null;
+  function schedule212(){clearTimeout(t);t=setTimeout(run212,90);}
+  function install212(){
+    var root=document.getElementById('content');
+    if(!root){setTimeout(install212,200);return;}
+    try{new MutationObserver(schedule212).observe(root,{childList:true,subtree:true});}catch(_){}
+    document.addEventListener('click',function(e){
+      var p=e.target&&e.target.closest?e.target.closest('[data-v212-cc]'):null;
+      if(p){e.preventDefault();e.stopPropagation();openPolicy212(p.dataset.v212Cc,p.dataset.v212Kind);}
+    },true);
+    document.addEventListener('change',function(e){if(e.target&&e.target.id==='store')setTimeout(run212,180);},true);
+    [300,800,1600,2600].forEach(function(ms){setTimeout(run212,ms);});
+    console.info('LLAVERO V86.212 · Ambientes reordenado, tarjetas de política reparadas y sugerido en cambios de descuento');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install212,{once:true});else install212();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install212,200);});
+  window.addEventListener('llavero:view-stable',function(){setTimeout(run212,80);});
+})();
+
+/* ==== LLAVERO V86.213 · Limpieza de Resumen de tienda y Dashboard + traslados reales ====
+   1) Resumen de tienda: se ELIMINAN del DOM las tarjetas "Seguimiento diario de
+      gestion" y "Seguimiento frente al corte". La "Tendencia historica de la
+      tienda" se conserva: hoy vive DENTRO de la primera, asi que se mueve a su
+      propia tarjeta antes de borrar la que la contenia (trendChart79 no es
+      global, por eso se traslada el elemento ya construido en vez de rehacerlo).
+   2) Dashboard general: se eliminan "Reglas de interpretacion", "Que esta
+      explicando el resultado", "Mapa de calor por tienda" y la tarjeta
+      "Avance · Nacional" (v210), por peticion del usuario.
+   3) Reporte de la tienda: el aviso de traslados mostraba
+      transfers.current, que cuenta TODAS las filas de traslado incluidas las ya
+      entregadas (Norte: 206 filas = 192 entregadas + 13 en ruta + 1 pendiente).
+      Se reemplaza por las ordenes realmente abiertas y sus productos. */
+(function(){
+  'use strict';
+  function t213(v){return v==null?'':String(v);}
+  function n213(v){var x=Number(v);return isFinite(x)?x:0;}
+  function i213(v){try{return Math.round(n213(v)).toLocaleString('es-CO');}catch(_){return String(Math.round(n213(v)));}}
+  function view213(){try{return (document.body&&document.body.dataset.v8620View)||'';}catch(_){return '';}}
+  function cardByTitle213(root,txt){
+    var cards=root.querySelectorAll('.card'),needle=txt.toLowerCase();
+    for(var i=0;i<cards.length;i++){
+      var t=cards[i].querySelector('.chead .tt')||cards[i].querySelector('.tt');
+      if(t&&t213(t.textContent).trim().toLowerCase().indexOf(needle)===0)return cards[i];
+    }
+    return null;
+  }
+
+  /* ---------- traslados reales de una tienda ---------- */
+  function openTransfers213(code){
+    try{
+      var st=(typeof S!=='undefined'&&S)?S[code]:null;
+      var rows=(st&&Array.isArray(st.trDetalle))?st.trDetalle:[];
+      var open=rows.filter(function(r){return t213(r&&r.estatus).toLowerCase().indexOf('entreg')<0;});
+      var orders={},units=0;
+      open.forEach(function(r){orders[t213(r.entrega)]=1;units+=n213(r.unidades);});
+      return {orders:Object.keys(orders).length,products:open.length,units:units,
+              pend:open.filter(function(r){return t213(r.estatus).toLowerCase().indexOf('pend')>=0;}).length,
+              ruta:open.filter(function(r){return t213(r.estatus).toLowerCase().indexOf('ruta')>=0;}).length};
+    }catch(_){return null;}
+  }
+  function patchSuggestions213(){
+    var base=window.v170Suggestions;
+    if(typeof base!=='function'||base.__v213)return;
+    var w=function(code,today,curDetailStore){
+      var items=base.apply(this,arguments)||[];
+      try{
+        var tr=openTransfers213(code);
+        items=items.filter(function(it){return t213(it&&it.txt).toLowerCase().indexOf('traslado')<0;});
+        if(tr&&tr.orders){
+          var det=[];
+          if(tr.pend)det.push(i213(tr.pend)+' pendiente'+(tr.pend===1?'':'s'));
+          if(tr.ruta)det.push(i213(tr.ruta)+' en ruta');
+          items.push({sev:'med',view:'traslados',
+            txt:i213(tr.orders)+(tr.orders===1?' orden':' órdenes')+' de traslado abierta'+(tr.orders===1?'':'s')+
+                ' · '+i213(tr.products)+' producto'+(tr.products===1?'':'s')+' por recibir'+
+                (det.length?' ('+det.join(' · ')+')':'')+'.'});
+        }
+      }catch(err){console.error('LLAVERO V86.213 traslados',err);}
+      return items;
+    };
+    w.__v213=true;
+    window.v170Suggestions=w;
+    try{v170Suggestions=w;}catch(_){}
+  }
+
+  /* ---------- Resumen de tienda ---------- */
+  function cleanResumen213(){
+    if(view213()!=='resumen')return;
+    var root=document.getElementById('content');if(!root)return;
+    var daily=cardByTitle213(root,'seguimiento diario de gestión')||cardByTitle213(root,'seguimiento diario de gestion');
+    if(daily){
+      var trend=daily.querySelector('.v79StoreTrendCard');
+      /* el gráfico lo dibuja un parche posterior; si se mueve antes de que
+         tenga contenido, la tarjeta queda vacía. Se espera a que exista. */
+      if(trend&&!trend.querySelector('svg circle'))trend=null;
+      if(trend){
+        var host=document.getElementById('v213TrendCard');
+        if(!host){
+          host=document.createElement('div');
+          host.className='card v213TrendCard';
+          host.id='v213TrendCard';
+          host.innerHTML='<div class="chead"><div class="cnum n3">↗</div><div><div class="tt">Tendencia histórica de la tienda</div><div class="ds">Mejora de Rotación y Evacuación en cada corte. Presiona un punto para ver su actividad.</div></div></div><div class="cbody"></div>';
+          daily.insertAdjacentElement('beforebegin',host);
+        }
+        var body=host.querySelector('.cbody');
+        if(body&&trend.parentElement!==body){body.innerHTML='';body.appendChild(trend);}
+        /* el encabezado interno del gráfico sobra: ya lo dice la tarjeta */
+        var inner=body&&body.querySelector('.v79StoreTrendHead');
+        if(inner)inner.remove();
+        daily.remove();
+      }else{
+        var saved=document.getElementById('v213TrendCard');
+        /* solo se elimina si la tendencia ya está a salvo, o si esta tienda
+           definitivamente no tiene gráfico que rescatar */
+        if(saved&&saved.querySelector('svg circle'))daily.remove();
+        else if(!daily.querySelector('.v79StoreTrendCard'))daily.remove();
+      }
+    }
+    var track=document.getElementById('storeTrackingPanel');
+    if(track)track.remove();
+    var track2=cardByTitle213(root,'seguimiento frente al corte');
+    if(track2)track2.remove();
+  }
+
+  /* ---------- Dashboard general ---------- */
+  var DASH_OUT_213=['reglas de interpretación','reglas de interpretacion',
+                    'qué está explicando el resultado','que esta explicando el resultado',
+                    'mapa de calor por tienda','avance · nacional','avance ·'];
+  function cleanDashboard213(){
+    if(view213()!=='dashboard')return;
+    var root=document.getElementById('content');if(!root)return;
+    var av=document.getElementById('v210Avance');if(av)av.remove();
+    ['.v8630CauseSection','.v8630HeatSection'].forEach(function(sel){
+      Array.prototype.forEach.call(root.querySelectorAll(sel),function(x){x.remove();});
+    });
+    Array.prototype.forEach.call(root.querySelectorAll('.card,section'),function(el){
+      var t=el.querySelector('.tt')||el.querySelector('.v8630SectionTitle')||el.querySelector('h3');
+      var txt=t213(t&&t.textContent).trim().toLowerCase();
+      if(!txt)return;
+      for(var i=0;i<DASH_OUT_213.length;i++){
+        if(txt.indexOf(DASH_OUT_213[i])===0){el.remove();return;}
+      }
+    });
+  }
+
+  function run213(){patchSuggestions213();cleanResumen213();cleanDashboard213();}
+  var timer=null;
+  function schedule213(){clearTimeout(timer);timer=setTimeout(run213,80);}
+  function install213(){
+    patchSuggestions213();
+    var root=document.getElementById('content');
+    if(!root){setTimeout(install213,200);return;}
+    try{new MutationObserver(schedule213).observe(root,{childList:true,subtree:true});}catch(_){}
+    document.addEventListener('change',function(e){if(e.target&&e.target.id==='store')setTimeout(run213,200);},true);
+    [300,700,1500,2600,4000].forEach(function(ms){setTimeout(run213,ms);});
+    console.info('LLAVERO V86.213 · Resumen y Dashboard depurados; traslados con órdenes reales');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install213,{once:true});else install213();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install213,200);});
+  window.addEventListener('llavero:view-stable',function(){setTimeout(run213,60);});
+})();
+
+/* ==== LLAVERO V86.215 · Composicion: desglose T/O y filtros en el detalle ====
+   1) La tarjeta "Novedades · Estados T/O" solo mostraba el total (157). Se agrega
+      el desglose real: cuantos son Testeo (T) y cuantos Novedad (O).
+   2) El detalle de las tarjetas de composicion abria una tabla de 157 filas SIN
+      ningun filtro (el toggle viejo apuntaba a #v8664MixTable, que ya no existe
+      porque un parche posterior rehizo el modal). Se agrega una barra de filtros:
+      busqueda, estado T/O, categoria, antiguedad y respaldo en CENDIS, con
+      contador de resultados. Aplica a Basicos, Novedades y Fuera de surtido. */
+(function(){
+  'use strict';
+  function t215(v){return v==null?'':String(v);}
+  function e215(v){return t215(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function norm215(v){var x=t215(v);try{x=x.normalize('NFD').replace(/[̀-ͯ]/g,'');}catch(_){}return x.toUpperCase().trim();}
+  function i215(v){var n=Number(v)||0;try{return n.toLocaleString('es-CO');}catch(_){return String(n);}}
+  var BUCKETS215=['0-60','61-90','91-150','151-180','181-210','211-240','241-360','360+'];
+  var BLABEL215={'0-60':'0–60 días','61-90':'61–90 días','91-150':'91–150 días','151-180':'151–180 días',
+                 '181-210':'181–210 días','211-240':'211–240 días','241-360':'241–360 días','360+':'+360 días'};
+  /* mismo criterio que ageBucket() (V86.202): se clasifica por el limite SUPERIOR */
+  function bucket215(label){
+    var z=norm215(label);
+    if(!z||z.indexOf('SIN')>=0)return 'unknown';
+    if(z.indexOf('360')>=0&&(z.indexOf('MAS')>=0||z.indexOf('+')>=0))return '360+';
+    var a=(z.match(/\d+/g)||[]).map(Number);
+    if(!a.length)return 'unknown';
+    var x=a[a.length-1];
+    if(x<=60)return '0-60';if(x<=90)return '61-90';if(x<=150)return '91-150';
+    if(x<=180)return '151-180';if(x<=210)return '181-210';if(x<=240)return '211-240';
+    if(x<=360)return '241-360';return '360+';
+  }
+  function estado215(code){
+    try{
+      var cat=(typeof window.P!=='undefined'&&window.P)||(typeof P!=='undefined'&&P);
+      var p=cat&&cat[t215(code).trim()];
+      return p?norm215(p.estado):'';
+    }catch(_){return '';}
+  }
+
+  /* ---------- 1) desglose T/O en la tarjeta ---------- */
+  function splitTO215(){
+    if((typeof VIEW!=='undefined'?VIEW:'')!=='resumen')return;
+    var grid=document.querySelector('#content .v8662MixGrid');if(!grid)return;
+    var nov=Array.prototype.filter.call(grid.children,function(b){return /Novedades/i.test(b.textContent);})[0];
+    if(!nov)return;
+    var metrics=nov.querySelector('.v8664MixMetrics');if(!metrics)return;
+    if(metrics.querySelector('[data-v215-to]'))return;
+    /* se cuentan sobre el inventario con stock de la tienda, mismo universo que
+       usa la tarjeta (productos con existencia) */
+    var nT=0,nO=0;
+    try{
+      var sc=t215(window.CUR||(typeof CUR!=='undefined'?CUR:''));
+      var st=(typeof S!=='undefined'&&S)?S[sc]:null;
+      var inv=(st&&Array.isArray(st.inventario))?st.inventario:[];
+      inv.forEach(function(r){
+        if(!(Number(r.stock)>0))return;
+        var e=norm215(r.estadoAbastecimiento)||estado215(r.codigo);
+        if(e==='T')nT++;else if(e==='O')nO++;
+      });
+    }catch(_){}
+    if(!nT&&!nO)return;
+    metrics.insertAdjacentHTML('beforeend',
+      '<div class="v8664MixMetric v215TO" data-v215-to="T" role="button" tabindex="0" title="Ver solo productos en Testeo"><label>Testeo (T)</label><b>'+i215(nT)+'</b></div>'+
+      '<div class="v8664MixMetric v215TO" data-v215-to="O" role="button" tabindex="0" title="Ver solo productos en Novedad"><label>Novedad (O)</label><b>'+i215(nO)+'</b></div>');
+  }
+
+  /* ---------- 2) filtros dentro del detalle ---------- */
+  var TITLES215=['novedades','básicos','basicos','fuera de surtido','estado no reconocido','estados t/o'];
+  function isCompModal215(title){
+    var t=t215(title).toLowerCase();
+    for(var i=0;i<TITLES215.length;i++)if(t.indexOf(TITLES215[i])>=0)return true;
+    return false;
+  }
+  function colIndex215(table,name){
+    var th=table.tHead&&table.tHead.rows[0];if(!th)return -1;
+    for(var i=0;i<th.cells.length;i++)if(norm215(th.cells[i].textContent).indexOf(norm215(name))>=0)return i;
+    return -1;
+  }
+  function buildFilters215(){
+    var modal=document.getElementById('rangeModal');
+    if(!modal||!modal.classList.contains('on'))return;
+    var title=t215((document.getElementById('rangeModalTitle')||{}).textContent);
+    if(!isCompModal215(title))return;
+    var body=document.getElementById('rangeModalBody');if(!body)return;
+    var table=body.querySelector('table');if(!table||!table.tBodies[0])return;
+    if(body.querySelector('.v215Filters'))return;
+
+    var iCode=colIndex215(table,'Código'),iProd=colIndex215(table,'Producto'),
+        iCat=colIndex215(table,'Categoría'),iAge=colIndex215(table,'Antigüedad'),
+        iCendis=colIndex215(table,'CENDIS');
+    var rows=Array.prototype.slice.call(table.tBodies[0].rows);
+    /* se anota cada fila una sola vez para que filtrar sea barato */
+    var cats={},ages={},bucks={},hasT=false,hasO=false;
+    rows.forEach(function(tr){
+      var code=iCode>=0?t215(tr.cells[iCode]&&tr.cells[iCode].textContent).trim():'';
+      var est=estado215(code);
+      if(est==='T')hasT=true;if(est==='O')hasO=true;
+      var catTxt=iCat>=0?t215(tr.cells[iCat]&&tr.cells[iCat].textContent):'';
+      var cat=norm215(catTxt.split('·')[0]);
+      var age=iAge>=0?t215(tr.cells[iAge]&&tr.cells[iAge].textContent).trim():'';
+      var cen=iCendis>=0?(Number(t215(tr.cells[iCendis]&&tr.cells[iCendis].textContent).replace(/\D/g,''))||0):0;
+      tr.dataset.v215Est=est;
+      tr.dataset.v215Cat=cat;
+      tr.dataset.v215Age=age;
+      tr.dataset.v215Bucket=bucket215(age);
+      tr.dataset.v215Cen=cen>0?'con':'sin';
+      tr.dataset.v215Txt=norm215(tr.textContent);
+      if(cat)cats[cat]=(cats[cat]||0)+1;
+      if(age)ages[age]=(ages[age]||0)+1;
+      var bk=tr.dataset.v215Bucket;if(bk&&bk!=='unknown')bucks[bk]=(bucks[bk]||0)+1;
+    });
+    function opts(obj){
+      return Object.keys(obj).sort().map(function(k){
+        return '<option value="'+e215(k)+'">'+e215(k)+' ('+i215(obj[k])+')</option>';
+      }).join('');
+    }
+    var estSel=(hasT||hasO)?('<div class="v215Field"><label>Estado</label><select data-v215="est"><option value="all">Todos</option>'+
+      (hasT?'<option value="T">Testeo (T)</option>':'')+(hasO?'<option value="O">Novedad (O)</option>':'')+'</select></div>'):'';
+    var html='<div class="v215Filters">'+
+      '<div class="v215Field grow"><label>Buscar</label><input type="search" data-v215="q" placeholder="Código o producto"></div>'+
+      estSel+
+      (Object.keys(cats).length>1?'<div class="v215Field"><label>Categoría</label><select data-v215="cat"><option value="all">Todas</option>'+opts(cats)+'</select></div>':'')+
+      (Object.keys(ages).length>1?'<div class="v215Field"><label>Antigüedad</label><select data-v215="age"><option value="all">Todas</option>'+
+        (Object.keys(bucks).length?('<optgroup label="Por rango">'+BUCKETS215.filter(function(b){return bucks[b];}).map(function(b){
+          return '<option value="b:'+b+'">'+e215(BLABEL215[b])+' ('+i215(bucks[b])+')</option>';}).join('')+'</optgroup>'):'')+
+        '<optgroup label="Como viene en el archivo">'+opts(ages)+'</optgroup></select></div>':'')+
+      (iCendis>=0?'<div class="v215Field"><label>CENDIS</label><select data-v215="cen"><option value="all">Todos</option><option value="con">Con respaldo</option><option value="sin">Sin respaldo</option></select></div>':'')+
+      '<button type="button" class="v215Clear" data-v215="clear">Limpiar</button>'+
+      '<span class="v215Count"></span>'+
+      '</div>';
+    table.parentElement.insertAdjacentElement('beforebegin',
+      (function(){var d=document.createElement('div');d.innerHTML=html;return d.firstChild;})());
+
+    var bar=body.querySelector('.v215Filters');
+    function apply(){
+      var q=norm215((bar.querySelector('[data-v215="q"]')||{}).value),
+          est=t215((bar.querySelector('[data-v215="est"]')||{}).value||'all'),
+          cat=t215((bar.querySelector('[data-v215="cat"]')||{}).value||'all'),
+          age=t215((bar.querySelector('[data-v215="age"]')||{}).value||'all'),
+          cen=t215((bar.querySelector('[data-v215="cen"]')||{}).value||'all'),
+          shown=0;
+      rows.forEach(function(tr){
+        var ok=(!q||tr.dataset.v215Txt.indexOf(q)>=0)&&
+               (est==='all'||tr.dataset.v215Est===est)&&
+               (cat==='all'||tr.dataset.v215Cat===cat)&&
+               (age==='all'||(age.indexOf('b:')===0?tr.dataset.v215Bucket===age.slice(2):tr.dataset.v215Age===age))&&
+               (cen==='all'||tr.dataset.v215Cen===cen);
+        tr.style.display=ok?'':'none';if(ok)shown++;
+      });
+      var c=bar.querySelector('.v215Count');
+      if(c)c.textContent=i215(shown)+' de '+i215(rows.length)+' productos';
+    }
+    bar.addEventListener('input',apply);
+    bar.addEventListener('change',apply);
+    function unlockAge(){
+      var sa=bar.querySelector('[data-v215="age"]');
+      if(sa){sa.disabled=false;var f=sa.closest('.v215Field');if(f)f.classList.remove('v215Locked');}
+      var ub=bar.querySelector('[data-v215="unlock"]');if(ub)ub.remove();
+    }
+    bar.addEventListener('click',function(ev){
+      var u=ev.target&&ev.target.closest?ev.target.closest('[data-v215="unlock"]'):null;
+      if(u){ev.preventDefault();ev.stopPropagation();unlockAge();
+        var sa=bar.querySelector('[data-v215="age"]');if(sa)sa.value='all';apply();}
+    });
+    bar.querySelector('[data-v215="clear"]').addEventListener('click',function(){
+      unlockAge();
+      bar.querySelectorAll('input').forEach(function(x){x.value='';});
+      bar.querySelectorAll('select').forEach(function(x){x.value='all';});
+      apply();
+    });
+    apply();
+    /* si se pidió T u O desde la tarjeta, deja el filtro puesto al abrir */
+    if(window.__v215Pref){
+      var sel=bar.querySelector('[data-v215="est"]');
+      if(sel){sel.value=window.__v215Pref;apply();}
+      window.__v215Pref=null;
+    }
+  }
+
+  function run215(){splitTO215();buildFilters215();}
+  var timer=null;
+  function schedule215(){clearTimeout(timer);timer=setTimeout(run215,90);}
+  function install215(){
+    var root=document.getElementById('content');
+    if(!root){setTimeout(install215,200);return;}
+    try{new MutationObserver(schedule215).observe(document.body,{childList:true,subtree:true});}catch(_){}
+    /* El modal a veces termina de armarse sin disparar una mutación que alcance
+       al observer (pasaba con el primer detalle que se abría en la sesión), así
+       que además se vigila cuándo se abre y se reintenta unas cuantas veces. */
+    try{
+      var rm=document.getElementById('rangeModal');
+      if(rm)new MutationObserver(function(){
+        if(rm.classList.contains('on'))[0,120,320,700,1200].forEach(function(ms){setTimeout(buildFilters215,ms);});
+      }).observe(rm,{attributes:true,attributeFilter:['class']});
+    }catch(_){}
+    document.addEventListener('click',function(e){
+      var t=e.target&&e.target.closest?e.target.closest('[data-v215-to]'):null;
+      if(t){
+        e.preventDefault();e.stopPropagation();
+        window.__v215Pref=t.dataset.v215To;
+        try{if(typeof window.openComposition8664==='function')window.openComposition8664('novel');}catch(_){}
+        setTimeout(buildFilters215,300);
+      }
+    },true);
+    [400,900,1800,3000].forEach(function(ms){setTimeout(run215,ms);});
+    console.info('LLAVERO V86.215 · Desglose T/O y filtros en el detalle de composición');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install215,{once:true});else install215();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install215,200);});
+  window.addEventListener('llavero:view-stable',function(){setTimeout(run215,80);});
+})();
+
+/* ==== LLAVERO V86.216 · "Salud por antiguedad" de Novedades partida en T y O ====
+   La grafica mostraba una sola barra por rango con el total. Ahora cada rango se
+   parte en dos: Testeo (T) y Novedad (O), con su propio numero y su propia barra,
+   y cada mitad abre el detalle ya filtrado por ese estado y ese rango.
+   El bucket de antiguedad se calcula con el MISMO criterio corregido en V86.202
+   (limite superior del rango, para que "210 - 240" caiga en 211-240). */
+(function(){
+  'use strict';
+  function t216(v){return v==null?'':String(v);}
+  function e216(v){return t216(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function norm216(v){var x=t216(v);try{x=x.normalize('NFD').replace(/[̀-ͯ]/g,'');}catch(_){}return x.toUpperCase().trim();}
+  function i216(v){var n=Number(v)||0;try{return n.toLocaleString('es-CO');}catch(_){return String(n);}}
+  var ORDER216=['0-60','61-90','91-150','151-180','181-210','211-240','241-360','360+'];
+  function lowAge216(label){
+    var z=norm216(label);
+    if(z.indexOf('SIN')>=0)return -1;
+    if(z.indexOf('360')>=0&&(z.indexOf('MAS')>=0||z.indexOf('+')>=0))return 361;
+    var a=(z.match(/\d+/g)||[]).map(Number);
+    return a.length?a[0]:-1;
+  }
+  function bucket216(label){
+    var z=norm216(label);
+    if(z.indexOf('SIN')>=0)return 'unknown';
+    if(z.indexOf('360')>=0&&(z.indexOf('MAS')>=0||z.indexOf('+')>=0))return '360+';
+    var a=(z.match(/\d+/g)||[]).map(Number);
+    if(!a.length)return 'unknown';
+    var x=a[a.length-1];   /* limite superior, igual que ageBucket() en V86.202 */
+    if(x<=60)return '0-60';if(x<=90)return '61-90';if(x<=150)return '91-150';
+    if(x<=180)return '151-180';if(x<=210)return '181-210';if(x<=240)return '211-240';
+    if(x<=360)return '241-360';return '360+';
+  }
+  function splitByAge216(){
+    var out={};ORDER216.forEach(function(k){out[k]={T:0,O:0,uT:0,uO:0};});
+    try{
+      var sc=t216(window.CUR||(typeof CUR!=='undefined'?CUR:''));
+      var st=(typeof S!=='undefined'&&S)?S[sc]:null;
+      var inv=(st&&Array.isArray(st.inventario))?st.inventario:[];
+      inv.forEach(function(r){
+        var stock=Number(r.stock)||0;if(stock<=0)return;
+        var e=norm216(r.estadoAbastecimiento);
+        if(e!=='T'&&e!=='O')return;
+        /* rango mas antiguo con unidades, igual que oldestInfo() */
+        var best=null;
+        Object.keys(r.rangos||{}).forEach(function(k){
+          var u=Number(r.rangos[k])||0,lo=lowAge216(k);
+          if(u<=0||lo<0)return;
+          if(!best||lo>best.lo)best={label:k,lo:lo,u:u};
+        });
+        if(!best)return;
+        var b=bucket216(best.label);
+        if(!out[b])return;
+        if(e==='T'){out[b].T++;out[b].uT+=best.u;}else{out[b].O++;out[b].uO+=best.u;}
+      });
+    }catch(_){}
+    return out;
+  }
+  function render216(){
+    if((typeof VIEW!=='undefined'?VIEW:'')!=='resumen')return;
+    var grid=document.querySelector('#content .v8662MixGrid');if(!grid)return;
+    var nov=Array.prototype.filter.call(grid.children,function(b){return /Novedades/i.test(b.textContent);})[0];
+    if(!nov)return;
+    var age=nov.querySelector('.v8664MixAge');if(!age)return;
+    var data=splitByAge216(),sig=JSON.stringify(data);
+    if(age.dataset.v216===sig)return;
+    age.dataset.v216=sig;
+    var max=1;
+    ORDER216.forEach(function(k){max=Math.max(max,data[k].T,data[k].O);});
+    var labels={'0-60':'0–60','61-90':'61–90','91-150':'91–150','151-180':'151–180',
+                '181-210':'181–210','211-240':'211–240','241-360':'241–360','360+':'+360'};
+    age.classList.add('v216Split');
+    /* cada rango va en su propia caja, con el rango escrito ARRIBA: antes las
+       dos barras se veian sueltas y no se entendia a que rango pertenecian */
+    age.innerHTML=ORDER216.map(function(k){
+      var d=data[k],hT=d.T?Math.max(4,Math.round(d.T/max*58)):0,hO=d.O?Math.max(4,Math.round(d.O/max*58)):0;
+      function half(kind,val,units,h){
+        var nm=kind==='T'?'Testeo':'Novedad';
+        return '<div class="v216Half '+(kind==='T'?'isT':'isO')+(val?'':' isZero')+'" role="button" tabindex="0" data-v216-est="'+kind+'" data-v216-age="'+e216(k)+'" title="'+i216(val)+' producto(s) en '+nm+' · '+e216(labels[k])+' días · '+i216(units)+' unidades">'+
+          '<b>'+i216(val)+'</b><div class="v216Track"><i style="height:'+h+'px"></i></div><span>'+nm+'</span></div>';
+      }
+      return '<div class="v216Col"><div class="v216Head">'+e216(labels[k])+' días</div>'+
+             '<div class="v216Pair">'+half('T',d.T,d.uT,hT)+half('O',d.O,d.uO,hO)+'</div>'+
+             '<div class="v216Foot">'+i216(d.T+d.O)+' producto'+((d.T+d.O)===1?'':'s')+'</div></div>';
+    }).join('');
+    var head=nov.querySelector('.v8664AgeTitle span');
+    if(head)head.textContent='Cada rango partido en Testeo (T) y Novedad (O) · selecciona una mitad para ver esos productos';
+    if(!nov.querySelector('.v216Legend')){
+      age.insertAdjacentHTML('afterend','<div class="v216Legend"><span><i class="isT"></i>Testeo (T)</span><span><i class="isO"></i>Novedad (O)</span></div>');
+    }
+  }
+  function open216(est,ageKey){
+    window.__v215Pref=est;window.__v216Age=ageKey;
+    try{if(typeof window.openComposition8664==='function')window.openComposition8664('novel');}catch(_){}
+    setTimeout(function(){
+      try{
+        var bar=document.querySelector('#rangeModalBody .v215Filters');if(!bar)return;
+        var se=bar.querySelector('[data-v215="est"]');if(se){se.value=est;}
+        /* el filtro de antigüedad del detalle usa las etiquetas del archivo, así
+           que se marca la opción cuyo bucket coincide con el de la barra */
+        var sa=bar.querySelector('[data-v215="age"]');
+        if(sa){
+          sa.value='b:'+ageKey;
+          /* el detalle se abrio para UN rango concreto: no debe poder cambiarse
+             a otro desde aqui, se bloquea y se ofrece quitar el rango */
+          sa.disabled=true;
+          sa.closest('.v215Field').classList.add('v215Locked');
+          if(!bar.querySelector('[data-v215="unlock"]')){
+            sa.closest('.v215Field').insertAdjacentHTML('afterend','<button type="button" class="v215Clear" data-v215="unlock" title="Ver todos los rangos">Quitar rango</button>');
+          }
+        }
+        bar.dispatchEvent(new Event('change',{bubbles:true}));
+      }catch(_){}
+    },420);
+  }
+  var timer=null;
+  function schedule216(){clearTimeout(timer);timer=setTimeout(render216,110);}
+  function install216(){
+    var root=document.getElementById('content');
+    if(!root){setTimeout(install216,200);return;}
+    try{new MutationObserver(schedule216).observe(root,{childList:true,subtree:true});}catch(_){}
+    document.addEventListener('click',function(e){
+      var h=e.target&&e.target.closest?e.target.closest('[data-v216-est]'):null;
+      if(h){e.preventDefault();e.stopPropagation();open216(h.dataset.v216Est,h.dataset.v216Age);}
+    },true);
+    document.addEventListener('change',function(e){if(e.target&&e.target.id==='store')setTimeout(render216,220);},true);
+    [400,900,1800,3000].forEach(function(ms){setTimeout(render216,ms);});
+    console.info('LLAVERO V86.216 · Salud por antigüedad partida en Testeo y Novedad');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install216,{once:true});else install216();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install216,220);});
+  window.addEventListener('llavero:view-stable',function(){setTimeout(render216,90);});
+})();
+
+/* ==== LLAVERO V86.217 · Reporte de la tienda: corte personalizado, mas filtros y tarjetas clicables ====
+   1) Corte personalizado: se agrega el modo "personalizado" con dos selectores
+      (corte inicial y final). Se logra sin reescribir v170AggCard: se envuelve
+      v170Dates() para recortar la lista hasta el corte final elegido (asi "last"
+      pasa a ser ese) y v170PeriodBase() para devolver el corte inicial.
+   2) Nuevos desplegables: "Persistentes" en Rotacion y Evacuacion (productos que
+      siguen en el estado en los dos cortes) y "A gestionar descuento" (los que
+      Markdown marca como statusKey==='manage').
+   3) Las tarjetas del reporte (Gestionados / Persistentes / Nuevos criticos)
+      abren el detalle de sus productos. */
+(function(){
+  'use strict';
+  function t217(v){return v==null?'':String(v);}
+  function e217(v){return t217(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function i217(v){var n=Number(v)||0;try{return n.toLocaleString('es-CO');}catch(_){return String(n);}}
+  function money217(v){var n=Number(v)||0;try{return '$ '+Math.round(n).toLocaleString('es-CO');}catch(_){return '$ '+Math.round(n);}}
+  function fecha217(d){var s=t217(d).slice(0,10),m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:s;}
+  function cur217(){return t217(window.CUR||(typeof CUR!=='undefined'?CUR:''));}
+
+  var CUSTOM={from:'',to:''};
+  /* state y S se declaran a nivel de script en index.html, asi que NO son
+     propiedades de window: hay que leerlos por identificador. */
+  function st217(){try{return (typeof state!=='undefined'&&state)?state:null;}catch(_){return null;}}
+  function stores217(){try{return (typeof S!=='undefined'&&S)?S:null;}catch(_){return null;}}
+  function period217(){var s=st217();return (s&&s.reporte&&s.reporte.period)||'hoy';}
+  function customOn(){return period217()==='personalizado';}
+
+  /* ---------- 1) corte personalizado ---------- */
+  function hookDates217(){
+    if(typeof window.v170Dates!=='function'||window.v170Dates.__v217)return;
+    var base=window.v170Dates;
+    var w=function(h){
+      var d=base.apply(this,arguments)||[];
+      if(customOn()&&CUSTOM.to)d=d.filter(function(x){return x<=CUSTOM.to;});
+      return d;
+    };
+    w.__v217=true;window.v170Dates=w;try{v170Dates=w;}catch(_){}
+  }
+  function hookBase217(){
+    if(typeof window.v170PeriodBase!=='function'||window.v170PeriodBase.__v217)return;
+    var base=window.v170PeriodBase;
+    var w=function(mode,dates){
+      if(mode==='personalizado'){
+        var d=dates||[];
+        if(!d.length)return null;
+        if(CUSTOM.from){
+          var cand=d.filter(function(x){return x<=CUSTOM.from;});
+          return cand.length?cand[cand.length-1]:d[0];
+        }
+        return d.length>1?d[d.length-2]:d[0];
+      }
+      return base.apply(this,arguments);
+    };
+    w.__v217=true;window.v170PeriodBase=w;try{v170PeriodBase=w;}catch(_){}
+  }
+  function allDates217(){
+    try{
+      var h=window.v170History();
+      var s=new Set();
+      (h.daily||[]).forEach(function(x){if(x&&x.date)s.add(t217(x.date).slice(0,10));});
+      (h.details||[]).forEach(function(x){if(x&&x.date)s.add(t217(x.date).slice(0,10));});
+      return Array.from(s).sort();
+    }catch(_){return [];}
+  }
+  function ensureCustomUI217(){
+    var tabs=document.querySelector('#content .v170Tabs');if(!tabs)return;
+    try{if(typeof V170_LABELS!=='undefined')V170_LABELS.personalizado='Personalizado';}catch(_){}
+    if(!tabs.querySelector('[data-mode="personalizado"]')){
+      tabs.insertAdjacentHTML('beforeend','<button class="v170Tab" data-mode="personalizado" onclick="v170SetPeriod(\'personalizado\')">Personalizado</button>');
+    }
+    var host=document.getElementById('v217Range');
+    if(customOn()){
+      var dates=allDates217();
+      if(!dates.length)return;
+      if(!CUSTOM.to)CUSTOM.to=dates[dates.length-1];
+      if(!CUSTOM.from)CUSTOM.from=dates.length>1?dates[dates.length-2]:dates[0];
+      var opts=function(sel){return dates.map(function(d){return '<option value="'+e217(d)+'"'+(d===sel?' selected':'')+'>'+e217(fecha217(d))+'</option>';}).join('');};
+      var html='<div class="v217Range" id="v217Range"><div class="v217Field"><label>Corte inicial</label><select data-v217="from">'+opts(CUSTOM.from)+'</select></div>'+
+               '<div class="v217Field"><label>Corte final</label><select data-v217="to">'+opts(CUSTOM.to)+'</select></div>'+
+               '<span class="v217Hint">Compara cualquier par de cortes cargados</span></div>';
+      if(!host)tabs.insertAdjacentHTML('afterend',html);
+      else host.outerHTML=html;
+    }else if(host){host.remove();}
+  }
+  function setCustom217(which,val){
+    CUSTOM[which]=val;
+    if(CUSTOM.from>CUSTOM.to){ if(which==='from')CUSTOM.to=CUSTOM.from; else CUSTOM.from=CUSTOM.to; }
+    try{if(typeof window.v170SetPeriod==='function')window.v170SetPeriod('personalizado');}catch(_){}
+    setTimeout(function(){ensureCustomUI217();enrich217();},60);
+  }
+
+  /* ---------- 2) secciones nuevas ---------- */
+  function rowsMap217(rows){
+    var m={};(rows||[]).forEach(function(r){var c=t217(r&&r[0]);if(!c)return;if(!m[c])m[c]={u:0,v:0};m[c].u+=Number(r&&r[1])||0;m[c].v+=Number(r&&r[2])||0;});return m;
+  }
+  function info217(code){
+    try{if(typeof window.productInfo==='function')return window.productInfo(code);}catch(_){}
+    try{var P0=window.P||P;var p=P0&&P0[code];if(p)return p;}catch(_){}
+    return {n:code,cat:'—',lin:'—',sub:'—'};
+  }
+  function persist217(curRows,baseRows){
+    var cur=rowsMap217(curRows),base=rowsMap217(baseRows);
+    return Object.keys(cur).filter(function(c){return base[c];})
+      .map(function(c){return {code:c,u:cur[c].u,v:cur[c].v,info:info217(c)};})
+      .sort(function(a,b){return b.v-a.v;});
+  }
+  function mdManage217(code){
+    try{
+      var rows=(typeof window.mdRows8664==='function'?window.mdRows8664(code):[])||[];
+      return rows.filter(function(r){return r&&r.statusKey==='manage';})
+        .map(function(r){return {code:t217(r.code),u:Number(r.stock)||0,v:Number(r.value)||0,info:info217(t217(r.code)),sug:r.discount};})
+        .sort(function(a,b){return b.v-a.v;});
+    }catch(_){return [];}
+  }
+  function table217(items,extraCol){
+    if(!items.length)return '<div class="dashboardNote">Sin productos en este resultado.</div>';
+    var head='<tr><th>Código</th><th>Producto</th><th class="num">Unidades</th><th class="num">Valor</th>'+(extraCol?'<th class="num">'+e217(extraCol)+'</th>':'')+'</tr>';
+    var body=items.map(function(it){
+      return '<tr data-v217-prod="'+e217(it.code)+'"><td><span class="code">'+e217(it.code)+'</span></td>'+
+        '<td><b>'+e217(it.info.n||it.code)+'</b><div class="muted">'+e217(it.info.cat||'—')+' · '+e217(it.info.lin||'—')+'</div></td>'+
+        '<td class="num"><b>'+i217(it.u)+'</b></td><td class="num">'+money217(it.v)+'</td>'+
+        (extraCol?'<td class="num">'+(it.sug==null?'<span class="muted">sin política</span>':'<b>'+(Math.round(it.sug*10)/10).toFixed(1).replace('.0','')+'%</b>')+'</td>':'')+'</tr>';
+    }).join('');
+    return '<div class="twrap" style="max-height:320px"><table class="rangeProductTable"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+  }
+  function section217(title,items,extraCol){
+    var open=(items.length&&items.length<=15)?' open':'';
+    return '<details class="v170ProductDetails"'+open+'><summary>'+e217(title)+' <b>('+i217(items.length)+')</b></summary>'+table217(items,extraCol)+'</details>';
+  }
+  function enrich217(){
+    var grid=document.querySelector('#content .v170ProductGrid');
+    var code=cur217();if(!code)return;
+    try{
+      var h=window.v170History(),dates=window.v170Dates(h),last=dates[dates.length-1];
+      var mode=period217();
+      var base=window.v170PeriodBase(mode,dates);
+      var curD=(h.details||[]).find(function(x){return x.date===last;});
+      var baseD=(h.details||[]).find(function(x){return x.date===base;});
+      var md=mdManage217(code);
+      if(grid&&curD&&baseD&&base!==last&&!grid.dataset.v217){
+        grid.dataset.v217='1';
+        var cs=curD.stores[code]||{},bs=baseD.stores[code]||{};
+        var pRot=persist217(cs.rot||[],bs.rot||[]),pEv=persist217(cs.evac||[],bs.evac||[]);
+        var cols=grid.children;
+        if(cols[0])cols[0].insertAdjacentHTML('beforeend',section217('Persistentes · Rotación',pRot));
+        if(cols[1])cols[1].insertAdjacentHTML('beforeend',section217('Persistentes · Evacuación',pEv));
+      }
+      /* la lista de descuento no depende del comparativo: se agrega siempre */
+      var host=document.querySelector('#content .v170ProductSection');
+      if(host&&md.length&&!document.getElementById('v217Md')){
+        host.insertAdjacentHTML('beforeend','<div id="v217Md" class="v217MdBlock"><div class="v170SugTitle">A gestionar descuento</div><div class="dashboardNote" style="margin:0 0 8px">Productos donde el descuento sugerido por la política es mayor al descuento actual de muestra.</div>'+section217('A gestionar descuento',md,'Sugerido')+'</div>');
+      }
+    }catch(err){console.error('LLAVERO V86.217 secciones',err);}
+  }
+
+  /* ---------- 3) tarjetas clicables ---------- */
+  var TILE217={'gestionados':'gestionados','persistentes':'persistentes','nuevos críticos':'nuevos','nuevos criticos':'nuevos'};
+  function wireTiles217(){
+    var body=document.getElementById('v170ReportBody');if(!body)return;
+    Array.prototype.forEach.call(body.querySelectorAll('.dailyMetric'),function(t){
+      if(t.dataset.v217)return;
+      var lab=t217((t.querySelector('.dmLabel')||{}).textContent).trim().toLowerCase();
+      var kind=TILE217[lab];if(!kind)return;
+      t.dataset.v217='1';t.dataset.v217Tile=kind;
+      t.setAttribute('role','button');t.setAttribute('tabindex','0');
+      t.classList.add('v217Clickable');
+      t.insertAdjacentHTML('beforeend','<span class="v217Go">Ver productos →</span>');
+    });
+  }
+  function openTile217(kind){
+    var code=cur217();
+    try{
+      var h=window.v170History(),dates=window.v170Dates(h),last=dates[dates.length-1];
+      var mode=period217();
+      var base=window.v170PeriodBase(mode,dates);
+      var curD=(h.details||[]).find(function(x){return x.date===last;});
+      var baseD=(h.details||[]).find(function(x){return x.date===base;});
+      if(!curD)return;
+      var cs=curD.stores[code]||{},bs=(baseD&&baseD.stores[code])||{};
+      var rotC=cs.rot||[],evC=cs.evac||[],rotB=bs.rot||[],evB=bs.evac||[];
+      var items=[],title='';
+      function diff(curRows,baseRows,which){
+        var d=window.v170ProductDiff?window.v170ProductDiff(curRows,baseRows):{gestionados:[],nuevos:[]};
+        return which==='persistentes'?persist217(curRows,baseRows):(d[which]||[]);
+      }
+      if(kind==='gestionados'){title='Gestionados';items=diff(rotC,rotB,'gestionados').concat(diff(evC,evB,'gestionados'));}
+      else if(kind==='nuevos'){title='Nuevos críticos';items=diff(rotC,rotB,'nuevos').concat(diff(evC,evB,'nuevos'));}
+      else {title='Persistentes';items=persist217(rotC,rotB).concat(persist217(evC,evB));}
+      var seen={},uniq=[];
+      items.forEach(function(it){if(seen[it.code])return;seen[it.code]=1;uniq.push(it);});
+      uniq.sort(function(a,b){return b.v-a.v;});
+      var modal=document.getElementById('rangeModal'),mb=document.getElementById('rangeModalBody'),
+          tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');
+      if(!modal||!mb)return;
+      if(tt)tt.textContent='Reporte · '+title;
+      var S217=stores217();if(ss)ss.textContent=((S217&&S217[code]&&S217[code].name)||code)+' · del corte '+fecha217(base)+' al '+fecha217(last)+' · '+i217(uniq.length)+' productos';
+      mb.innerHTML=table217(uniq)+'<div class="dashboardNote">Rotación y Evacuación juntas, sin repetir códigos. Selecciona un producto para abrir su ficha.</div>';
+      modal.classList.add('on');
+    }catch(err){console.error('LLAVERO V86.217 tarjeta',err);}
+  }
+
+  function run217(){hookDates217();hookBase217();ensureCustomUI217();enrich217();wireTiles217();}
+  var timer=null;
+  function schedule217(){clearTimeout(timer);timer=setTimeout(run217,90);}
+  function install217(){
+    hookDates217();hookBase217();
+    var root=document.getElementById('content');
+    if(!root){setTimeout(install217,200);return;}
+    try{new MutationObserver(schedule217).observe(root,{childList:true,subtree:true});}catch(_){}
+    document.addEventListener('change',function(e){
+      var s=e.target&&e.target.closest?e.target.closest('[data-v217]'):null;
+      if(s&&s.tagName==='SELECT'){e.stopPropagation();setCustom217(s.dataset.v217,s.value);return;}
+      if(e.target&&e.target.id==='store')setTimeout(run217,220);
+    },true);
+    document.addEventListener('click',function(e){
+      var tile=e.target&&e.target.closest?e.target.closest('[data-v217-tile]'):null;
+      if(tile){e.preventDefault();e.stopPropagation();openTile217(tile.dataset.v217Tile);return;}
+      var pr=e.target&&e.target.closest?e.target.closest('[data-v217-prod]'):null;
+      if(pr){e.preventDefault();e.stopPropagation();try{if(typeof window.openInventoryProduct==='function')window.openInventoryProduct(pr.dataset.v217Prod);}catch(_){}}
+    },true);
+    [400,900,1800,3200].forEach(function(ms){setTimeout(run217,ms);});
+    console.info('LLAVERO V86.217 · Reporte con corte personalizado, persistentes, descuento y tarjetas clicables');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install217,{once:true});else install217();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install217,220);});
+  window.addEventListener('llavero:view-stable',function(){setTimeout(run217,90);});
+})();
+
+/* ==== LLAVERO V86.218 · Dashboard general: rankings, comparativo por nivel y periodos ====
+   Reemplaza la tarjeta "Alertas" por un tablero de RANKINGS (top 5 cada uno) y
+   agrega un comparativo jerarquico Zona -> Departamento -> Ciudad -> Tienda.
+   Un solo control de periodo (hoy / semana / mes / trimestre / personalizado) y
+   de estado (Rotacion / Evacuacion / Ambos) manda sobre los dos bloques.
+   En ambientes se habla de COMPLETITUD (cuantas guias estan 100% completas),
+   no de cobertura de posiciones, por peticion del usuario.
+   El alcance sale de los filtros de zona/departamento/ciudad/tienda que ya
+   existian arriba en el Dashboard: no se duplican controles. */
+(function(){
+  'use strict';
+  function t(v){return v==null?'':String(v);}
+  function e(v){return t(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function n(v){var x=Number(v);return isFinite(x)?x:0;}
+  function fi(v){try{return Math.round(n(v)).toLocaleString('es-CO');}catch(_){return String(Math.round(n(v)));}}
+  function pct(v,d){return n(v).toFixed(d==null?1:d)+'%';}
+  function money(v){var x=n(v);if(Math.abs(x)>=1e9)return '$ '+(x/1e9).toFixed(2)+' MM';if(Math.abs(x)>=1e6)return '$ '+(x/1e6).toFixed(1)+' M';return '$ '+fi(x);}
+  function dmy(v){var s=t(v).slice(0,10),m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:s;}
+  function view(){try{return (document.body&&document.body.dataset.v8620View)||'';}catch(_){return '';}}
+  function stores(){try{return (typeof S!=='undefined'&&S)?S:{};}catch(_){return {};}}
+  function terr(){return window.TERRITORIES8617||{};}
+
+  var ST={estado:'ambos'};
+  /* V86.220: el Dashboard queda con UN SOLO filtro de corte, el de arriba
+     (Seguimiento Diario/Semanal/Mensual/Trimestral + Rango de cortes). Este
+     modulo ya no tiene sus propios botones de periodo: lee el de arriba.
+     La cantidad de cortes del periodo activo la publica el propio control en su
+     badge ("N cortes"), asi que el corte base se toma N-1 posiciones atras del
+     corte final; asi lo que muestro coincide exactamente con lo que dice el
+     control, sin reimplementar su regla de semana/mes/trimestre. */
+  function topRange(){
+    var out={from:'',to:'',count:0};
+    try{
+      var sels=Array.prototype.slice.call(document.querySelectorAll('.v8620PeriodBar select'));
+      if(sels.length>=2){out.from=t(sels[0].value).slice(0,10);out.to=t(sels[1].value).slice(0,10);}
+      var badge=null,all=document.querySelectorAll('.v8649DashControl .badge, #content .badge');
+      Array.prototype.forEach.call(all,function(b){if(!badge&&/\d+\s*cortes/i.test(b.textContent))badge=b;});
+      if(badge){var m=t(badge.textContent).match(/(\d+)\s*cortes/i);if(m)out.count=parseInt(m[1],10)||0;}
+    }catch(_){}
+    return out;
+  }
+  function topPeriodLabel(){
+    try{
+      var b=document.querySelector('.v8620PeriodBtn.on');
+      return b?t(b.textContent).trim():'';
+    }catch(_){return '';}
+  }
+
+  /* ---------- cortes ---------- */
+  function hist(){
+    try{var h=(typeof readDailyHistory==='function')?readDailyHistory():[];
+      return (Array.isArray(h)?h:[]).slice().sort(function(a,b){return t(a.date).localeCompare(t(b.date));});
+    }catch(_){return [];}
+  }
+  function dates(){return hist().map(function(x){return t(x.date).slice(0,10);});}
+  function effRange(d){
+    if(!d.length)return {base:null,last:null};
+    var tr=topRange();
+    var last=(tr.to&&d.indexOf(tr.to)>=0)?tr.to:d[d.length-1];
+    var lo=(tr.from&&d.indexOf(tr.from)>=0)?tr.from:d[0];
+    var inRange=d.filter(function(x){return x>=lo&&x<=last;});
+    if(!inRange.length)inRange=[last];
+    var cnt=tr.count>0?Math.min(tr.count,inRange.length):Math.min(2,inRange.length);
+    var base=inRange[Math.max(0,inRange.length-cnt)];
+    if(base===last&&inRange.length>1)base=inRange[inRange.length-2];
+    return {base:base,last:last};
+  }
+  function snapAt(d){var h=hist();for(var i=0;i<h.length;i++)if(t(h[i].date).slice(0,10)===d)return h[i];return null;}
+
+  /* ---------- alcance (lee los filtros que ya existen) ---------- */
+  function selBy(txt){
+    var sels=Array.prototype.slice.call(document.querySelectorAll('#content select'));
+    for(var i=0;i<sels.length;i++){var o=sels[i].options[0];
+      if(o&&t(o.textContent).trim().toLowerCase().indexOf(txt)===0)return sels[i];}
+    return null;
+  }
+  function scope(){
+    var S1=stores(),T=terr(),all=Object.keys(S1);
+    var z=selBy('todas las zonas'),d=selBy('todos los departamentos'),c=selBy('todas las ciudades'),s=selBy('todas las tiendas');
+    var zv=z?z.value:'all',dv=d?d.value:'all',cv=c?c.value:'all',sv=s?s.value:'all';
+    var codes=all.filter(function(k){var x=T[k]||{};
+      if(zv&&zv!=='all'&&x.zone!==zv)return false;
+      if(dv&&dv!=='all'&&x.department!==dv)return false;
+      if(cv&&cv!=='all'&&x.city!==cv)return false;
+      if(sv&&sv!=='all'&&k!==sv)return false;return true;});
+    var label=sv&&sv!=='all'?((T[sv]&&T[sv].name)||sv):cv&&cv!=='all'?cv:dv&&dv!=='all'?dv:zv&&zv!=='all'?zv:'Nacional';
+    var level=sv!=='all'?'tienda':cv!=='all'?'ciudad':dv!=='all'?'departamento':zv!=='all'?'zona':'nacional';
+    return {codes:codes.length?codes:all,label:label,level:level};
+  }
+
+  /* ---------- metricas por tienda ---------- */
+  function metrics(codes){
+    var S1=stores(),T=terr(),d=dates(),er=effRange(d),last=er.last,base=er.base;
+    var sLast=snapAt(last),sBase=snapAt(base);
+    return {base:base,last:last,rows:codes.map(function(k){
+      var st=S1[k];if(!st)return null;
+      var inv={totalVal:0,totalUnits:0,rotPct:0,evacPct:0};
+      try{if(typeof storeInventoryMetrics==='function')inv=storeInventoryMetrics(st)||inv;}catch(_){}
+      var rot=[],ev=[];
+      try{rot=(typeof normalizeRotRows==='function'?normalizeRotRows(st):[])||[];}catch(_){}
+      try{ev=(typeof normalizeEvacRows==='function'?normalizeEvacRows(st):[])||[];}catch(_){}
+      function sum(a,k2){return a.reduce(function(x,r){return x+n(k2==='val'?(r.val!=null?r.val:r.v):r[k2]);},0);}
+      var amb=st.amb||{},X=T[k]||{};
+      var b=sBase&&sBase.stores&&sBase.stores[k],l=sLast&&sLast.stores&&sLast.stores[k];
+      return {code:k,name:t(st.name)||k,zone:t(X.zone),dep:t(X.department),city:t(X.city),
+        invVal:n(inv.totalVal),invUnits:n(inv.totalUnits),
+        rotPct:n(inv.rotPct),evacPct:n(inv.evacPct),
+        rotUnits:sum(rot,'u'),rotVal:sum(rot,'val'),rotRefs:rot.length,
+        evacUnits:sum(ev,'u'),evacVal:sum(ev,'val'),evacRefs:ev.length,
+        ambTotal:n(amb.nG),ambComp:n(amb.gCompletas),
+        ambPct:n(amb.nG)?n(amb.gCompletas)/n(amb.nG)*100:0,
+        dRot:(b&&l)?n(l.rotPct)-n(b.rotPct):null,
+        dEvac:(b&&l)?n(l.evacPct)-n(b.evacPct):null};
+    }).filter(Boolean)};
+  }
+
+  /* ---------- rankings ---------- */
+  function rankCard(title,hint,list,fmt,tone){
+    if(!list.length)return '<div class="v218Rank"><div class="v218RankHead"><b>'+e(title)+'</b><span>'+e(hint)+'</span></div><div class="v218Empty">Sin datos en este alcance</div></div>';
+    return '<div class="v218Rank '+(tone||'')+'"><div class="v218RankHead"><b>'+e(title)+'</b><span>'+e(hint)+'</span></div><ol class="v218RankList">'+
+      list.slice(0,5).map(function(r,i){
+        var f=fmt(r);
+        return '<li data-v218-store="'+e(r.code)+'"><span class="v218Pos">'+(i+1)+'</span><span class="v218Name">'+e(r.name)+'</span><b class="v218Val">'+f.main+'</b><span class="v218Sub">'+f.sub+'</span></li>';
+      }).join('')+'</ol></div>';
+  }
+  function rankings(m){
+    var rows=m.rows,withD=rows.filter(function(r){return r.dRot!=null;});
+    var showRot=true,showEv=true;
+    /* un cambio que redondea a 0.0 pp no es "se cayo" ni "mejoro": se veian filas
+       con "+0.0 pp" dentro del ranking de deterioro, y eso no cuadra a la vista */
+    var MIN=0.05;
+    var out='';
+    if(showRot)out+=rankCard('Más inventario para rotar','% del inventario propio',
+      rows.slice().sort(function(a,b){return b.rotPct-a.rotPct;}),
+      function(r){return {main:pct(r.rotPct),sub:fi(r.rotUnits)+' u · '+money(r.rotVal)};},'hot');
+    if(showEv)out+=rankCard('Más inventario para evacuar','% del inventario propio',
+      rows.slice().sort(function(a,b){return b.evacPct-a.evacPct;}),
+      function(r){return {main:pct(r.evacPct),sub:fi(r.evacUnits)+' u · '+money(r.evacVal)};},'hot');
+    if(showRot)out+=rankCard('Se cayó en Rotación','subió su % comprometido',
+      withD.slice().sort(function(a,b){return b.dRot-a.dRot;}).filter(function(r){return r.dRot>=MIN;}),
+      function(r){return {main:'+'+r.dRot.toFixed(1)+' pp',sub:'quedó en '+pct(r.rotPct)};},'bad');
+    if(showRot)out+=rankCard('Mejoró en Rotación','bajó su % comprometido',
+      withD.slice().sort(function(a,b){return a.dRot-b.dRot;}).filter(function(r){return r.dRot<=-MIN;}),
+      function(r){return {main:r.dRot.toFixed(1)+' pp',sub:'quedó en '+pct(r.rotPct)};},'good');
+    if(showEv)out+=rankCard('Se cayó en Evacuación','subió su % comprometido',
+      withD.slice().sort(function(a,b){return b.dEvac-a.dEvac;}).filter(function(r){return r.dEvac>=MIN;}),
+      function(r){return {main:'+'+r.dEvac.toFixed(1)+' pp',sub:'quedó en '+pct(r.evacPct)};},'bad');
+    if(showEv)out+=rankCard('Mejoró en Evacuación','bajó su % comprometido',
+      withD.slice().sort(function(a,b){return a.dEvac-b.dEvac;}).filter(function(r){return r.dEvac<=-MIN;}),
+      function(r){return {main:r.dEvac.toFixed(1)+' pp',sub:'quedó en '+pct(r.evacPct)};},'good');
+    out+=rankCard('Mayor completitud de ambientes','guías completas sobre el total',
+      rows.slice().filter(function(r){return r.ambTotal;}).sort(function(a,b){return b.ambPct-a.ambPct;}),
+      function(r){return {main:pct(r.ambPct),sub:fi(r.ambComp)+' de '+fi(r.ambTotal)+' guías'};},'good');
+    out+=rankCard('Menor completitud de ambientes','guías completas sobre el total',
+      rows.slice().filter(function(r){return r.ambTotal;}).sort(function(a,b){return a.ambPct-b.ambPct;}),
+      function(r){return {main:pct(r.ambPct),sub:fi(r.ambComp)+' de '+fi(r.ambTotal)+' guías'};},'warn');
+    return out;
+  }
+
+  /* ---------- comparativo por nivel ---------- */
+  var OPEN={};
+  function groupBy(rows,key){
+    var g={};rows.forEach(function(r){var k=r[key]||'Sin asignar';(g[k]=g[k]||[]).push(r);});return g;
+  }
+  function agg(list){
+    var invVal=0,rotVal=0,evVal=0,rotU=0,evU=0,units=0,ambC=0,ambT=0,dR=0,dE=0,nd=0;
+    list.forEach(function(r){invVal+=r.invVal;rotVal+=r.rotVal;evVal+=r.evacVal;rotU+=r.rotUnits;evU+=r.evacUnits;
+      units+=r.invUnits;ambC+=r.ambComp;ambT+=r.ambTotal;
+      if(r.dRot!=null){dR+=r.dRot;dE+=r.dEvac;nd++;}});
+    return {stores:list.length,invVal:invVal,invUnits:units,
+      rotPct:invVal?rotVal/invVal*100:0,evacPct:invVal?evVal/invVal*100:0,
+      rotUnits:rotU,evacUnits:evU,ambComp:ambC,ambTotal:ambT,
+      ambPct:ambT?ambC/ambT*100:0,dRot:nd?dR/nd:null,dEvac:nd?dE/nd:null};
+  }
+  function delta(v){
+    if(v==null)return '<span class="v218Flat">—</span>';
+    if(Math.abs(v)<0.05)return '<span class="v218Flat">igual</span>';
+    return '<span class="'+(v<0?'v218Good':'v218Bad')+'">'+(v>0?'▲ +':'▼ ')+v.toFixed(1)+' pp</span>';
+  }
+  function levelRow(label,a,depth,key,expandable){
+    var E='ambos';
+    return '<tr class="v218Row d'+depth+(expandable?' isGroup':'')+'"'+(expandable?' data-v218-open="'+e(key)+'"':'')+'>'+
+      '<td><span class="v218Tw">'+(expandable?(OPEN[key]?'▾':'▸'):'·')+'</span> <b>'+e(label)+'</b><div class="muted">'+fi(a.stores)+' tienda'+(a.stores===1?'':'s')+'</div></td>'+
+      '<td class="num">'+money(a.invVal)+'<div class="muted">'+fi(a.invUnits)+' u</div></td>'+
+      ((E==='ambos'||E==='rot')?'<td class="num"><b>'+pct(a.rotPct)+'</b><div class="muted">'+fi(a.rotUnits)+' u</div></td><td class="num">'+delta(a.dRot)+'</td>':'')+
+      ((E==='ambos'||E==='evac')?'<td class="num"><b>'+pct(a.evacPct)+'</b><div class="muted">'+fi(a.evacUnits)+' u</div></td><td class="num">'+delta(a.dEvac)+'</td>':'')+
+      '<td class="num"><b>'+pct(a.ambPct)+'</b><div class="muted">'+fi(a.ambComp)+'/'+fi(a.ambTotal)+'</div></td></tr>';
+  }
+  function tree(rows,levels,depth,prefix){
+    if(!levels.length){
+      return rows.slice().sort(function(a,b){return b.invVal-a.invVal;}).map(function(r){
+        return levelRow(r.name,agg([r]),depth,'',false).replace('<tr class="v218Row d'+depth+'"','<tr class="v218Row d'+depth+' isStore" data-v218-store="'+e(r.code)+'"');
+      }).join('');
+    }
+    var g=groupBy(rows,levels[0]),out='';
+    Object.keys(g).sort().forEach(function(k){
+      var key=prefix+'|'+k;
+      out+=levelRow(k,agg(g[k]),depth,key,true);
+      if(OPEN[key])out+=tree(g[k],levels.slice(1),depth+1,key);
+    });
+    return out;
+  }
+  function compareTable(m,sc){
+    var E='ambos';
+    var levels=sc.level==='nacional'?['zone','dep','city']:sc.level==='zona'?['dep','city']:sc.level==='departamento'?['city']:[];
+    var head='<tr><th>Nivel</th><th class="num">Inventario</th>'+
+      ((E==='ambos'||E==='rot')?'<th class="num">Rotación</th><th class="num">Δ Rot.</th>':'')+
+      ((E==='ambos'||E==='evac')?'<th class="num">Evacuación</th><th class="num">Δ Evac.</th>':'')+
+      '<th class="num">Completitud</th></tr>';
+    return '<div class="twrap"><table class="v8618Table v218Table"><thead>'+head+'</thead><tbody>'+
+      tree(m.rows,levels,0,'')+'</tbody></table></div>'+
+      '<div class="dashboardNote">Selecciona una fila de grupo para abrirla nivel por nivel. Δ es el cambio en puntos porcentuales entre los dos cortes del periodo; negativo (verde) es mejora. Completitud son guías 100% completas sobre el total de guías.</div>';
+  }
+
+  /* ---------- controles ---------- */
+  /* V86.221: se retira el selector de Estado. El Dashboard funciona con UN solo
+     juego de filtros, el de arriba (zona / departamento / ciudad / tienda +
+     seguimiento y rango de cortes). Aqui solo se informa que se esta comparando. */
+  function controls(m){
+    var per=topPeriodLabel();
+    return '<div class="v218Controls"><span class="v218Range">'+
+      (per?('Seguimiento <b>'+e(per)+'</b> · '):'')+'comparando <b>'+e(dmy(m.base))+'</b> → <b>'+e(dmy(m.last))+'</b>'+
+      '<small>Zona, tienda, periodo y rango se eligen en el filtro de arriba</small></span></div>';
+  }
+
+  /* ---------- render ---------- */
+  var lastSig='';
+  function render(){
+    if(view()!=='dashboard')return;
+    var root=document.getElementById('content');if(!root)return;
+    var sc=scope();if(!sc.codes.length)return;
+    var m=metrics(sc.codes);if(!m.rows.length)return;
+    /* V210 vuelve a crear su tarjeta de Alertas en cada render suyo; queda
+       reemplazada por estos rankings, asi que se retira siempre. */
+    var oldAlert=document.getElementById('v210Alertas');if(oldAlert)oldAlert.remove();
+    var sig=sc.codes.join(',')+'|'+m.base+'|'+m.last+'|'+topPeriodLabel()+'|'+JSON.stringify(OPEN);
+    var host=document.getElementById('v218Host');
+    if(host&&host.dataset.sig===sig)return;
+    var html='<div id="v218Host" class="v218Host" data-sig="'+e(sig)+'">'+
+      '<div class="card v218Card"><div class="chead"><div class="cnum n1">★</div><div><div class="tt">Rankings · '+e(sc.label)+'</div><div class="ds">Top 5 de cada frente, ordenado por el inventario propio de cada tienda. Cada fila abre la tienda.</div></div><div class="rt"><span class="badge">'+fi(m.rows.length)+' tiendas</span></div></div>'+
+      '<div class="cbody">'+controls(m)+'<div class="v218Ranks">'+rankings(m)+'</div></div></div>'+
+      '<div class="card v218Card"><div class="chead"><div class="cnum n2">▤</div><div><div class="tt">Comparativo por nivel</div><div class="ds">Zona → Departamento → Ciudad → Tienda, con el mismo periodo y estado de arriba.</div></div></div>'+
+      '<div class="cbody">'+compareTable(m,sc)+'</div></div>';
+    var existing=document.getElementById('v218Host');
+    if(existing)existing.outerHTML=html;
+    else{
+      var alert=document.getElementById('v210Alertas');
+      if(alert){alert.insertAdjacentHTML('afterend',html);alert.remove();}
+      else{
+        var amb=document.getElementById('v210Ambientes');
+        if(amb)amb.insertAdjacentHTML('beforebegin',html);
+        else root.insertAdjacentHTML('afterbegin',html);
+      }
+    }
+    lastSig=sig;
+  }
+  function openStore(code){
+    try{if(typeof closeRangeModal==='function')closeRangeModal();}catch(_){}
+    try{if(typeof window.openTerritoryStore8618==='function'){window.openTerritoryStore8618(code);return;}}catch(_){}
+    try{CUR=code;var s=document.getElementById('store');if(s)s.value=code;if(typeof window.setView==='function')window.setView('resumen');}catch(_){}
+  }
+  var timer=null;
+  function schedule(){clearTimeout(timer);timer=setTimeout(render,110);}
+  var installed=false;
+  function install(){
+    if(installed)return;
+    var root=document.getElementById('content');
+    if(!root){setTimeout(install,200);return;}
+    installed=true;
+    try{new MutationObserver(schedule).observe(root,{childList:true});}catch(_){}
+    document.addEventListener('click',function(ev){
+      /* los botones de periodo del control de arriba deben re-renderizar esto */
+      var tp=ev.target&&ev.target.closest?ev.target.closest('.v8620PeriodBtn'):null;
+      if(tp){lastSig='';setTimeout(render,260);setTimeout(render,900);}
+      var op=ev.target&&ev.target.closest?ev.target.closest('[data-v218-open]'):null;
+      if(op){ev.preventDefault();ev.stopPropagation();var k=op.dataset.v218Open;OPEN[k]=!OPEN[k];render();return;}
+      var stc=ev.target&&ev.target.closest?ev.target.closest('[data-v218-store]'):null;
+      if(stc){ev.preventDefault();ev.stopPropagation();openStore(stc.dataset.v218Store);return;}
+    },true);
+    document.addEventListener('change',function(ev){
+      if(ev.target&&ev.target.tagName==='SELECT'){lastSig='';setTimeout(render,160);setTimeout(render,700);}
+    },true);
+    [400,900,1800,3000].forEach(function(ms){setTimeout(render,ms);});
+    console.info('LLAVERO V86.218 · Dashboard con rankings y comparativo por nivel');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,220);});
+})();
+
+/* ==== LLAVERO V86.219 · Orden del Dashboard y limpieza de duplicados ====
+   El Dashboard quedaba desordenado: los bloques nuevos (Rankings, Comparativo
+   por nivel, Ambientes) se insertaban ANTES del bloque original, con lo cual el
+   titulo "Dashboard general" y los filtros de zona/departamento/ciudad/tienda
+   quedaban hasta abajo, despues de los rankings que dependen de ellos.
+   Aqui se fija el orden: titulo + filtros -> Rankings -> Comparativo por nivel
+   -> Ambientes -> el resto del dashboard original.
+   Ademas se retiran las tarjetas que quedaron repetidas con los bloques nuevos:
+   "Mayor exposicion en Rotacion/Evacuacion" (son los rankings 1 y 2) y
+   "Seguimiento comparativo de tiendas" (lo cubre el comparativo por nivel con
+   sus periodos), y el contenedor de analisis territorial si quedo vacio. */
+(function(){
+  'use strict';
+  function t(v){return v==null?'':String(v);}
+  function view(){try{return (document.body&&document.body.dataset.v8620View)||'';}catch(_){return '';}}
+  var DROP=['mayor exposición en rotación','mayor exposicion en rotacion',
+            'mayor exposición en evacuación','mayor exposicion en evacuacion',
+            'seguimiento comparativo de tiendas',
+            'tendencia de gestión diaria','tendencia de gestion diaria'];
+  function titleOf(el){
+    var n=el.querySelector('.tt')||el.querySelector('.v8630SectionTitle')||el.querySelector('h3')||el.querySelector('h4');
+    return t(n&&n.textContent).trim().toLowerCase();
+  }
+  function clean(){
+    if(view()!=='dashboard')return;
+    var root=document.getElementById('content');if(!root)return;
+    var uni=root.querySelector('.v8649UnifiedDashboard');
+
+    /* --- duplicados --- */
+    Array.prototype.forEach.call(root.querySelectorAll('.chartPair,.card,.trackingPanel,section'),function(el){
+      var ttl=titleOf(el);if(!ttl)return;
+      for(var i=0;i<DROP.length;i++){
+        if(ttl.indexOf(DROP[i])===0){
+          /* si es un chartPair con las dos tarjetas dentro, se quita la tarjeta,
+             y el contenedor solo si queda vacio */
+          var card=el.classList.contains('chartPair')?el:el;
+          card.remove();return;
+        }
+      }
+    });
+    Array.prototype.forEach.call(root.querySelectorAll('.chartPair'),function(cp){
+      if(!cp.querySelector('.card')&&!cp.querySelector('svg')&&!t(cp.textContent).trim())cp.remove();
+    });
+    /* el "Comparativo por nivel" viejo (v8630HierarchySection) es exactamente el
+       mismo recorrido Nacional -> Zona -> Departamento -> Ciudad -> Tienda que ya
+       hace el bloque nuevo; se retira por clase para no confundirlo con el mio,
+       que tiene el mismo titulo pero vive dentro de #v218Host */
+    Array.prototype.forEach.call(root.querySelectorAll('.v8630HierarchySection,.v8630QuadrantSection'),function(x){x.remove();});
+    var extras=root.querySelector('.v8649TerritoryExtras');
+    if(extras&&!extras.querySelector('.card')&&!extras.querySelector('table')&&!extras.querySelector('svg'))extras.remove();
+
+    /* --- orden ---
+       1) titulo + filtros del Dashboard general
+       2) tarjetas de red (tiendas, inventario, exposicion, gestionados...) y la
+          composicion consolidada: son el encabezado del dashboard y el usuario
+          las quiere inmediatamente despues del titulo
+       3) Rankings + Comparativo por nivel
+       4) Ambientes por completitud
+       5) el resto */
+    if(!uni)return;
+    var ctrl=uni.querySelector('.v8649DashControl');
+    if(!ctrl)return;
+    var kpis=uni.querySelector('.leaderKpis'),
+        head=uni.querySelector('.measureHeading'),
+        ovw=uni.querySelector('.inventoryOverview'),
+        hint=uni.querySelector('.hint'),
+        h218=document.getElementById('v218Host'),
+        h210=document.getElementById('v210Host');
+    var anchor=ctrl;
+    [hint,kpis,head,ovw,h218,h210].forEach(function(el){
+      if(!el)return;
+      if(el.previousElementSibling===anchor&&el.parentElement===uni){anchor=el;return;}
+      anchor.insertAdjacentElement('afterend',el);
+      anchor=el;
+    });
+  }
+  var timer=null;
+  function schedule(){clearTimeout(timer);timer=setTimeout(clean,120);}
+  var installed=false;
+  function install(){
+    if(installed)return;
+    var root=document.getElementById('content');
+    if(!root){setTimeout(install,200);return;}
+    installed=true;
+    try{new MutationObserver(schedule).observe(root,{childList:true,subtree:true});}catch(_){}
+    [500,1100,2000,3400,5000].forEach(function(ms){setTimeout(clean,ms);});
+    console.info('LLAVERO V86.219 · Dashboard ordenado y sin tarjetas repetidas');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,240);});
+})();
+
+/* ===== V86.222 · Vista consolidada del Líder: filtro de política real =====
+   El <select id="v129LeaderPolicy"> se construía con los valores de
+   policyApplied presentes en las filas, así que solo aparecía "Evacuación"
+   (los productos con sugerido > 50% son todos de esa política) y la opción
+   "all" quedaba rotulada "Rotación y Evacuación", que confunde.
+   Aquí se fija el juego de opciones pedido -- Ambos / Solo Rotación /
+   Solo Evacuación -- con el conteo real al lado, se compara la política sin
+   tildes ni mayúsculas, y se avisa cuando una política no tiene productos en
+   esta vista en lugar de dejar la tabla en blanco sin explicación. */
+(function(){
+  function nrm(s){var t=String(s==null?'':s);try{t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}catch(_){}return t.toUpperCase()}
+  function polKind222(s){var z=nrm(s);if(z.indexOf('EVAC')>=0)return 'evac';if(z.indexOf('ROT')>=0)return 'rot';return ''}
+  function fint222(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function rows222(){return Array.prototype.slice.call(document.querySelectorAll('#v129LeaderTable tbody tr[data-key]'))}
+  var LABEL222={all:'Ambas políticas',rot:'Solo Rotación',evac:'Solo Evacuación'};
+
+  function apply222(){
+    var qEl=document.getElementById('v129LeaderQ'),
+        stEl=document.getElementById('v129LeaderStore'),
+        pEl=document.getElementById('v129LeaderPolicy');
+    var q=nrm(qEl&&qEl.value).trim(),
+        st=(stEl&&stEl.value)||'all',
+        pol=(pEl&&pEl.value)||'all';
+    var vis=0,byPolVisible=0;
+    rows222().forEach(function(tr){
+      var hay=nrm(tr.dataset.search||tr.textContent||'');
+      var okQ=!q||hay.indexOf(q)>=0;
+      var okS=(st==='all')||(tr.dataset.store===st);
+      var k=polKind222(tr.dataset.policy);
+      var okP=(pol==='all')||(pol===k);
+      if(okP)byPolVisible++;
+      var ok=okQ&&okS&&okP;
+      tr.style.display=ok?'':'none';
+      if(ok)vis++;
+    });
+    var badge=document.getElementById('v222Visible');
+    if(badge)badge.textContent=fint222(vis)+' visibles';
+    var empty=document.getElementById('v222Empty');
+    if(empty){
+      if(vis>0){empty.style.display='none';empty.innerHTML='';}
+      else{
+        empty.style.display='';
+        var msg;
+        if(byPolVisible===0&&pol!=='all'){
+          msg='<b>No hay productos de la política '+(pol==='rot'?'Rotación':'Evacuación')+' en esta vista.</b>'+
+              '<span>Esta pantalla solo lista productos en estado <b>Gestionar descuento</b> con sugerido <b>mayor al 50%</b>, '+
+              'que son los que corresponden al Líder de Área. Cambia el filtro a <b>Ambas políticas</b> para ver los que sí hay.</span>';
+        }else{
+          msg='<b>Ningún producto cumple los filtros aplicados.</b><span>Ajusta la búsqueda, la tienda o la política.</span>';
+        }
+        empty.innerHTML=msg;
+      }
+    }
+  }
+
+  function build222(){
+    var sel=document.getElementById('v129LeaderPolicy');
+    if(!sel||sel.dataset.v222==='1')return;
+    var counts={all:0,rot:0,evac:0};
+    rows222().forEach(function(tr){
+      counts.all++;
+      var k=polKind222(tr.dataset.policy);
+      if(k)counts[k]++;
+    });
+    sel.dataset.v222='1';
+    sel.setAttribute('aria-label','Filtrar por política');
+    sel.innerHTML=['all','rot','evac'].map(function(k){
+      return '<option value="'+k+'">'+LABEL222[k]+' ('+fint222(counts[k])+')</option>';
+    }).join('');
+    sel.value='all';
+    sel.onchange=apply222;
+
+    var q=document.getElementById('v129LeaderQ');if(q)q.oninput=apply222;
+    var st=document.getElementById('v129LeaderStore');if(st)st.onchange=apply222;
+
+    /* contador de filas visibles, para que el efecto del filtro sea evidente */
+    var cnt=document.getElementById('v129LeaderCount');
+    if(cnt&&!document.getElementById('v222Visible')){
+      var b=document.createElement('span');
+      b.id='v222Visible';b.className='count v222Visible';
+      b.textContent=fint222(counts.all)+' visibles';
+      cnt.parentNode.insertBefore(b,cnt);
+    }
+    /* aviso de resultado vacío */
+    var wrap=document.querySelector('.v129LeaderTableWrap');
+    if(wrap&&!document.getElementById('v222Empty')){
+      var e=document.createElement('div');
+      e.id='v222Empty';e.className='v222Empty';e.style.display='none';
+      wrap.parentNode.insertBefore(e,wrap);
+    }
+    apply222();
+  }
+
+  function hook222(){
+    var prev=window.openLeaderAll8664;
+    if(typeof prev==='function'&&!prev.__v222){
+      var wrapped=function(){
+        var r=prev.apply(this,arguments);
+        setTimeout(build222,0);setTimeout(build222,180);
+        return r;
+      };
+      wrapped.__v222=true;
+      window.openLeaderAll8664=wrapped;
+      try{openLeaderAll8664=wrapped}catch(_){}
+    }
+    /* respaldo: si otra ruta abre el modal, se detecta la aparición del select */
+    var host=document.getElementById('rangeModalBody');
+    if(host&&!host.__v222Obs){
+      host.__v222Obs=true;
+      try{new MutationObserver(function(){build222()}).observe(host,{childList:true,subtree:true})}catch(_){}
+    }
+  }
+
+  function install(){hook222();console.info('LLAVERO V86.222 · Filtro de política del Líder (Ambas / Solo Rotación / Solo Evacuación)')}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(hook222,260)});
+})();
+
+/* ===== V86.223 · Ambientes: los dos gráficos van encima de "Acciones pendientes" =====
+   Orden pedido dentro de la card de Guías de exhibición:
+     Cómo está la tienda -> Concentración por tipo de ambiente -> Completitud por
+     piso -> Acciones pendientes -> Impacto potencial -> filtros -> tabla.
+   Los dos bloques los reinserta patchAmbientImpact/patchGuideConcentration155 en
+   cada redibujo, así que aquí se reubican después de cada render en lugar de
+   moverlos una sola vez. */
+(function(){
+  var moving=false,timer=null;
+  function nrm223(s){var t=String(s==null?'':s);try{t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}catch(_){}return t.toUpperCase().replace(/\s+/g,' ').trim()}
+  function isAmb(){try{return (typeof VIEW!=='undefined'?VIEW:'')==='amb'}catch(_){return false}}
+
+  function accionesLabel(mk){
+    if(!mk)return null;
+    var kids=Array.prototype.slice.call(mk.children);
+    for(var i=0;i<kids.length;i++){
+      var k=kids[i];
+      if(k.classList&&k.classList.contains('pv-section-label')&&nrm223(k.textContent).indexOf('ACCIONES PENDIENTES')>=0)return k;
+    }
+    return null;
+  }
+  function floorBlock223(root){
+    var grid=root.querySelector('.guideFloorGrid');
+    return grid?grid.parentElement:null;
+  }
+
+  function place223(){
+    if(moving||!isAmb())return;
+    var root=document.getElementById('content');if(!root)return;
+    var card=root.querySelector('.pv-guide-card')||root.querySelector('.card');if(!card)return;
+    var cbody=card.querySelector('.cbody');if(!cbody)return;
+    var mk=cbody.querySelector('.mkpis');if(!mk)return;
+    var acc=accionesLabel(mk);if(!acc)return;
+    var conc=document.getElementById('v155GuideConcentration');
+    var floor=floorBlock223(root);
+    if(!conc&&!floor)return;
+    if(floor)floor.classList.add('v223FloorBlock');
+
+    /* ¿ya está en su sitio? entonces no se toca el DOM (evita bucle con el observer) */
+    var ok=true;
+    if(conc&&floor)ok=(conc.parentElement===mk&&conc.nextElementSibling===floor&&floor.nextElementSibling===acc);
+    else if(conc)ok=(conc.parentElement===mk&&conc.nextElementSibling===acc);
+    else if(floor)ok=(floor.parentElement===mk&&floor.nextElementSibling===acc);
+    var imp=root.querySelector('.v155AmbientImpact');
+    var impOk=!imp||(imp.parentElement===cbody&&imp.previousElementSibling===mk);
+    if(ok&&impOk)return;
+
+    moving=true;
+    try{
+      if(conc)acc.insertAdjacentElement('beforebegin',conc);
+      if(floor){
+        if(conc)conc.insertAdjacentElement('afterend',floor);
+        else acc.insertAdjacentElement('beforebegin',floor);
+      }
+      /* el bloque de Impacto se ancla a Completitud por piso; se devuelve
+         justo después de .mkpis para que no se cuele entre los gráficos y
+         "Acciones pendientes". */
+      if(imp)mk.insertAdjacentElement('afterend',imp);
+    }catch(_){}
+    moving=false;
+  }
+
+  /* No se reinicia el temporizador: la vista de Ambientes muta de forma casi
+     continua y un debounce clásico nunca llegaba a disparar. */
+  function schedule(){if(timer)return;timer=setTimeout(function(){timer=null;place223()},80)}
+
+  function install(){
+    var root=document.getElementById('content');
+    if(root&&!root.__v223Obs){
+      root.__v223Obs=true;
+      try{new MutationObserver(function(){if(!moving)schedule()}).observe(root,{childList:true,subtree:true})}catch(_){}
+    }
+    [0,300,900,1800,3200,5000].forEach(function(ms){setTimeout(place223,ms)});
+    if(!window.__v223Tick){window.__v223Tick=setInterval(place223,600)}
+    console.info('LLAVERO V86.223 · Ambientes: concentración y completitud por piso sobre Acciones pendientes');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,240)});
+  document.addEventListener('click',function(){schedule()},true);
+})();
