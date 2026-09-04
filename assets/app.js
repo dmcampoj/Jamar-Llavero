@@ -1,3 +1,210 @@
+/* ===== V86.262 · Nombre de producto: rescate desde el resto del corte =====
+
+   SINTOMA. En el detalle de algunas guias el codigo sale pero el nombre queda
+   en "—", con todo lo demas en "Sin dato" y "Sin cruce" (caso reportado: la
+   guia CAMA 1.40 CONNOR NT, codigos 7045948/7045949/7045950).
+
+   CAUSA. El nombre se buscaba solo en dos sitios: el propio archivo de
+   exhibicion (p[6]) y el catalogo de productos P. Medido en el corte del
+   01/09: de los 843 codigos distintos que aparecen en las 125 guias, 346 no
+   estan ni en P ni en el inventario de ninguna de las 21 tiendas. Son
+   posiciones de guia que apuntan a productos que el archivo de abastecimiento
+   no trae.
+
+   LO QUE SI SE PUEDE RESCATAR. Algunos de esos codigos si tienen nombre en
+   OTRA parte del mismo corte -- el detalle de traslados los nombra, porque
+   vienen en camino. Los tres codigos del caso reportado estan ahi:
+       7045948  CAMA 1.40 CONNOR EUROLINO ARENA/NATURAL
+       7045949  NOCHERO CONNOR NATURAL
+       7045950  TOCADOR CONNOR NATURAL
+   Este resolutor mira, en orden: catalogo P, inventario de la tienda actual,
+   inventario de cualquier tienda, detalle de traslados, y Rotacion/Evacuacion.
+   Con el corte actual recupera 5 de los 346.
+
+   LO QUE NO. Los 341 restantes no tienen nombre en ninguna parte del corte: no
+   es un problema de la vista, es que el producto no viene en los archivos. Para
+   esos se deja de mostrar un "—" mudo, que se lee como error de la aplicacion,
+   y se dice lo que pasa: no hay ficha en el corte. */
+(function(){
+  function s(v){return v==null?'':String(v).trim()}
+  var CACHE=null,CLAVE='';
+  function fecha(){try{return s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){return ''}}
+  function tablas(){
+    var k=fecha();
+    if(CACHE&&CLAVE===k)return CACHE;
+    var m=Object.create(null);
+    try{
+      var St=(typeof S!=='undefined'&&S)?S:{};
+      Object.keys(St).forEach(function(sc){
+        var st=St[sc];if(!st||typeof st!=='object')return;
+        /* el inventario de cualquier tienda sirve: el nombre del producto no
+           depende de la tienda */
+        (Array.isArray(st.inventario)?st.inventario:[]).forEach(function(r){
+          var c=s(r&&r.codigo);if(c&&!m[c]&&s(r.producto))m[c]=s(r.producto);
+        });
+        (Array.isArray(st.trDetalle)?st.trDetalle:[]).forEach(function(r){
+          var c=s(r&&r.codigo);if(c&&!m[c]&&s(r.nombre))m[c]=s(r.nombre);
+        });
+        ['rot','evac'].forEach(function(f){
+          (Array.isArray(st[f])?st[f]:[]).forEach(function(a){
+            var c=s(a&&a[0]);if(c&&!m[c]&&s(a[1]))m[c]=s(a[1]);
+          });
+        });
+      });
+    }catch(e){console.error('V86.262',e)}
+    CACHE=m;CLAVE=k;return m;
+  }
+  /* nombre del producto, o cadena vacia si el corte no lo trae en ningun sitio */
+  window.nombreProducto=function(codigo){
+    var c=s(codigo);if(!c)return '';
+    try{
+      var P1=(typeof P!=='undefined'&&P)?P:null;
+      if(P1&&P1[c]&&s(P1[c].n))return s(P1[c].n);
+      var St=(typeof S!=='undefined'&&S)?S:null,cu=(typeof CUR!=='undefined')?CUR:'';
+      if(St&&cu&&St[cu]&&Array.isArray(St[cu].inventario)){
+        for(var i=0;i<St[cu].inventario.length;i++){
+          var r=St[cu].inventario[i];
+          if(s(r&&r.codigo)===c&&s(r.producto))return s(r.producto);
+        }
+      }
+    }catch(_){}
+    return tablas()[c]||'';
+  };
+  window.SIN_FICHA='Sin ficha de producto en el corte';
+})();
+
+/* ===== V86.261 · Búsqueda múltiple separada por comas =====
+
+   Pedido: en Markdown, poder buscar varios productos a la vez escribiendo
+   "codigo X, codigo Y" y que salgan los dos.
+
+   Se resuelve con un solo comparador para todos los buscadores del módulo, en
+   vez de repetir el troceo en cada uno. Reglas:
+
+     · Los términos se separan por coma (también punto y coma o salto de línea,
+       que es lo que llega al pegar una columna de Excel).
+     · Entre términos la lógica es O: la fila sale si coincide con CUALQUIERA.
+       Con un solo término el comportamiento es idéntico al anterior, así que
+       nada de lo que ya funcionaba cambia.
+     · Cada término sigue buscando por dentro del texto de la fila (código,
+       producto, categoría, línea, política, estado…), no exige coincidencia
+       exacta: "7012" encuentra 7012064.
+     · Se ignoran los espacios alrededor y las comas sueltas, para que
+       "7012064, , 7009153," no rompa la búsqueda.
+
+   Se coloca al principio de app.js a propósito: los buscadores lo llaman en
+   tiempo de ejecución, pero así queda definido antes que cualquier capa. */
+(function(){
+  function norm(v){
+    var t=v==null?'':String(v);
+    try{t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}catch(_){}
+    return t.toUpperCase().replace(/\s+/g,' ').trim();
+  }
+  function terminos(q){
+    return norm(q).split(/[,;\n]+/).map(function(t){return t.trim()}).filter(Boolean);
+  }
+  /* true si el texto contiene alguno de los terminos de la busqueda */
+  window.buscaMultiple=function(texto,q){
+    var ts=terminos(q);
+    if(!ts.length)return true;
+    var t=norm(texto);
+    for(var i=0;i<ts.length;i++)if(t.indexOf(ts[i])>=0)return true;
+    return false;
+  };
+  window.buscaTerminos=terminos;
+
+  /* V86.267: los demas buscadores del proyecto comparan con
+     texto.toLowerCase().llaveroBusca(q). Publicar el comparador como metodo de
+     cadena permite cambiar los 31 sitios sustituyendo solo el nombre del
+     metodo, sin tocar la expresion que arma el texto (que en varios casos son
+     concatenaciones largas con parentesis anidados). Con un solo termino se
+     comporta igual que includes(); con varios, separados por coma, devuelve
+     true si coincide con cualquiera. */
+  if(!String.prototype.llaveroBusca){
+    Object.defineProperty(String.prototype,'llaveroBusca',{
+      value:function(q){return window.buscaMultiple(String(this),q)},
+      writable:true,configurable:true,enumerable:false
+    });
+  }
+})();
+
+/* ===== V86.247 · No volver a parsear el historial en cada consulta =====
+
+   El arranque y cada vista se iban en JSON.parse. Medido con el corte 31/08,
+   como administrador de una tienda:
+
+       arranque   38 parseos del historial (9.114 KB)  = 1.759 ms
+       dashboard  36 parseos                           = 1.425 ms
+       resumen    16 parseos                           =   695 ms
+       rotación    7 parseos                           =   336 ms
+       markdown    4 parseos                           =   173 ms
+
+   La causa: el historial se guarda como TEXTO dentro de <script
+   id="embeddedHistory"> y cada consumidor hace
+   JSON.parse(el.textContent) en cada llamada. Hay al menos cuatro funciones que
+   lo hacen (history8615, historyDetails, HISTORY82, la de V86.170) y se llaman
+   muchas veces por render. Cada llamada vuelve a parsear los 9 MB completos.
+
+   El arreglo es memorizar por el TEXTO: si la cadena es idéntica a la última
+   parseada, se devuelve el objeto ya construido. No cambia ningún dato ni
+   ninguna interfaz; solo evita repetir el mismo trabajo.
+
+   Se limita a cadenas grandes que además tengan forma de historial (daily y
+   details) o de corte (meta, P, S), para no tocar el parseo de nada más --
+   respuestas de red, configuraciones, localStorage.
+
+   RIESGO CONOCIDO: los consumidores pasan a compartir el mismo objeto en vez de
+   recibir cada uno una copia. Si alguno lo modificara, el cambio se vería en los
+   demás. Se verificó con el arnés de 395 cifras en los tres alcances: sin una
+   sola diferencia. Y el memo se invalida solo en cuanto el texto cambia, que es
+   lo que ocurre al cargar otro corte.
+
+   Va al PRINCIPIO de app.js a propósito: app.js se ejecuta antes de que llegue
+   la respuesta de los datos, así que para cuando ocurre el primer parseo grande
+   el memo ya está puesto. */
+(function(){
+  if(window.__v247)return; window.__v247=true;
+  var MIN=200000;                    /* por debajo de esto no compensa */
+  var original=JSON.parse;
+  /* Tres huecos, no uno: el corte y el historial se parsean intercalados y con
+     un solo hueco se expulsaban mutuamente (se veian 2 parseos del corte de
+     35 MB que deberian haber sido 1). */
+  var CACHE=[], MAX=3, hits=0, misses=0, ahorro=0;
+
+  function pareceGrande(o){
+    if(!o||typeof o!=='object')return false;
+    if(Array.isArray(o.daily)&&Array.isArray(o.details))return true;   /* historial */
+    if(o.meta&&o.P&&o.S)return true;                                   /* corte */
+    return false;
+  }
+
+  JSON.parse=function(texto){
+    if(typeof texto!=='string'||texto.length<MIN||arguments.length>1)
+      return original.apply(this,arguments);
+    for(var i=0;i<CACHE.length;i++){
+      if(CACHE[i].txt===texto){
+        hits++;ahorro+=CACHE[i].ms;
+        if(i){var c=CACHE.splice(i,1)[0];CACHE.unshift(c)}   /* el mas usado, primero */
+        return CACHE[0].obj;
+      }
+    }
+    var t0=(window.performance&&performance.now)?performance.now():0;
+    var obj=original.apply(this,arguments);
+    var ms=((window.performance&&performance.now)?performance.now():0)-t0;
+    if(pareceGrande(obj)){
+      CACHE.unshift({txt:texto,obj:obj,ms:ms});
+      while(CACHE.length>MAX)CACHE.pop();
+      misses++;
+    }
+    return obj;
+  };
+
+  window.LlaveroParseo={
+    stats:function(){return {aciertos:hits,parseos:misses,msAhorrados:Math.round(ahorro),
+      enCache:CACHE.map(function(c){return Math.round(c.txt.length/1024)+' KB'})}},
+    limpiar:function(){CACHE.length=0}
+  };
+})();
 /* ==== llaveroV8620ViewsScript ==== */
 
 /* ===== LLAVERO V86.20 · VISTAS ANALITICAS REALES ===== */
@@ -309,7 +516,27 @@
   function trendDate8650(v){var s=String(v||''),p=s.split('-');return p.length===3?p[2]+'/'+p[1]:s;}
   function dashboardTrendSvg8650(data,kind){
     data=Array.isArray(data)?data:[];if(!data.length)return '<div class="empty">Sin cortes disponibles para los filtros seleccionados.</div>';
-    var exposure=kind!=='management',k1=exposure?'rotPct':'rotRecovery',k2=exposure?'evacPct':'evacRecovery',W=1180,H=500,p={l:78,r:42,t:72,b:72},vals=[];
+    /* V86.265: el viewBox era 1180x500 con preserveAspectRatio "meet". Al escalar
+       a lo ancho del contenedor (~780 px) el dibujo quedaba en 330 px de alto
+       dentro de una caja de 400, con franjas vacias arriba y abajo, y la grafica
+       se veia pequeña. Con la proporcion mas apaisada y el alto en auto, el
+       trazo ocupa todo el ancho sin dejar hueco. Tambien se reducen los margenes
+       laterales para ganar ancho util. */
+    /* V86.276: con 26 cortes la tarjeta se veia demasiado alta. Se redujo el
+       alto (360 -> 230), pero los margenes verticales (34/38) quedaron mas
+       chicos que lo que necesita la burbuja de porcentaje (~39px de alto desde
+       el punto). Con pocos cortes y una serie cerca del extremo -- por ejemplo
+       Evacuacion al 8% con el rango de esa vista -- la burbuja se salia del
+       dibujo y quedaba encima de las fechas de abajo. V86.277 deja el margen
+       exacto que la burbuja necesita (48/52) y compensa el alto (230 -> 260)
+       para que las lineas no queden mas apretadas que antes. */
+    /* V86.278: con H=260/p.b=52 la burbuja de Evacuacion y la fecha de abajo
+       (fija a H-24) quedaban a menos de 13px de distancia -- se veian pegadas
+       o superpuestas cuando el valor esta cerca del limite inferior del rango,
+       como en el caso reportado (Evacuacion ~8% con solo 3 cortes). Se sube el
+       margen inferior a 64 y el alto a 280, dejando ~22px de aire entre la
+       burbuja y la fecha en el peor caso. */
+    var exposure=kind!=='management',k1=exposure?'rotPct':'rotRecovery',k2=exposure?'evacPct':'evacRecovery',W=1180,H=280,p={l:62,r:30,t:50,b:64},vals=[];
     data.forEach(function(d){var a=d.isBase&&!exposure?0:d[k1],b=d.isBase&&!exposure?0:d[k2];if(a!=null&&Number.isFinite(Number(a)))vals.push(Number(a));if(b!=null&&Number.isFinite(Number(b)))vals.push(Number(b));});if(!vals.length)vals=[0];
     var lo=Math.min.apply(null,vals.concat(exposure?[0]:[-5])),hi=Math.max.apply(null,vals.concat(exposure?[1]:[5])),spread=Math.max(1,hi-lo),padY=Math.max(exposure?1.5:3,spread*.16);lo=exposure?Math.max(0,lo-padY):lo-padY;hi=hi+padY;if(hi-lo<1)hi=lo+1;
     function x(i){return p.l+(W-p.l-p.r)*(data.length===1?.5:i/(data.length-1));}function y(v){return p.t+(H-p.t-p.b)*(hi-num(v))/(hi-lo);}function val(d,k){return d.isBase&&!exposure?0:num(d[k]);}
@@ -357,13 +584,12 @@
     if(!rows.length)return '<div class="card"><div class="cbody"><div class="empty">No hay tiendas para los filtros seleccionados.</div></div></div>';
     var period=periodDef8656();
     return '<div class="v8649TerritoryExtras"><div class="v8649ExtraHead"><div><b>Análisis territorial complementario</b><span>Solo se mantienen visuales que agregan una lectura distinta al Dashboard original.</span></div><span>'+esc(period.label)+'</span></div>'+
-      territorySection('Cuadrante de priorización','Criticidad actual vs. tendencia. Los puntos y el ranking lateral abren la tienda.','<div class="v8630QuadrantLarge">'+quadrantSvg(rows)+'</div>','v8630QuadrantSection')+
       territorySection('Qué está explicando el resultado','Señales de atención en Rotación, Evacuación, +360, Markdown, Traslados, Ambientes y acciones.',leaderCauseAnalysis8630(rows),'v8630CauseSection')+
       territorySection('Mapa de calor por tienda','Lectura multidimensional de las principales señales operativas.',heatmap(rows),'v8630HeatSection')+
-      territorySection('Comparativo por nivel','Navega Nacional → Zona → Departamento → Ciudad → Tienda sin repetir los rankings del Dashboard.',hierarchyTable(rows),'v8630HierarchySection')+'</div>';
+'</div>';
   }
   function buildUnifiedDashboard8649(){var all=allTerritoryMetrics(),rows=filterTerritoryMetrics(all),codes=rows.map(function(x){return x.code;}),ph=periodHistory(),pt=periodTotals(codes,ph);state.periodRows=pt.trend;state.visibleMetrics=rows;state.visibleCodes=codes;var core=originalDashboardFiltered8649(codes);return '<div class="v8649UnifiedDashboard">'+dashboardFilters8649(all,rows)+core+dashboardTerritoryExtras8649(rows)+'</div>';}
-  function stackDashboardTrends8650(){try{var cuts=periodHistory().length;document.querySelectorAll('#content .chartPair').forEach(function(pair){var cards=Array.from(pair.querySelectorAll(':scope > .card')),titles=Array.from(pair.querySelectorAll('.tt')).map(function(x){return (x.textContent||'').trim();});if(titles.some(function(t){return t.indexOf('Tendencia histórica de Rotación y Evacuación')===0;})&&titles.some(function(t){return t.indexOf('Tendencia de gestión diaria')===0;})){pair.classList.add('v8650TrendStack');cards.forEach(function(card){var tt=card.querySelector('.tt'),badge=card.querySelector('.rt .badge');if(tt&&tt.textContent.indexOf('Tendencia histórica de Rotación y Evacuación')===0&&badge)badge.textContent=int(cuts)+' cortes';});}});}catch(_){}}
+  function stackDashboardTrends8650(){try{var cuts=periodHistory().length;document.querySelectorAll('#content .chartPair').forEach(function(pair){var cards=Array.from(pair.querySelectorAll(':scope > .card')),titles=Array.from(pair.querySelectorAll('.tt')).map(function(x){return (x.textContent||'').trim();});if(titles.some(function(t){return t.indexOf('Tendencia histórica de Rotación y Evacuación')===0;})&&(cards.length===1||titles.some(function(t){return t.indexOf('Tendencia de gestión diaria')===0;}))){pair.classList.add('v8650TrendStack');cards.forEach(function(card){var tt=card.querySelector('.tt'),badge=card.querySelector('.rt .badge');if(tt&&tt.textContent.indexOf('Tendencia histórica de Rotación y Evacuación')===0&&badge)badge.textContent=int(cuts)+' cortes';});}});}catch(_){}}
   function drawTerritories(){var c=document.getElementById('content');if(!c)return;try{if(typeof setActiveNav==='function')setActiveNav('dashboard');}catch(_){}c.innerHTML=buildUnifiedDashboard8649();document.body.dataset.v8620View='dashboard';stackDashboardTrends8650();try{var path=dashboardPath8649(),hs=document.getElementById('heroSub'),fst=document.getElementById('fst');if(hs)hs.innerHTML='Visión filtrada de <b>'+int(state.visibleCodes.length)+' tiendas</b> · '+esc(path.join(' › '))+' · corte '+esc(DB&&DB.meta&&DB.meta.fecha||'—');if(fst)fst.textContent=path.join(' › ');}catch(_){}markVersion();setTimeout(function(){markVersion();stackDashboardTrends8650();},900);}
   function setTerritoryFilter(field,value){state.territory[field]=value;if(field==='zone'){state.territory.department='all';state.territory.city='all';state.territory.store='all';}if(field==='department'){state.territory.city='all';state.territory.store='all';}if(field==='city')state.territory.store='all';drawTerritories();}
   var searchTimer=null;function searchTerritories(value){state.territory.q=value;clearTimeout(searchTimer);searchTimer=setTimeout(drawTerritories,120);}
@@ -906,11 +1132,11 @@
   function unique(rows,get){return Array.from(new Set(rows.map(get).filter(Boolean))).sort(function(a,b){return text(a).localeCompare(text(b),'es');});}
   function selectOpts(vals,label){return '<option value="all">'+label+'</option>'+vals.map(function(v){return '<option value="'+esc64(v)+'">'+esc64(v)+'</option>';}).join('');}
   function compositionRows(kind,bucket){var rows=mixInfo(CUR,kind).rows.slice();if(bucket)rows=rows.filter(function(r){return Object.entries(r.rangos||{}).some(function(e){return num(e[1])>0&&ageBucket(e[0])===bucket;});});return rows;}
-  window.openComposition8664=function(kind,bucket){var rows=compositionRows(kind,bucket),modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(ttl)ttl.textContent=kindTitle(kind)+(bucket?' \u00b7 '+bucket:'');if(sub)sub.textContent=(store(CUR).name||CUR)+' \u00b7 '+fint(rows.length)+' productos';var cats=unique(rows,function(r){return (r.p||product(r.c)).cat||'';}),lines=unique(rows,function(r){return (r.p||product(r.c)).lin||'';}),subs=unique(rows,function(r){return (r.p||product(r.c)).sub||'';});body.innerHTML='<div class="v8664DetailTools"><div class="v8664Field"><label>Buscar</label><input id="v8664MixQ" placeholder="C\u00f3digo, producto, categor\u00eda, l\u00ednea o subl\u00ednea" oninput="filterComposition8664()"></div><div class="v8664Field"><label>Categor\u00eda</label><select id="v8664MixCat" onchange="filterComposition8664()">'+selectOpts(cats,'Todas')+'</select></div><div class="v8664Field"><label>L\u00ednea</label><select id="v8664MixLine" onchange="filterComposition8664()">'+selectOpts(lines,'Todas')+'</select></div><div class="v8664Field"><label>Subl\u00ednea</label><select id="v8664MixSub" onchange="filterComposition8664()">'+selectOpts(subs,'Todas')+'</select></div><div class="v8664Field"><label>Antig\u00fcedad</label><select id="v8664MixAge" onchange="filterComposition8664()"><option value="all">Todos los rangos</option>'+AGE.map(function(a){return '<option value="'+a[0]+'"'+(bucket===a[0]?' selected':'')+'>'+a[1]+' d\u00edas</option>';}).join('')+'</select></div><div class="v8664Field"><label>CENDIS</label><select id="v8664MixCendis" onchange="filterComposition8664()"><option value="all">Todos</option><option value="with">Con respaldo</option><option value="without">Sin respaldo</option></select></div></div><div class="v8664DetailCount"><span id="v8664MixCount">'+fint(rows.length)+' productos</span><span>Selecciona una fila para abrir la ficha completa</span></div><div class="v80TableWrap"><table class="v80Table v8664DetailTable" id="v8664MixTable"><thead><tr><th>Imagen</th><th>C\u00f3digo</th><th>Producto</th><th>Categor\u00eda</th><th>L\u00ednea</th><th>Subl\u00ednea</th><th class="num">Unidades</th><th>Antig\u00fcedad</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+rows.map(function(r){var p=r.p||product(r.c),buckets=Array.from(new Set(Object.entries(r.rangos||{}).filter(function(e){return num(e[1])>0;}).map(function(e){return ageBucket(e[0]);}))).join('|'),ages=Object.entries(r.rangos||{}).filter(function(e){return num(e[1])>0;}).map(function(e){return '<span class="v867Range">'+fint(e[1])+' u \u00b7 '+esc64(e[0])+'</span>';}).join('');return '<tr data-cat="'+esc64(p.cat||'')+'" data-line="'+esc64(p.lin||'')+'" data-sub="'+esc64(p.sub||'')+'" data-age="'+esc64(buckets)+'" data-cendis="'+(num(r.dispCendis)>0?'with':'without')+'" onclick="openBestProductDetail('+JSON.stringify(r.c)+')"><td>'+(typeof imageThumb==='function'?imageThumb(r.c,'sm'):'')+'</td><td><span class="code">'+esc64(r.c)+'</span></td><td><b>'+esc64(p.n||r.c)+'</b></td><td>'+esc64(p.cat||'\u2014')+'</td><td>'+esc64(p.lin||'\u2014')+'</td><td>'+esc64(p.sub||'\u2014')+'</td><td class="num"><b>'+fint(r.stock)+'</b></td><td>'+ages+'</td><td class="num">'+(num(r.dispCendis)>0?'<span class="tag cr">'+fint(r.dispCendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td><td class="num">'+money(r.valorInventario)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');window.filterComposition8664();};
-  window.filterComposition8664=function(){var q=norm((document.getElementById('v8664MixQ')||{}).value),cat=(document.getElementById('v8664MixCat')||{}).value||'all',line=(document.getElementById('v8664MixLine')||{}).value||'all',sub=(document.getElementById('v8664MixSub')||{}).value||'all',age=(document.getElementById('v8664MixAge')||{}).value||'all',cen=(document.getElementById('v8664MixCendis')||{}).value||'all',shown=0;document.querySelectorAll('#v8664MixTable tbody tr').forEach(function(tr){var ok=(!q||norm(tr.textContent).indexOf(q)>=0)&&(cat==='all'||tr.dataset.cat===cat)&&(line==='all'||tr.dataset.line===line)&&(sub==='all'||tr.dataset.sub===sub)&&(age==='all'||('|' + (tr.dataset.age||'') + '|').indexOf('|'+age+'|')>=0)&&(cen==='all'||tr.dataset.cendis===cen);tr.style.display=ok?'':'none';if(ok)shown++;});var c=document.getElementById('v8664MixCount');if(c)c.textContent=fint(shown)+' productos visibles';};
+  window.openComposition8664=function(kind,bucket){var rows=compositionRows(kind,bucket),modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(ttl)ttl.textContent=kindTitle(kind)+(bucket?' \u00b7 '+bucket:'');if(sub)sub.textContent=(store(CUR).name||CUR)+' \u00b7 '+fint(rows.length)+' productos';var cats=unique(rows,function(r){return (r.p||product(r.c)).cat||'';}),lines=unique(rows,function(r){return (r.p||product(r.c)).lin||'';}),subs=unique(rows,function(r){return (r.p||product(r.c)).sub||'';});body.innerHTML='<div class="v8664DetailTools"><div class="v8664Field"><label>Buscar</label><input id="v8664MixQ" placeholder="C\u00f3digo, producto, categor\u00eda, l\u00ednea o subl\u00ednea \u00b7 varios separados por coma" oninput="filterComposition8664()"></div><div class="v8664Field"><label>Categor\u00eda</label><select id="v8664MixCat" onchange="filterComposition8664()">'+selectOpts(cats,'Todas')+'</select></div><div class="v8664Field"><label>L\u00ednea</label><select id="v8664MixLine" onchange="filterComposition8664()">'+selectOpts(lines,'Todas')+'</select></div><div class="v8664Field"><label>Subl\u00ednea</label><select id="v8664MixSub" onchange="filterComposition8664()">'+selectOpts(subs,'Todas')+'</select></div><div class="v8664Field"><label>Antig\u00fcedad</label><select id="v8664MixAge" onchange="filterComposition8664()"><option value="all">Todos los rangos</option>'+AGE.map(function(a){return '<option value="'+a[0]+'"'+(bucket===a[0]?' selected':'')+'>'+a[1]+' d\u00edas</option>';}).join('')+'</select></div><div class="v8664Field"><label>CENDIS</label><select id="v8664MixCendis" onchange="filterComposition8664()"><option value="all">Todos</option><option value="with">Con respaldo</option><option value="without">Sin respaldo</option></select></div></div><div class="v8664DetailCount"><span id="v8664MixCount">'+fint(rows.length)+' productos</span><span>Selecciona una fila para abrir la ficha completa</span></div><div class="v80TableWrap"><table class="v80Table v8664DetailTable" id="v8664MixTable"><thead><tr><th>Imagen</th><th>C\u00f3digo</th><th>Producto</th><th>Categor\u00eda</th><th>L\u00ednea</th><th>Subl\u00ednea</th><th class="num">Unidades</th><th>Antig\u00fcedad</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+rows.map(function(r){var p=r.p||product(r.c),buckets=Array.from(new Set(Object.entries(r.rangos||{}).filter(function(e){return num(e[1])>0;}).map(function(e){return ageBucket(e[0]);}))).join('|'),ages=Object.entries(r.rangos||{}).filter(function(e){return num(e[1])>0;}).map(function(e){return '<span class="v867Range">'+fint(e[1])+' u \u00b7 '+esc64(e[0])+'</span>';}).join('');return '<tr data-cat="'+esc64(p.cat||'')+'" data-line="'+esc64(p.lin||'')+'" data-sub="'+esc64(p.sub||'')+'" data-age="'+esc64(buckets)+'" data-cendis="'+(num(r.dispCendis)>0?'with':'without')+'" onclick="openBestProductDetail('+JSON.stringify(r.c)+')"><td>'+(typeof imageThumb==='function'?imageThumb(r.c,'sm'):'')+'</td><td><span class="code">'+esc64(r.c)+'</span></td><td><b>'+esc64(p.n||r.c)+'</b></td><td>'+esc64(p.cat||'\u2014')+'</td><td>'+esc64(p.lin||'\u2014')+'</td><td>'+esc64(p.sub||'\u2014')+'</td><td class="num"><b>'+fint(r.stock)+'</b></td><td>'+ages+'</td><td class="num">'+(num(r.dispCendis)>0?'<span class="tag cr">'+fint(r.dispCendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td><td class="num">'+money(r.valorInventario)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');window.filterComposition8664();};
+  window.filterComposition8664=function(){var q=norm((document.getElementById('v8664MixQ')||{}).value),cat=(document.getElementById('v8664MixCat')||{}).value||'all',line=(document.getElementById('v8664MixLine')||{}).value||'all',sub=(document.getElementById('v8664MixSub')||{}).value||'all',age=(document.getElementById('v8664MixAge')||{}).value||'all',cen=(document.getElementById('v8664MixCendis')||{}).value||'all',shown=0;document.querySelectorAll('#v8664MixTable tbody tr').forEach(function(tr){var ok=(!q||window.buscaMultiple(tr.textContent,q))&&(cat==='all'||tr.dataset.cat===cat)&&(line==='all'||tr.dataset.line===line)&&(sub==='all'||tr.dataset.sub===sub)&&(age==='all'||('|' + (tr.dataset.age||'') + '|').indexOf('|'+age+'|')>=0)&&(cen==='all'||tr.dataset.cendis===cen);tr.style.display=ok?'':'none';if(ok)shown++;});var c=document.getElementById('v8664MixCount');if(c)c.textContent=fint(shown)+' productos visibles';};
   function ensureTrend(){if(typeof VIEW==='undefined'||VIEW!=='resumen')return;var card=Array.from(document.querySelectorAll('#content .card')).find(function(c){var t=c.querySelector('.tt');return t&&t.textContent.trim()==='Seguimiento diario de gesti\u00f3n';});if(!card)return;var body=card.querySelector('.cbody')||card,trend=card.querySelector('.v79StoreTrendCard');if(!trend&&typeof trendChart79==='function'&&typeof storeTrendData79==='function'){var d=document.createElement('div');d.className='v79StoreTrendCard v8664TrendForced';d.innerHTML='<div class="v79StoreTrendHead"><div><b>Tendencia hist\u00f3rica de la tienda</b><span>Rotaci\u00f3n y Evacuaci\u00f3n por cada corte</span></div><span>Presiona un punto para ver su actividad</span></div>'+trendChart79(storeTrendData79(CUR),CUR);body.appendChild(d);trend=d;}if(trend){trend.classList.add('v8664TrendForced');trend.style.display='block';trend.style.visibility='visible';}}
-  window.openHealthyCendis8664=function(mode){var st=store(CUR),sum=typeof inventorySummary==='function'?inventorySummary(st):{},rows=(sum.healthyRows||[]).filter(function(r){return mode==='with'?num(r.dispCendis)>0:num(r.dispCendis)<=0;}),modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(ttl)ttl.textContent='Productos sanos '+(mode==='with'?'con respaldo CENDIS':'sin respaldo CENDIS');if(sub)sub.textContent=(st.name||CUR)+' \u00b7 '+fint(rows.length)+' productos';body.innerHTML='<div class="v8664DetailTools" style="grid-template-columns:minmax(260px,1fr)"><div class="v8664Field"><label>Buscar</label><input id="v8664HealthyQ" placeholder="C\u00f3digo, producto, categor\u00eda, l\u00ednea o subl\u00ednea" oninput="filterHealthy8664()"></div></div><div class="v8664DetailCount"><span id="v8664HealthyCount">'+fint(rows.length)+' productos</span><span>Selecciona una fila para abrir la ficha completa</span></div><div class="v80TableWrap"><table class="v80Table v8664DetailTable" id="v8664HealthyTable"><thead><tr><th>Imagen</th><th>C\u00f3digo</th><th>Producto</th><th>Categor\u00eda</th><th>L\u00ednea</th><th>Subl\u00ednea</th><th class="num">Unidades</th><th>Antig\u00fcedad</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+rows.map(function(r){var p=r.p||product(r.c),ages=Object.entries(r.rangos||{}).filter(function(e){return num(e[1])>0;}).map(function(e){return '<span class="v867Range">'+fint(e[1])+' u \u00b7 '+esc64(e[0])+'</span>';}).join('');return '<tr onclick="openBestProductDetail('+JSON.stringify(r.c)+')"><td>'+(typeof imageThumb==='function'?imageThumb(r.c,'sm'):'')+'</td><td><span class="code">'+esc64(r.c)+'</span></td><td><b>'+esc64(p.n||r.c)+'</b></td><td>'+esc64(p.cat||'\u2014')+'</td><td>'+esc64(p.lin||'\u2014')+'</td><td>'+esc64(p.sub||'\u2014')+'</td><td class="num"><b>'+fint(r.stock)+'</b></td><td>'+ages+'</td><td class="num">'+(num(r.dispCendis)>0?'<span class="tag cr">'+fint(r.dispCendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td><td class="num">'+money(r.valorInventario)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');};
-  window.filterHealthy8664=function(){var q=norm((document.getElementById('v8664HealthyQ')||{}).value),shown=0;document.querySelectorAll('#v8664HealthyTable tbody tr').forEach(function(tr){var ok=!q||norm(tr.textContent).indexOf(q)>=0;tr.style.display=ok?'':'none';if(ok)shown++;});var c=document.getElementById('v8664HealthyCount');if(c)c.textContent=fint(shown)+' productos visibles';};
+  window.openHealthyCendis8664=function(mode){var st=store(CUR),sum=typeof inventorySummary==='function'?inventorySummary(st):{},rows=(sum.healthyRows||[]).filter(function(r){return mode==='with'?num(r.dispCendis)>0:num(r.dispCendis)<=0;}),modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(ttl)ttl.textContent='Productos sanos '+(mode==='with'?'con respaldo CENDIS':'sin respaldo CENDIS');if(sub)sub.textContent=(st.name||CUR)+' \u00b7 '+fint(rows.length)+' productos';body.innerHTML='<div class="v8664DetailTools" style="grid-template-columns:minmax(260px,1fr)"><div class="v8664Field"><label>Buscar</label><input id="v8664HealthyQ" placeholder="C\u00f3digo, producto, categor\u00eda, l\u00ednea o subl\u00ednea \u00b7 varios separados por coma" oninput="filterHealthy8664()"></div></div><div class="v8664DetailCount"><span id="v8664HealthyCount">'+fint(rows.length)+' productos</span><span>Selecciona una fila para abrir la ficha completa</span></div><div class="v80TableWrap"><table class="v80Table v8664DetailTable" id="v8664HealthyTable"><thead><tr><th>Imagen</th><th>C\u00f3digo</th><th>Producto</th><th>Categor\u00eda</th><th>L\u00ednea</th><th>Subl\u00ednea</th><th class="num">Unidades</th><th>Antig\u00fcedad</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+rows.map(function(r){var p=r.p||product(r.c),ages=Object.entries(r.rangos||{}).filter(function(e){return num(e[1])>0;}).map(function(e){return '<span class="v867Range">'+fint(e[1])+' u \u00b7 '+esc64(e[0])+'</span>';}).join('');return '<tr onclick="openBestProductDetail('+JSON.stringify(r.c)+')"><td>'+(typeof imageThumb==='function'?imageThumb(r.c,'sm'):'')+'</td><td><span class="code">'+esc64(r.c)+'</span></td><td><b>'+esc64(p.n||r.c)+'</b></td><td>'+esc64(p.cat||'\u2014')+'</td><td>'+esc64(p.lin||'\u2014')+'</td><td>'+esc64(p.sub||'\u2014')+'</td><td class="num"><b>'+fint(r.stock)+'</b></td><td>'+ages+'</td><td class="num">'+(num(r.dispCendis)>0?'<span class="tag cr">'+fint(r.dispCendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td><td class="num">'+money(r.valorInventario)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');};
+  window.filterHealthy8664=function(){var q=norm((document.getElementById('v8664HealthyQ')||{}).value),shown=0;document.querySelectorAll('#v8664HealthyTable tbody tr').forEach(function(tr){var ok=!q||window.buscaMultiple(tr.textContent,q);tr.style.display=ok?'':'none';if(ok)shown++;});var c=document.getElementById('v8664HealthyCount');if(c)c.textContent=fint(shown)+' productos visibles';};
   function removeInventoryDuplicateCards(){if(typeof VIEW==='undefined'||VIEW!=='inventario')return;var grid=document.querySelector('#content .inventoryKpis');if(!grid)return;grid.querySelectorAll('.inventoryKpi').forEach(function(c){var l=c.querySelector('.ikLabel'),x=l&&l.textContent.trim();if(x==='Pr\u00f3ximos a Rotar'||x==='Rotaci\u00f3n'||x==='Evacuaci\u00f3n')c.remove();});var healthy=Array.from(grid.querySelectorAll('.inventoryKpi')).find(function(c){var l=c.querySelector('.ikLabel');return l&&l.textContent.trim()==='Productos sanos';}),sum=typeof inventorySummary==='function'?inventorySummary(store(CUR)):{healthyRows:[]},rows=sum.healthyRows||[],withC=rows.filter(function(r){return num(r.dispCendis)>0;}).length,without=rows.length-withC;if(healthy&&!grid.querySelector('[data-v8664-healthy-with]')){healthy.insertAdjacentHTML('afterend','<div class="inventoryKpi clickableKpi" data-v8664-healthy-with onclick="openHealthyCendis8664(\'with\')"><div class="ikLabel">Sanos con respaldo CENDIS</div><div class="ikValue" style="color:var(--ok)">'+fint(withC)+'</div><div class="ikMeta">Productos sanos con disponibilidad</div></div><div class="inventoryKpi clickableKpi" data-v8664-healthy-without onclick="openHealthyCendis8664(\'without\')"><div class="ikLabel">Sanos sin respaldo CENDIS</div><div class="ikValue" style="color:var(--bad)">'+fint(without)+'</div><div class="ikMeta">Productos sanos sin disponibilidad</div></div>');}}
   function trackDates(){try{return (readDetailHistory()||[]).map(function(x){return x&&x.date;}).filter(Boolean).sort();}catch(_){return [];}}
   function formatDate(d){var m=text(d).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:text(d);}
@@ -923,7 +1149,7 @@
   window.mdRows8664=mdRowsOfficial;window.mdRows8618=mdRowsOfficial;window.mdRows8662=mdRowsOfficial;
   function reviewCounts(rows){var x={match:0,sample:0,invalid:0};rows.filter(function(r){return r.statusKey==='review';}).forEach(function(r){if(r.reviewReason==='Sin coincidencia tienda-producto')x.match++;else if(r.reviewReason==='Sin descuento muestra')x.sample++;else x.invalid++;});return x;}
   function openMdProduct(c){if(typeof openMarkdownProduct8618==='function')openMarkdownProduct8618(c);else if(typeof openBestProductDetail==='function')openBestProductDetail(c);}
-  function mdFiltered(){var rows=mdRowsOfficial(CUR).slice(),s=window.mdState8618||{},q=norm(s.q),card=s.card||'all';if(card==='manage'||card==='actionable')rows=rows.filter(function(r){return r.actionable;});else if(card==='update_sample')rows=rows.filter(function(r){return r.statusKey==='update_sample';});else if(['comply','exceed','review','no_policy'].indexOf(card)>=0)rows=rows.filter(function(r){return r.statusKey===card;});if(s.type&&s.type!=='all')rows=rows.filter(function(r){if(s.type==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(s.type==='last_unit')return r.typeKey==='fs_last';return r.typeKey===s.type;});if(s.age&&s.age!=='all')rows=rows.filter(function(r){return r.ageKey===s.age;});if(s.discount&&s.discount!=='all')rows=rows.filter(function(r){return String(r.discount)===String(s.discount);});if(s.responsible&&s.responsible!=='all')rows=rows.filter(function(r){if(r.statusKey==='review')return true;if(!r.actionable)return false;return s.responsible==='leader'?num(r.discount)>50:num(r.discount)<=50;});if(q)rows=rows.filter(function(r){return norm([r.code,r.name,r.category,r.line,r.subline,r.policyApplied,r.ruleApplied,r.statusLabel,r.reviewReason].join(' ')).indexOf(q)>=0;});return rows;}
+  function mdFiltered(){var rows=mdRowsOfficial(CUR).slice(),s=window.mdState8618||{},q=norm(s.q),card=s.card||'all';if(card==='manage'||card==='actionable')rows=rows.filter(function(r){return r.actionable;});else if(card==='update_sample')rows=rows.filter(function(r){return r.statusKey==='update_sample';});else if(['comply','exceed','review','no_policy'].indexOf(card)>=0)rows=rows.filter(function(r){return r.statusKey===card;});if(s.type&&s.type!=='all')rows=rows.filter(function(r){if(s.type==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(s.type==='last_unit')return r.typeKey==='fs_last';return r.typeKey===s.type;});if(s.age&&s.age!=='all')rows=rows.filter(function(r){return r.ageKey===s.age;});if(s.discount&&s.discount!=='all')rows=rows.filter(function(r){return String(r.discount)===String(s.discount);});if(s.responsible&&s.responsible!=='all')rows=rows.filter(function(r){if(r.statusKey==='review')return true;if(!r.actionable)return false;return s.responsible==='leader'?num(r.discount)>50:num(r.discount)<=50;});if(q)rows=rows.filter(function(r){return window.buscaMultiple([r.code,r.name,r.category,r.line,r.subline,r.policyApplied,r.ruleApplied,r.statusLabel,r.reviewReason].join(' '),q);});return rows;}
   function mdRuleHtml(rows){var act=rows.filter(function(r){return r.actionable;}),total=act.length||1,defs=[['star','Rotaci\u00f3n Estrella','k-rot'],['rest','Rotaci\u00f3n resto surtido','k-vta'],['outside','Fuera de surtido','k-evac'],['last_unit','Fuera de surtido \u00b7 \u00faltima unidad','k-evac']];return '<div class="v8618KpiGrid mdRuleGrid8648">'+defs.map(function(d){var list=act.filter(function(r){if(d[0]==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(d[0]==='last_unit')return r.typeKey==='fs_last';return r.typeKey===d[0];}),units=list.reduce(function(a,r){return a+num(r.stock);},0);return '<div class="kpi v8618Card '+d[2]+'" role="button" tabindex="0" onclick="openMdRule8664(\''+d[0]+'\')"><div class="top"><div class="ico">%</div><span class="v8618Arrow">Ver detalle \u2192</span></div><div class="lab">'+d[1]+'</div><div class="val">'+fint(list.length)+'</div><div class="sub">'+fint(units)+' u \u00b7 '+(list.length/total*100).toFixed(1)+'% de los productos a gestionar</div></div>';}).join('')+'</div>';}
   function mdPolicyHtml(rows){var act=rows.filter(function(r){return r.actionable;}),rot=act.filter(function(r){return r.policyApplied==='Rotaci\u00f3n';}),ev=act.filter(function(r){return r.policyApplied==='Evacuaci\u00f3n';}),total=act.length||1,mx=Math.max(rot.length,ev.length,1);function one(key,label,list,cls){return '<button class="mdPolicyRow8646 '+cls+'" onclick="openMdPolicy8664(\''+key+'\')"><div class="mdPolicyLabel8646"><b>'+label+'</b><span>Productos que requieren acci\u00f3n</span></div><div class="mdPolicyTrack8646"><i style="width:'+Math.max(list.length?3:0,list.length/mx*100)+'%"></i></div><div class="mdPolicyValue8646"><b>'+fint(list.length)+'</b><span>'+(list.length/total*100).toFixed(1)+'%</span></div></button>';}return '<div class="mdPolicyChart8646">'+one('rot','Rotaci\u00f3n',rot,'')+one('evac','Evacuaci\u00f3n',ev,'evac')+'</div><div class="dashboardNote">Selecciona una pol\u00edtica para abrir el detalle de productos.</div>';}
   function mdGapHtml(rows){var list=rows.filter(function(r){return r.actionable&&r.gap!=null;}).sort(function(a,b){return num(b.gap)-num(a.gap);}).slice(0,10),mx=Math.max.apply(null,list.map(function(r){return num(r.gap);}).concat([1]));return '<div class="v8618RankList">'+list.map(function(r){return '<div class="v8618RankRow" role="button" tabindex="0" onclick="openMdProduct8664('+JSON.stringify(r.code)+')"><div class="v8618RankName">'+esc64(r.name)+'</div><div class="v8618RankTrack"><div class="v8618RankFill" style="width:'+Math.max(2,num(r.gap)/mx*100)+'%;background:var(--bad)"></div></div><div class="v8618RankValue">+'+num(r.gap).toFixed(1).replace('.0','')+' pp</div></div>';}).join('')+'</div>';}
@@ -931,8 +1157,8 @@
   window.openMdPolicy8664=function(kind){mdDetailModal('Markdown \u00b7 '+(kind==='rot'?'Rotaci\u00f3n':'Evacuaci\u00f3n'),mdRowsOfficial(CUR).filter(function(r){return r.actionable&&r.policyApplied===(kind==='rot'?'Rotaci\u00f3n':'Evacuaci\u00f3n');}));};
   function mdStatusHtml(rows){var defs=[['manage','Gestionar','var(--bad)'],['update_sample','Actualizar muestra','var(--rot)'],['comply','Cumple','var(--ok)'],['exceed','Supera pol\u00edtica','var(--amb)'],['review','Revisar dato','#d58d00'],['no_policy','Sin pol\u00edtica','var(--mut)']],mx=Math.max.apply(null,defs.map(function(d){return rows.filter(function(r){return r.statusKey===d[0];}).length;}).concat([1]));return '<div class="v8664MdStatus">'+defs.map(function(d){var c=rows.filter(function(r){return r.statusKey===d[0];}).length;return '<button class="v8664MdBar" onclick="openMdStatus8664(\''+d[0]+'\')"><b>'+fint(c)+'</b><div class="v8664MdTrack"><i style="height:'+Math.max(c?4:0,c/mx*100)+'%;background:'+d[2]+'"></i></div><span>'+d[1]+'</span></button>';}).join('')+'</div>';}
   function mdAgeHtml(rows){var act=rows.filter(function(r){return r.actionable;}),mx=Math.max.apply(null,AGE.map(function(a){return act.filter(function(r){return r.ageBucket===a[0];}).length;}).concat([1]));return '<div class="v8664MdAge">'+AGE.map(function(a){var c=act.filter(function(r){return r.ageBucket===a[0];}).length;return '<button onclick="openMdAge8664(\''+a[0]+'\')"><b>'+fint(c)+'</b><div class="track"><i style="height:'+Math.max(c?4:0,c/mx*100)+'%"></i></div><span>'+a[1]+'<br>d\u00edas</span></button>';}).join('')+'</div><div class="dashboardNote">Selecciona una barra para consultar los productos a gestionar de ese rango.</div>';}
-  function mdDetailModal(title,rows){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(ttl)ttl.textContent=title;if(sub)sub.textContent=(store(CUR).name||CUR)+' \u00b7 '+fint(rows.length)+' productos';body.innerHTML='<div class="v8664DetailTools" style="grid-template-columns:minmax(240px,1fr) 180px"><div class="v8664Field"><label>Buscar</label><input id="v8664MdDetailQ" placeholder="C\u00f3digo, producto, categor\u00eda, l\u00ednea o subl\u00ednea" oninput="filterMdDetail8664()"></div><div class="v8664Field"><label>Estado</label><select id="v8664MdDetailState" onchange="filterMdDetail8664()"><option value="all">Todos</option>'+Array.from(new Set(rows.map(function(r){return r.statusKey;}))).map(function(x){return '<option value="'+x+'">'+esc64(x)+'</option>';}).join('')+'</select></div></div><div class="v8664DetailCount"><span id="v8664MdDetailCount">'+fint(rows.length)+' productos</span><span>Selecciona una fila para abrir el detalle</span></div><div class="v80TableWrap"><table class="v80Table v8664DetailTable" id="v8664MdDetailTable"><thead><tr><th>C\u00f3digo</th><th>Producto</th><th>Antig\u00fcedad</th><th>Regla</th><th class="num">Oferta</th><th class="num">Actual/Muestra</th><th class="num">Sugerido</th><th>Estado</th></tr></thead><tbody>'+rows.map(function(r){return '<tr data-status="'+r.statusKey+'" onclick="openMdProduct8664('+JSON.stringify(r.code)+')"><td><span class="code">'+esc64(r.code)+'</span></td><td><b>'+esc64(r.name)+'</b><div class="muted">'+esc64(r.category+' \u00b7 '+r.line+' \u00b7 '+r.subline)+'</div></td><td>'+esc64(r.ageLabel)+'</td><td>'+esc64(r.ruleApplied)+'</td><td class="num">'+(r.systemOfferDiscount==null?'\u2014':r.systemOfferDiscount.toFixed(1).replace('.0','')+'%')+'</td><td class="num">'+(r.currentDiscount==null?'\u2014':r.currentDiscount.toFixed(1).replace('.0','')+'%')+'</td><td class="num"><b>'+(r.discount==null?'\u2014':r.discount+'%')+'</b></td><td>'+esc64(r.statusLabel)+(r.reviewReason?'<div class="muted">'+esc64(r.reviewReason)+'</div>':'')+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');};
-  window.openMdProduct8664=openMdProduct;window.filterMdDetail8664=function(){var q=norm((document.getElementById('v8664MdDetailQ')||{}).value),st=(document.getElementById('v8664MdDetailState')||{}).value||'all',shown=0;document.querySelectorAll('#v8664MdDetailTable tbody tr').forEach(function(tr){var ok=(!q||norm(tr.textContent).indexOf(q)>=0)&&(st==='all'||tr.dataset.status===st);tr.style.display=ok?'':'none';if(ok)shown++;});var c=document.getElementById('v8664MdDetailCount');if(c)c.textContent=fint(shown)+' productos visibles';};
+  function mdDetailModal(title,rows){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(ttl)ttl.textContent=title;if(sub)sub.textContent=(store(CUR).name||CUR)+' \u00b7 '+fint(rows.length)+' productos';body.innerHTML='<div class="v8664DetailTools" style="grid-template-columns:minmax(240px,1fr) 180px"><div class="v8664Field"><label>Buscar</label><input id="v8664MdDetailQ" placeholder="C\u00f3digo, producto, categor\u00eda, l\u00ednea o subl\u00ednea \u00b7 varios separados por coma" oninput="filterMdDetail8664()"></div><div class="v8664Field"><label>Estado</label><select id="v8664MdDetailState" onchange="filterMdDetail8664()"><option value="all">Todos</option>'+Array.from(new Set(rows.map(function(r){return r.statusKey;}))).map(function(x){return '<option value="'+x+'">'+esc64(x)+'</option>';}).join('')+'</select></div></div><div class="v8664DetailCount"><span id="v8664MdDetailCount">'+fint(rows.length)+' productos</span><span>Selecciona una fila para abrir el detalle</span></div><div class="v80TableWrap"><table class="v80Table v8664DetailTable" id="v8664MdDetailTable"><thead><tr><th>C\u00f3digo</th><th>Producto</th><th>Antig\u00fcedad</th><th>Regla</th><th class="num">Oferta</th><th class="num">Actual/Muestra</th><th class="num">Sugerido</th><th>Estado</th></tr></thead><tbody>'+rows.map(function(r){return '<tr data-status="'+r.statusKey+'" onclick="openMdProduct8664('+JSON.stringify(r.code)+')"><td><span class="code">'+esc64(r.code)+'</span></td><td><b>'+esc64(r.name)+'</b><div class="muted">'+esc64(r.category+' \u00b7 '+r.line+' \u00b7 '+r.subline)+'</div></td><td>'+esc64(r.ageLabel)+'</td><td>'+esc64(r.ruleApplied)+'</td><td class="num">'+(r.systemOfferDiscount==null?'\u2014':r.systemOfferDiscount.toFixed(1).replace('.0','')+'%')+'</td><td class="num">'+(r.currentDiscount==null?'\u2014':r.currentDiscount.toFixed(1).replace('.0','')+'%')+'</td><td class="num"><b>'+(r.discount==null?'\u2014':r.discount+'%')+'</b></td><td>'+esc64(r.statusLabel)+(r.reviewReason?'<div class="muted">'+esc64(r.reviewReason)+'</div>':'')+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');};
+  window.openMdProduct8664=openMdProduct;window.filterMdDetail8664=function(){var q=norm((document.getElementById('v8664MdDetailQ')||{}).value),st=(document.getElementById('v8664MdDetailState')||{}).value||'all',shown=0;document.querySelectorAll('#v8664MdDetailTable tbody tr').forEach(function(tr){var ok=(!q||window.buscaMultiple(tr.textContent,q))&&(st==='all'||tr.dataset.status===st);tr.style.display=ok?'':'none';if(ok)shown++;});var c=document.getElementById('v8664MdDetailCount');if(c)c.textContent=fint(shown)+' productos visibles';};
   window.openMdAge8664=function(bucket){mdDetailModal('Markdown \u00b7 '+bucket+' d\u00edas',mdRowsOfficial(CUR).filter(function(r){return r.actionable&&r.ageBucket===bucket;}));};
   window.openMdStatus8664=function(status){mdDetailModal('Markdown \u00b7 '+(status==='update_sample'?'Actualizar descuento muestra':status),mdRowsOfficial(CUR).filter(function(r){return r.statusKey===status;}));};
   window.openMdActions8664=function(){mdDetailModal('Productos que requieren acci\u00f3n',mdRowsOfficial(CUR).filter(function(r){return r.actionable;}));};
@@ -943,21 +1169,52 @@
   function observation(r){return r.policyApplied+' \u00b7 '+r.ruleApplied+'. '+(r.currentDiscount==null?'Sin muestra':r.currentDiscount+'%')+' \u2192 '+r.discount+'%'+(r.statusKey==='update_sample'?' \u00b7 Oferta cubre pol\u00edtica':'');}
   function exportXls(rows,name){if(!rows.length){if(typeof toast==='function')toast('No hay productos seleccionados.','err');return;}var html='<html><head><meta charset="UTF-8"></head><body><table><tr><th>AGENCIA</th><th>COD</th><th>DCTO_LISTA</th><th>OBSERVACION</th></tr>'+rows.map(function(r){return '<tr><td>'+esc64(r.storeCode)+'</td><td>'+esc64(r.code)+'</td><td>'+Math.round(num(r.discount))+'</td><td>'+esc64(observation(r))+'</td></tr>';}).join('')+'</table></body></html>',blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.xls';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},300);}
   function leaderRows(){var out=[];Object.keys(S||{}).forEach(function(sc){mdRowsOfficial(sc).forEach(function(r){if(r.actionable&&num(r.discount)>50)out.push(Object.assign({},r,{storeName:(store(sc).name||sc)}));});});return out.sort(function(a,b){return a.storeName.localeCompare(b.storeName,'es')||num(b.discount)-num(a.discount);});}
-  window.openLeaderAll8664=function(){if(typeof IS_LEADER==='undefined'||!IS_LEADER){if(typeof toast==='function')toast('Funci\u00f3n exclusiva del L\u00edder de \u00c1rea.','err');return;}var rows=leaderRows();leaderSel={};rows.forEach(function(r){leaderSel[r.storeCode+'|'+r.code]=true;});var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(ttl)ttl.textContent='Markdown \u00b7 Todas las tiendas >50%';if(sub)sub.textContent='Funci\u00f3n exclusiva del L\u00edder de \u00c1rea';var stores=unique(rows,function(r){return r.storeName;});body.innerHTML='<div class="v8664SelectBar"><button class="v8664LeaderBtn" onclick="toggleAllLeader8664(true)">Seleccionar todos</button><button class="v8664LeaderBtn secondary" onclick="toggleAllLeader8664(false)">Quitar selecci\u00f3n</button><input id="v8664LeaderQ" placeholder="Buscar tienda, c\u00f3digo o producto" oninput="filterLeader8664()"><select id="v8664LeaderStore" onchange="filterLeader8664()">'+selectOpts(stores,'Todas las tiendas')+'</select><span class="badge mut" id="v8664LeaderCount">'+fint(rows.length)+' seleccionados</span><button class="v8664LeaderBtn" onclick="exportLeader8664()">Generar Excel consolidado</button></div><div class="v80TableWrap"><table class="v80Table v8664DetailTable" id="v8664LeaderTable"><thead><tr><th><input type="checkbox" checked onchange="toggleAllLeader8664(this.checked)"></th><th>Tienda</th><th>C\u00f3digo</th><th>Producto</th><th class="num">Actual/Muestra</th><th class="num">Oferta</th><th class="num">Sugerido</th><th>Estado</th></tr></thead><tbody>'+rows.map(function(r){var k=r.storeCode+'|'+r.code;return '<tr data-key="'+esc64(k)+'" data-store="'+esc64(r.storeName)+'"><td><input type="checkbox" checked onclick="event.stopPropagation()" onchange="toggleLeaderOne8664('+JSON.stringify(k)+',this.checked)"></td><td><b>'+esc64(r.storeName)+'</b><div class="muted">'+esc64(r.storeCode)+'</div></td><td><span class="code">'+esc64(r.code)+'</span></td><td><b>'+esc64(r.name)+'</b></td><td class="num">'+(r.currentDiscount==null?'\u2014':r.currentDiscount+'%')+'</td><td class="num">'+(r.systemOfferDiscount==null?'\u2014':r.systemOfferDiscount+'%')+'</td><td class="num"><b>'+r.discount+'%</b></td><td>'+esc64(r.statusLabel)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');};
+  window.openLeaderAll8664=function(){if(typeof IS_LEADER==='undefined'||!IS_LEADER){if(typeof toast==='function')toast('Funci\u00f3n exclusiva del L\u00edder de \u00c1rea.','err');return;}var rows=leaderRows();leaderSel={};rows.forEach(function(r){leaderSel[r.storeCode+'|'+r.code]=true;});var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(ttl)ttl.textContent='Markdown \u00b7 Todas las tiendas >50%';if(sub)sub.textContent='Funci\u00f3n exclusiva del L\u00edder de \u00c1rea';var stores=unique(rows,function(r){return r.storeName;});body.innerHTML='<div class="v8664SelectBar"><button class="v8664LeaderBtn" onclick="toggleAllLeader8664(true)">Seleccionar todos</button><button class="v8664LeaderBtn secondary" onclick="toggleAllLeader8664(false)">Quitar selecci\u00f3n</button><input id="v8664LeaderQ" placeholder="Buscar tienda, c\u00f3digo o producto \u00b7 varios separados por coma" oninput="filterLeader8664()"><select id="v8664LeaderStore" onchange="filterLeader8664()">'+selectOpts(stores,'Todas las tiendas')+'</select><span class="badge mut" id="v8664LeaderCount">'+fint(rows.length)+' seleccionados</span><button class="v8664LeaderBtn" onclick="exportLeader8664()">Generar Excel consolidado</button></div><div class="v80TableWrap"><table class="v80Table v8664DetailTable" id="v8664LeaderTable"><thead><tr><th><input type="checkbox" checked onchange="toggleAllLeader8664(this.checked)"></th><th>Tienda</th><th>C\u00f3digo</th><th>Producto</th><th class="num">Actual/Muestra</th><th class="num">Oferta</th><th class="num">Sugerido</th><th>Estado</th></tr></thead><tbody>'+rows.map(function(r){var k=r.storeCode+'|'+r.code;return '<tr data-key="'+esc64(k)+'" data-store="'+esc64(r.storeName)+'"><td><input type="checkbox" checked onclick="event.stopPropagation()" onchange="toggleLeaderOne8664('+JSON.stringify(k)+',this.checked)"></td><td><b>'+esc64(r.storeName)+'</b><div class="muted">'+esc64(r.storeCode)+'</div></td><td><span class="code">'+esc64(r.code)+'</span></td><td><b>'+esc64(r.name)+'</b></td><td class="num">'+(r.currentDiscount==null?'\u2014':r.currentDiscount+'%')+'</td><td class="num">'+(r.systemOfferDiscount==null?'\u2014':r.systemOfferDiscount+'%')+'</td><td class="num"><b>'+r.discount+'%</b></td><td>'+esc64(r.statusLabel)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');};
   function updateLeaderCount(){var n=Object.keys(leaderSel).filter(function(k){return leaderSel[k];}).length,c=document.getElementById('v8664LeaderCount');if(c)c.textContent=fint(n)+' seleccionados';}
   window.toggleAllLeader8664=function(v){document.querySelectorAll('#v8664LeaderTable tbody tr').forEach(function(tr){if(tr.style.display==='none')return;leaderSel[tr.dataset.key]=!!v;var cb=tr.querySelector('input[type=checkbox]');if(cb)cb.checked=!!v;});updateLeaderCount();};
   window.toggleLeaderOne8664=function(k,v){leaderSel[k]=!!v;updateLeaderCount();};
-  window.filterLeader8664=function(){var q=norm((document.getElementById('v8664LeaderQ')||{}).value),st=(document.getElementById('v8664LeaderStore')||{}).value||'all';document.querySelectorAll('#v8664LeaderTable tbody tr').forEach(function(tr){tr.style.display=(!q||norm(tr.textContent).indexOf(q)>=0)&&(st==='all'||tr.dataset.store===st)?'':'none';});};
+  window.filterLeader8664=function(){var q=norm((document.getElementById('v8664LeaderQ')||{}).value),st=(document.getElementById('v8664LeaderStore')||{}).value||'all';document.querySelectorAll('#v8664LeaderTable tbody tr').forEach(function(tr){tr.style.display=(!q||window.buscaMultiple(tr.textContent,q))&&(st==='all'||tr.dataset.store===st)?'':'none';});};
   window.exportLeader8664=function(){var rows=leaderRows().filter(function(r){return leaderSel[r.storeCode+'|'+r.code];});exportXls(rows,'Markdown_Lider_Todas_Tiendas_'+text(DB&&DB.meta&&DB.meta.fecha||'corte'));};
   window.exportAdmin8664=function(){if(typeof IS_ADMIN==='undefined'||!IS_ADMIN)return;var rows=mdRowsOfficial(CUR).filter(function(r){return r.actionable&&num(r.discount)<=50;});exportXls(rows,'Markdown_Administrador_'+CUR+'_'+text(DB&&DB.meta&&DB.meta.fecha||'corte'));};
   function parseDate(v){var s=text(v).slice(0,10);return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';}
   function days(a,b){if(!a||!b)return 0;var x=new Date(a+'T00:00:00'),y=new Date(b+'T00:00:00');return Math.max(0,Math.round((y-x)/86400000));}
   function trStatus(x){var raw=norm(x&&x.estatus||x&&x.statusRaw);if(raw.indexOf('ENTREG')>=0)return 'Entregado';if(raw.indexOf('RUTA')>=0)return 'En Ruta';if(raw.indexOf('PICKING')>=0)return 'En picking';if(raw.indexOf('PEND')>=0)return 'Pendiente';var p=norm(x&&x.statusGlobalPicking||x&&x.pick),m=norm(x&&x.statusMovimiento||x&&x.mov);if(p==='C'&&m==='C')return 'Entregado';if(p==='C'&&m!=='C')return 'En Ruta';return 'Pendiente';}
   function trLineKey(x){return [code(x&&x.codigo||x&&x.code),parseDate(x&&x.fechaCreacion||x&&x.created),parseDate(x&&x.fechaEntrega||x&&x.eta),String(Math.round(num(x&&x.unidades||x&&x.units)*1000)/1000)].join('|');}
-  function historyData(){try{var el=document.getElementById('embeddedHistory');return JSON.parse(el&&el.textContent||'{}')||{};}catch(_){return {};}}
-  function detailMap(cut,sc){var out={},st=cut&&cut.stores&&cut.stores[sc],arr=st&&Array.isArray(st.tr)?st.tr:[];arr.forEach(function(item){var p=text(item&&item[0]).split('|');if(p.length<6)return;var k=[code(p[0]),parseDate(p[1]),parseDate(p[2]),String(Math.round(num(p[3])*1000)/1000)].join('|'),s=trStatus({statusGlobalPicking:p[4],statusMovimiento:p[5]});(out[k]||(out[k]=[])).push(s);});return out;}
+  /* V86.270: hacia JSON.parse del historial completo en CADA llamada, y
+     transferMeta la invoca tres veces en la misma expresion. Se parsea una vez
+     por corte. Medido con el profiler: era parte de los 168 s que tardaba
+     Traslados en alcance multitienda. */
+  var _hist270=null,_histClave270='';
+  function historyData(){
+    try{
+      var el=document.getElementById('embeddedHistory');
+      var txt=(el&&el.textContent)||'{}';
+      var clave=txt.length+'|'+((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'');
+      if(_hist270&&_histClave270===clave)return _hist270;
+      _hist270=JSON.parse(txt)||{};_histClave270=clave;
+      return _hist270;
+    }catch(_){return {};}
+  }
+  /* V86.270: se reconstruia dentro del bucle de entregas, una vez por entrega y
+     por corte: ~500 entregas x 25 cortes x 3.220 filas, con norm() y parseDate()
+     en cada fila. Era el 77% del tiempo de render. Ahora se memoriza por corte
+     y tienda. */
+  var _dm270=Object.create(null);
+  function detailMap(cut,sc){
+    var ck=((cut&&cut.date)||'?')+'|'+sc+'|'+((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'');
+    if(_dm270[ck])return _dm270[ck];
+    var out={},st=cut&&cut.stores&&cut.stores[sc],arr=st&&Array.isArray(st.tr)?st.tr:[];arr.forEach(function(item){var p=text(item&&item[0]).split('|');if(p.length<6)return;var k=[code(p[0]),parseDate(p[1]),parseDate(p[2]),String(Math.round(num(p[3])*1000)/1000)].join('|'),s=trStatus({statusGlobalPicking:p[4],statusMovimiento:p[5]});(out[k]||(out[k]=[])).push(s);});_dm270[ck]=out;return out;}
   function orderStatus(rows){var st=Array.from(new Set(rows.map(trStatus)));return st.length===1?st[0]:'Mixto';}
-  function transferMeta(sc){sc=sc||CUR;var st=store(sc),current=Array.isArray(st.trDetalle)?st.trDetalle:[],groups={};current.forEach(function(r){var id=text(r.entrega||'SIN IDENTIFICAR');(groups[id]||(groups[id]=[])).push(r);});var date=parseDate(DB&&DB.meta&&DB.meta.fecha)||parseDate((historyData().details||[]).slice(-1)[0]&&historyData().details.slice(-1)[0].date),cuts=(historyData().details||[]).filter(function(x){return x&&x.date&&x.date<=date;}).sort(function(a,b){return text(a.date).localeCompare(text(b.date));}),out={};Object.keys(groups).forEach(function(id){var lines=groups[id],keys=Array.from(new Set(lines.map(trLineKey))),series=[];cuts.forEach(function(cut){var mp=detailMap(cut,sc),statuses=[],matched=0;keys.forEach(function(k){if(mp[k]&&mp[k].length){matched++;statuses=statuses.concat(mp[k]);}});var threshold=keys.length<=2?1:Math.ceil(keys.length*.35);if(matched>=threshold){var u=Array.from(new Set(statuses)),s=u.length===1?u[0]:'Mixto';series.push({date:cut.date,status:s});}});var cur=orderStatus(lines);series.push({date:date,status:cur});var byDate={};series.forEach(function(x){byDate[x.date]=x;});series=Object.keys(byDate).sort().map(function(d){return byDate[d];});var since=date;for(var i=series.length-1;i>=0;i--){if(series[i].status===cur)since=series[i].date;else break;}out[id]={status:cur,since:since,days:days(since,date),series:series};});return out;}
+  /* V86.270: la llaman patchTransferTable y patchTransferModal, y recorre todas
+     las entregas contra todos los cortes. Memorizada por tienda y corte. */
+  var _tm270=Object.create(null);
+  function transferMeta(sc){
+    sc=sc||CUR;
+    var mk=sc+'|'+((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'');
+    if(_tm270[mk])return _tm270[mk];
+    var _r270=transferMetaCalc(sc);_tm270[mk]=_r270;return _r270;
+  }
+  function transferMetaCalc(sc){sc=sc||CUR;var st=store(sc),current=Array.isArray(st.trDetalle)?st.trDetalle:[],groups={};current.forEach(function(r){var id=text(r.entrega||'SIN IDENTIFICAR');(groups[id]||(groups[id]=[])).push(r);});var date=parseDate(DB&&DB.meta&&DB.meta.fecha)||parseDate((historyData().details||[]).slice(-1)[0]&&historyData().details.slice(-1)[0].date),cuts=(historyData().details||[]).filter(function(x){return x&&x.date&&x.date<=date;}).sort(function(a,b){return text(a.date).localeCompare(text(b.date));}),out={};Object.keys(groups).forEach(function(id){var lines=groups[id],keys=Array.from(new Set(lines.map(trLineKey))),series=[];cuts.forEach(function(cut){var mp=detailMap(cut,sc),statuses=[],matched=0;keys.forEach(function(k){if(mp[k]&&mp[k].length){matched++;statuses=statuses.concat(mp[k]);}});var threshold=keys.length<=2?1:Math.ceil(keys.length*.35);if(matched>=threshold){var u=Array.from(new Set(statuses)),s=u.length===1?u[0]:'Mixto';series.push({date:cut.date,status:s});}});var cur=orderStatus(lines);series.push({date:date,status:cur});var byDate={};series.forEach(function(x){byDate[x.date]=x;});series=Object.keys(byDate).sort().map(function(d){return byDate[d];});var since=date;for(var i=series.length-1;i>=0;i--){if(series[i].status===cur)since=series[i].date;else break;}out[id]={status:cur,since:since,days:days(since,date),series:series};});return out;}
   function patchTransferTable(){if(typeof VIEW==='undefined'||VIEW!=='traslados')return;var map=transferMeta(CUR),delivery=document.querySelector('#tr-tbl table.deliveryView8615');if(delivery)delivery.querySelectorAll('tbody tr[data-delivery]').forEach(function(tr){var m=map[tr.dataset.delivery],cell=tr.cells[5];if(m&&cell){var b=cell.querySelector('b');if(b)b.textContent=m.since;var sm=cell.querySelector('small');if(sm)sm.textContent=m.days+' d\u00edas en estado';else cell.insertAdjacentHTML('beforeend','<small class="v8664TransferDays">'+m.days+' d\u00edas en estado</small>');}});var prod=document.querySelector('#tr-tbl table.productView862');if(prod)prod.querySelectorAll('tbody tr[data-delivery]').forEach(function(tr){var m=map[tr.dataset.delivery],cell=tr.cells[tr.cells.length-1];if(m&&cell&&!cell.querySelector('.v8664TransferDays'))cell.insertAdjacentHTML('beforeend','<small class="v8664TransferDays">'+m.days+' d\u00edas en este estado</small>');});}
   function patchTransferModal(id,sc){var body=document.getElementById('v80ModalBody');if(!body)return;var map=transferMeta(sc||CUR),m=map[text(id)];if(!m)return;if(!body.querySelector('.v8664TransferCurrent'))body.insertAdjacentHTML('afterbegin','<div class="v8664TransferCurrent"><span>Estado actual</span><b>'+esc64(m.status)+'</b><span>Desde '+esc64(m.since)+'</span><b>'+fint(m.days)+' d\u00edas</b></div>');var hist=body.querySelector('.transferHistory8615 table');if(hist&&!hist.dataset.v8664){hist.dataset.v8664='1';var th=document.createElement('th');th.textContent='D\u00edas en estado';hist.tHead.rows[0].appendChild(th);var start='',last='';Array.from(hist.tBodies[0].rows).forEach(function(tr){var d=parseDate(tr.cells[0].textContent),st=tr.cells[1].textContent.trim();if(st!==last){start=d;last=st;}var td=document.createElement('td');td.innerHTML='<b>'+fint(days(start,d))+'</b> d\u00edas';tr.appendChild(td);});}}
   function afterRender(){setTimeout(function(){try{structureComposition();ensureTrend();applyTrackingUi();removeInventoryDuplicateCards();ensureProxRisk();updateMarkdown();patchTransferTable();}catch(err){console.error('V86.64 post render',err);}mark();},120);}
@@ -1069,13 +1326,13 @@
       if(!invalid){if(admin>suggested+tol){status='exceed';reason='El descuento muestra supera la política';}else if(admin>=suggested-tol){status='comply';reason='El descuento muestra cumple la política';}else if(admin===0&&offer!=null&&offer>=suggested-tol){status='update_sample';reason='La oferta ya cubre la política; cargar el sugerido como descuento muestra';}else{status='manage';reason='El descuento sugerido es mayor al descuento actual de muestra';}}
       r.currentDiscount=admin;r.adminDiscount=admin;r.hasCurrentDiscountData=!invalid;r.systemOfferDiscount=offer;r.gap=invalid?null:suggested-admin;r.statusKey=status;r.statusLabel=statusLabel(status);r.actionable=status==='manage'||status==='update_sample';r.updateSample=status==='update_sample';r.reviewReason=status==='review'?reason:'';r.reason=reason;r.actionText=reason;r.currentDiscountSource='Muestra / Administrador';if(d){if(d.precioLista!=null)r.priceList=Number(d.precioLista);if(d.precioOferta!=null)r.priceOffer=Number(d.precioOferta);r.adminDate=d.fechaActualizacion||'';}else r.adminDate='';return r;});
   }
-  function mdFiltered66(sc){var rows=mdRows66(sc||CUR).slice(),s=window.mdState8618||{},q=norm(s.q),card=s.card||'all';if(card==='manage'||card==='actionable')rows=rows.filter(function(r){return r.actionable;});else if(card==='update_sample')rows=rows.filter(function(r){return r.statusKey==='update_sample';});else if(['comply','exceed','review','no_policy'].indexOf(card)>=0)rows=rows.filter(function(r){return r.statusKey===card;});if(s.type&&s.type!=='all')rows=rows.filter(function(r){if(s.type==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(s.type==='last_unit')return r.typeKey==='fs_last';return r.typeKey===s.type;});if(s.age&&s.age!=='all')rows=rows.filter(function(r){return r.ageKey===s.age;});if(s.discount&&s.discount!=='all')rows=rows.filter(function(r){return String(r.discount)===String(s.discount);});if(s.responsible&&s.responsible!=='all')rows=rows.filter(function(r){if(r.statusKey==='review')return true;if(!r.actionable)return false;return s.responsible==='leader'?num(r.discount)>50:num(r.discount)<=50;});if(q)rows=rows.filter(function(r){return norm([r.code,r.name,r.category,r.line,r.subline,r.policyApplied,r.ruleApplied,r.statusLabel,r.reviewReason].join(' ')).indexOf(q)>=0;});return rows;}
+  function mdFiltered66(sc){var rows=mdRows66(sc||CUR).slice(),s=window.mdState8618||{},q=norm(s.q),card=s.card||'all';if(card==='manage'||card==='actionable')rows=rows.filter(function(r){return r.actionable;});else if(card==='update_sample')rows=rows.filter(function(r){return r.statusKey==='update_sample';});else if(['comply','exceed','review','no_policy'].indexOf(card)>=0)rows=rows.filter(function(r){return r.statusKey===card;});if(s.type&&s.type!=='all')rows=rows.filter(function(r){if(s.type==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(s.type==='last_unit')return r.typeKey==='fs_last';return r.typeKey===s.type;});if(s.age&&s.age!=='all')rows=rows.filter(function(r){return r.ageKey===s.age;});if(s.discount&&s.discount!=='all')rows=rows.filter(function(r){return String(r.discount)===String(s.discount);});if(s.responsible&&s.responsible!=='all')rows=rows.filter(function(r){if(r.statusKey==='review')return true;if(!r.actionable)return false;return s.responsible==='leader'?num(r.discount)>50:num(r.discount)<=50;});if(q)rows=rows.filter(function(r){return window.buscaMultiple([r.code,r.name,r.category,r.line,r.subline,r.policyApplied,r.ruleApplied,r.statusLabel,r.reviewReason].join(' '),q);});return rows;}
   function responsible(r){if(r.statusKey==='review')return 'Validar dato';if(!r.actionable)return '—';return num(r.discount)>50?'Líder de Área':'Administrador';}
   function renderMdTable66(){var root=document.getElementById('markdown-table-8618');if(!root||currentView()!=='markdown')return;var rows=mdFiltered66(CUR),visible=rows.slice(0,mdLimit66);root.innerHTML='<div class="v8666MdTableWrap"><table class="v8666MdTable v8623MarkdownTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Stock</th><th>Antigüedad</th><th>Política / Regla</th><th>Descuento oferta</th><th>Descuento actual (muestra)</th><th>Fecha</th><th>Descuento sugerido</th><th>Brecha</th><th>Estado</th><th>Responsable</th></tr></thead><tbody>'+visible.map(function(r){var d=discount(CUR,r.code),date=(d&&d.fechaActualizacion)||r.adminDate||'';return '<tr data-md-product="'+esc(r.code)+'" onclick="openMdProduct8664('+JSON.stringify(r.code)+')"><td>'+image(r.code,'sm')+'</td><td><span class="code">'+esc(r.code)+'</span></td><td><div class="v8666ProductName">'+esc(r.name)+'</div><div class="v8666ProductMeta">'+esc(r.category+' · '+r.line+' · '+r.subline)+'</div></td><td class="num"><b>'+fint(r.stock)+'</b></td><td>'+esc(r.ageLabel)+'</td><td><b>'+esc(r.policyApplied)+'</b><div class="muted">'+esc(r.ruleApplied)+'</div></td><td class="num">'+pct(r.systemOfferDiscount)+'</td><td class="num"><b>'+pct(r.currentDiscount)+'</b></td><td>'+esc(dateLabel(date))+'</td><td class="num"><b>'+pct(r.discount)+'</b></td><td class="num">'+(r.gap==null?'—':(r.gap>0?'+':'')+Number(r.gap).toFixed(1).replace('.0','')+' pp')+'</td><td><span class="mdStatus31 '+(r.statusKey==='manage'?'bad':r.statusKey==='review'?'warn':r.statusKey==='no_policy'?'none':'good')+'">'+esc(r.statusLabel)+'</span></td><td>'+esc(responsible(r))+'</td></tr>';}).join('')+'</tbody></table></div>'+(rows.length>visible.length?'<div class="mdLoadMore8625"><span>Mostrando '+fint(visible.length)+' de '+fint(rows.length)+' productos</span><button onclick="loadMoreMd8666()">Mostrar más</button></div>':'');var b=document.getElementById('md-count-badge-8618');if(b)b.textContent=fint(rows.length)+' productos';}
   window.loadMoreMd8666=function(){mdLimit66+=160;renderMdTable66();};
 
-  function mdDetail66(title,rows){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(tt)tt.textContent=title;if(ss)ss.textContent=(store(CUR).name||CUR)+' · '+fint(rows.length)+' productos';var states=Array.from(new Set(rows.map(function(r){return r.statusKey;}))).sort();body.innerHTML='<div class="v8664DetailTools" style="grid-template-columns:minmax(280px,1fr) 180px"><div class="v8664Field"><label>Buscar</label><input id="v8666MdDetailQ" placeholder="Código, producto, categoría, línea o sublínea" oninput="filterMdDetail8666()"></div><div class="v8664Field"><label>Estado</label><select id="v8666MdDetailState" onchange="filterMdDetail8666()"><option value="all">Todos</option>'+states.map(function(x){return '<option value="'+esc(x)+'">'+esc(statusLabel(x))+'</option>';}).join('')+'</select></div></div><div class="v8664DetailCount"><span id="v8666MdDetailCount">'+fint(rows.length)+' productos</span><span>Selecciona una fila para abrir el detalle</span></div><div class="v80TableWrap"><table class="v80Table v8666MdDetailTable" id="v8666MdDetailTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Stock</th><th>Antigüedad</th><th>Regla</th><th class="num">Oferta</th><th class="num">Actual/Muestra</th><th class="num">Sugerido</th><th>Estado</th></tr></thead><tbody>'+rows.map(function(r){return '<tr data-status="'+esc(r.statusKey)+'" onclick="openMdProduct8664('+JSON.stringify(r.code)+')"><td>'+image(r.code,'sm')+'</td><td><span class="code">'+esc(r.code)+'</span></td><td><div class="v8666ProductName">'+esc(r.name)+'</div><div class="v8666ProductMeta">'+esc(r.category+' · '+r.line+' · '+r.subline)+'</div></td><td class="num"><b>'+fint(r.stock)+'</b></td><td>'+esc(r.ageLabel)+'</td><td>'+esc(r.ruleApplied)+'</td><td class="num">'+pct(r.systemOfferDiscount)+'</td><td class="num">'+pct(r.currentDiscount)+'</td><td class="num"><b>'+pct(r.discount)+'</b></td><td>'+esc(r.statusLabel)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');}
-  window.filterMdDetail8666=function(){var q=norm((document.getElementById('v8666MdDetailQ')||{}).value),st=(document.getElementById('v8666MdDetailState')||{}).value||'all',shown=0;document.querySelectorAll('#v8666MdDetailTable tbody tr').forEach(function(tr){var ok=(!q||norm(tr.textContent).indexOf(q)>=0)&&(st==='all'||tr.dataset.status===st);tr.style.display=ok?'':'none';if(ok)shown++;});var c=document.getElementById('v8666MdDetailCount');if(c)c.textContent=fint(shown)+' productos visibles';};
+  function mdDetail66(title,rows){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(tt)tt.textContent=title;if(ss)ss.textContent=(store(CUR).name||CUR)+' · '+fint(rows.length)+' productos';var states=Array.from(new Set(rows.map(function(r){return r.statusKey;}))).sort();body.innerHTML='<div class="v8664DetailTools" style="grid-template-columns:minmax(280px,1fr) 180px"><div class="v8664Field"><label>Buscar</label><input id="v8666MdDetailQ" placeholder="Código, producto, categoría, línea o sublínea · varios separados por coma" oninput="filterMdDetail8666()"></div><div class="v8664Field"><label>Estado</label><select id="v8666MdDetailState" onchange="filterMdDetail8666()"><option value="all">Todos</option>'+states.map(function(x){return '<option value="'+esc(x)+'">'+esc(statusLabel(x))+'</option>';}).join('')+'</select></div></div><div class="v8664DetailCount"><span id="v8666MdDetailCount">'+fint(rows.length)+' productos</span><span>Selecciona una fila para abrir el detalle</span></div><div class="v80TableWrap"><table class="v80Table v8666MdDetailTable" id="v8666MdDetailTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Stock</th><th>Antigüedad</th><th>Regla</th><th class="num">Oferta</th><th class="num">Actual/Muestra</th><th class="num">Sugerido</th><th>Estado</th></tr></thead><tbody>'+rows.map(function(r){return '<tr data-status="'+esc(r.statusKey)+'" onclick="openMdProduct8664('+JSON.stringify(r.code)+')"><td>'+image(r.code,'sm')+'</td><td><span class="code">'+esc(r.code)+'</span></td><td><div class="v8666ProductName">'+esc(r.name)+'</div><div class="v8666ProductMeta">'+esc(r.category+' · '+r.line+' · '+r.subline)+'</div></td><td class="num"><b>'+fint(r.stock)+'</b></td><td>'+esc(r.ageLabel)+'</td><td>'+esc(r.ruleApplied)+'</td><td class="num">'+pct(r.systemOfferDiscount)+'</td><td class="num">'+pct(r.currentDiscount)+'</td><td class="num"><b>'+pct(r.discount)+'</b></td><td>'+esc(r.statusLabel)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');}
+  window.filterMdDetail8666=function(){var q=norm((document.getElementById('v8666MdDetailQ')||{}).value),st=(document.getElementById('v8666MdDetailState')||{}).value||'all',shown=0;document.querySelectorAll('#v8666MdDetailTable tbody tr').forEach(function(tr){var ok=(!q||window.buscaMultiple(tr.textContent,q))&&(st==='all'||tr.dataset.status===st);tr.style.display=ok?'':'none';if(ok)shown++;});var c=document.getElementById('v8666MdDetailCount');if(c)c.textContent=fint(shown)+' productos visibles';};
   window.openMdActions8666=function(){mdDetail66('Markdown · Productos a gestionar',mdRows66(CUR).filter(function(r){return r.actionable;}));};
   window.openMdPolicy8666=function(kind){mdDetail66('Markdown · '+(kind==='rot'?'Rotación':'Evacuación'),mdRows66(CUR).filter(function(r){return r.actionable&&r.policyApplied===(kind==='rot'?'Rotación':'Evacuación');}));};
   window.openMdAge8666=function(bucket){mdDetail66('Markdown · '+bucket+' días',mdRows66(CUR).filter(function(r){return r.actionable&&r.ageBucket===bucket;}));};
@@ -1118,9 +1375,9 @@
   function observation66(r){return r.policyApplied+' · '+r.ruleApplied+'. '+pct(r.currentDiscount)+' → '+pct(r.discount)+(r.statusKey==='update_sample'?' · Oferta cubre política':'');}
   function exportMd66(rows,name){if(!rows.length){if(typeof toast==='function')toast('No hay productos seleccionados.','err');return;}var data=[['AGENCIA','COD','DCTO_LISTA','OBSERVACION']].concat(rows.map(function(r){return [r.storeCode,r.code,Math.round(num(r.discount)),observation66(r)];}));if(window.XLSX){var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(data);ws['!cols']=[{wch:12},{wch:16},{wch:14},{wch:72}];XLSX.utils.book_append_sheet(wb,ws,'Markdown');XLSX.writeFile(wb,name+'.xlsx');return;}var html='<html><head><meta charset="UTF-8"></head><body><table>'+data.map(function(row){return '<tr>'+row.map(function(c){return '<td>'+esc(c)+'</td>';}).join('')+'</tr>';}).join('')+'</table></body></html>',blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.xls';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},300);}
   function leaderRows66(){var out=[];Object.keys(S||{}).forEach(function(sc){mdRows66(sc).forEach(function(r){if(r.actionable&&num(r.discount)>50)out.push(Object.assign({},r,{storeName:(store(sc).name||sc)}));});});return out.sort(function(a,b){return a.storeName.localeCompare(b.storeName,'es')||num(b.discount)-num(a.discount);});}
-  window.openLeaderAll8664=function(){if(typeof IS_LEADER==='undefined'||!IS_LEADER){if(typeof toast==='function')toast('Función exclusiva del Líder de Área.','err');return;}var rows=leaderRows66();leaderSel66={};rows.forEach(function(r){leaderSel66[r.storeCode+'|'+r.code]=true;});var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(tt)tt.textContent='Markdown · Todas las tiendas >50%';if(ss)ss.textContent='Selecciona, deselecciona y genera el Excel consolidado';var stores=Array.from(new Set(rows.map(function(r){return r.storeName;}))).sort();body.innerHTML='<div class="v8664SelectBar"><button class="v8664LeaderBtn" onclick="toggleAllLeader8666(true)">Seleccionar todos</button><button class="v8664LeaderBtn secondary" onclick="toggleAllLeader8666(false)">Quitar selección</button><input id="v8666LeaderQ" placeholder="Buscar tienda, código o producto" oninput="filterLeader8666()"><select id="v8666LeaderStore" onchange="filterLeader8666()"><option value="all">Todas las tiendas</option>'+stores.map(function(s){return '<option value="'+esc(s)+'">'+esc(s)+'</option>';}).join('')+'</select><span class="badge mut" id="v8666LeaderCount">'+fint(rows.length)+' seleccionados</span><button class="v8664LeaderBtn" onclick="exportLeader8666()">Generar Excel consolidado</button></div><div class="v80TableWrap"><table class="v80Table v8666MdDetailTable" id="v8666LeaderTable"><thead><tr><th><input type="checkbox" checked onchange="toggleAllLeader8666(this.checked)"></th><th>Imagen</th><th>Tienda</th><th>Código</th><th>Producto</th><th class="num">Actual/Muestra</th><th class="num">Oferta</th><th class="num">Sugerido</th><th>Estado</th></tr></thead><tbody>'+rows.map(function(r){var k=r.storeCode+'|'+r.code;return '<tr data-key="'+esc(k)+'" data-store="'+esc(r.storeName)+'"><td><input type="checkbox" checked onclick="event.stopPropagation()" onchange="toggleLeaderOne8666('+JSON.stringify(k)+',this.checked)"></td><td>'+image(r.code,'sm')+'</td><td><b>'+esc(r.storeName)+'</b></td><td><span class="code">'+esc(r.code)+'</span></td><td><b>'+esc(r.name)+'</b></td><td class="num">'+pct(r.currentDiscount)+'</td><td class="num">'+pct(r.systemOfferDiscount)+'</td><td class="num"><b>'+pct(r.discount)+'</b></td><td>'+esc(r.statusLabel)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');};
+  window.openLeaderAll8664=function(){if(typeof IS_LEADER==='undefined'||!IS_LEADER){if(typeof toast==='function')toast('Función exclusiva del Líder de Área.','err');return;}var rows=leaderRows66();leaderSel66={};rows.forEach(function(r){leaderSel66[r.storeCode+'|'+r.code]=true;});var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;modal.classList.add('v8664Wide');if(tt)tt.textContent='Markdown · Todas las tiendas >50%';if(ss)ss.textContent='Selecciona, deselecciona y genera el Excel consolidado';var stores=Array.from(new Set(rows.map(function(r){return r.storeName;}))).sort();body.innerHTML='<div class="v8664SelectBar"><button class="v8664LeaderBtn" onclick="toggleAllLeader8666(true)">Seleccionar todos</button><button class="v8664LeaderBtn secondary" onclick="toggleAllLeader8666(false)">Quitar selección</button><input id="v8666LeaderQ" placeholder="Buscar tienda, código o producto · varios separados por coma" oninput="filterLeader8666()"><select id="v8666LeaderStore" onchange="filterLeader8666()"><option value="all">Todas las tiendas</option>'+stores.map(function(s){return '<option value="'+esc(s)+'">'+esc(s)+'</option>';}).join('')+'</select><span class="badge mut" id="v8666LeaderCount">'+fint(rows.length)+' seleccionados</span><button class="v8664LeaderBtn" onclick="exportLeader8666()">Generar Excel consolidado</button></div><div class="v80TableWrap"><table class="v80Table v8666MdDetailTable" id="v8666LeaderTable"><thead><tr><th><input type="checkbox" checked onchange="toggleAllLeader8666(this.checked)"></th><th>Imagen</th><th>Tienda</th><th>Código</th><th>Producto</th><th class="num">Actual/Muestra</th><th class="num">Oferta</th><th class="num">Sugerido</th><th>Estado</th></tr></thead><tbody>'+rows.map(function(r){var k=r.storeCode+'|'+r.code;return '<tr data-key="'+esc(k)+'" data-store="'+esc(r.storeName)+'"><td><input type="checkbox" checked onclick="event.stopPropagation()" onchange="toggleLeaderOne8666('+JSON.stringify(k)+',this.checked)"></td><td>'+image(r.code,'sm')+'</td><td><b>'+esc(r.storeName)+'</b></td><td><span class="code">'+esc(r.code)+'</span></td><td><b>'+esc(r.name)+'</b></td><td class="num">'+pct(r.currentDiscount)+'</td><td class="num">'+pct(r.systemOfferDiscount)+'</td><td class="num"><b>'+pct(r.discount)+'</b></td><td>'+esc(r.statusLabel)+'</td></tr>';}).join('')+'</tbody></table></div>';modal.classList.add('on');};
   function leaderCount66(){var n=Object.keys(leaderSel66).filter(function(k){return leaderSel66[k];}).length,c=document.getElementById('v8666LeaderCount');if(c)c.textContent=fint(n)+' seleccionados';}
-  window.toggleAllLeader8666=function(v){document.querySelectorAll('#v8666LeaderTable tbody tr').forEach(function(tr){if(tr.style.display==='none')return;leaderSel66[tr.dataset.key]=!!v;var cb=tr.querySelector('input[type=checkbox]');if(cb)cb.checked=!!v;});leaderCount66();};window.toggleLeaderOne8666=function(k,v){leaderSel66[k]=!!v;leaderCount66();};window.filterLeader8666=function(){var q=norm((document.getElementById('v8666LeaderQ')||{}).value),st=(document.getElementById('v8666LeaderStore')||{}).value||'all';document.querySelectorAll('#v8666LeaderTable tbody tr').forEach(function(tr){tr.style.display=(!q||norm(tr.textContent).indexOf(q)>=0)&&(st==='all'||tr.dataset.store===st)?'':'none';});};window.exportLeader8666=function(){var rows=leaderRows66().filter(function(r){return leaderSel66[r.storeCode+'|'+r.code];});exportMd66(rows,'Markdown_Lider_Todas_Tiendas_'+text(DB&&DB.meta&&DB.meta.fecha||'corte'));};window.exportAdmin8664=function(){if(typeof IS_ADMIN==='undefined'||!IS_ADMIN)return;exportMd66(mdRows66(CUR).filter(function(r){return r.actionable&&num(r.discount)<=50;}),'Markdown_Administrador_'+CUR+'_'+text(DB&&DB.meta&&DB.meta.fecha||'corte'));};
+  window.toggleAllLeader8666=function(v){document.querySelectorAll('#v8666LeaderTable tbody tr').forEach(function(tr){if(tr.style.display==='none')return;leaderSel66[tr.dataset.key]=!!v;var cb=tr.querySelector('input[type=checkbox]');if(cb)cb.checked=!!v;});leaderCount66();};window.toggleLeaderOne8666=function(k,v){leaderSel66[k]=!!v;leaderCount66();};window.filterLeader8666=function(){var q=norm((document.getElementById('v8666LeaderQ')||{}).value),st=(document.getElementById('v8666LeaderStore')||{}).value||'all';document.querySelectorAll('#v8666LeaderTable tbody tr').forEach(function(tr){tr.style.display=(!q||window.buscaMultiple(tr.textContent,q))&&(st==='all'||tr.dataset.store===st)?'':'none';});};window.exportLeader8666=function(){var rows=leaderRows66().filter(function(r){return leaderSel66[r.storeCode+'|'+r.code];});exportMd66(rows,'Markdown_Lider_Todas_Tiendas_'+text(DB&&DB.meta&&DB.meta.fecha||'corte'));};window.exportAdmin8664=function(){if(typeof IS_ADMIN==='undefined'||!IS_ADMIN)return;exportMd66(mdRows66(CUR).filter(function(r){return r.actionable&&num(r.discount)<=50;}),'Markdown_Administrador_'+CUR+'_'+text(DB&&DB.meta&&DB.meta.fecha||'corte'));};
 
   function mark66(){try{window.LLAVERO_BUILD=VERSION;document.documentElement.setAttribute('data-llavero-build',VERSION);document.documentElement.setAttribute('data-llavero-app-version',VERSION);var chip=document.querySelector('.appVersionChip b');if(chip)chip.textContent='11/08/2026 · '+VERSION;document.title='Llavero · Inventarios Jamar · 11/08/2026 · '+VERSION;}catch(_){}}
   function patch66(){try{patchInventory66();patchProxSummary66();beautifyComposition66();ensureTrend66();patchTracking66();updateMarkdown66();patchTransfers66();mark66();}catch(e){console.error('V86.66 patch',e);}}
@@ -1226,15 +1483,45 @@
 
   /* Traslados: una regla visual simple. Checked = ENVIAR; unchecked = ELIMINAR. */
   function trStatus67(r){var raw=norm(r&&r.estatus||r&&r.statusRaw);if(raw.indexOf('ENTREG')>=0)return'Entregado';if(raw.indexOf('RUTA')>=0)return'En Ruta';if(raw.indexOf('PICKING')>=0)return'En picking';if(raw.indexOf('PEND')>=0)return'Pendiente';var p=norm(r&&r.statusGlobalPicking||r&&r.pick),m=norm(r&&r.statusMovimiento||r&&r.mov);if(p==='C'&&m==='C')return'Entregado';if(p==='C'&&m!=='C')return'En Ruta';return'Pendiente';}
+  /* V86.269 · indice de posiciones de guia por codigo, memorizado por tienda y
+     corte. Convierte una busqueda que era O(filas x guias x posiciones) en una
+     sola pasada mas consultas O(1). */
+  var _idx269=null,_idxClave269='',_recon269=false;
+  function indiceGuias269(){
+    var cur=(typeof CUR!=='undefined'?CUR:''),fec='';
+    try{fec=s(DB&&DB.meta&&DB.meta.fecha)}catch(_){}
+    var clave=cur+'|'+fec;
+    if(_idx269&&_idxClave269===clave)return _idx269;
+    var store=st();
+    if((!Array.isArray(store.guias)||!store.guias.length)&&!_recon269&&
+       typeof window.llaveroRebuildAllGuideData==='function'){
+      _recon269=true;                 /* una sola vez, no una por fila */
+      try{window.llaveroRebuildAllGuideData();store=st()}catch(_){}
+    }
+    var idx=Object.create(null);
+    (Array.isArray(store.guias)?store.guias:[]).forEach(function(g){
+      (Array.isArray(g&&g[6])?g[6]:[]).forEach(function(p){
+        if(!p||!p[10]||s(p[5])!=='camino')return;
+        var c=s(p[0]);if(!c)return;
+        (idx[c]||(idx[c]=[])).push({g:g[0],n:g[1],f:p[1]});
+      });
+    });
+    _idx269=idx;_idxClave269=clave;return idx;
+  }
+
   function transferGuideImpacts67(code){
     code=s(code);var out=[],seen={};
     function add(gcode,gname,floor){var k=s(gcode)+'|'+s(floor);if(seen[k])return;seen[k]=1;out.push({code:s(gcode),name:s(gname)||s(gcode),floor:s(floor)||'—'});}
     try{
-      var store=st();
-      if((!Array.isArray(store.guias)||!store.guias.length)&&typeof window.llaveroRebuildAllGuideData==='function'){window.llaveroRebuildAllGuideData();store=st();}
-      (Array.isArray(store.guias)?store.guias:[]).forEach(function(g){
-        (Array.isArray(g&&g[6])?g[6]:[]).forEach(function(p){if(s(p&&p[0])===code&&!!p[10]&&s(p[5])==='camino')add(g[0],g[1],p[1]);});
-      });
+      /* V86.269: antes se recorrian TODAS las guias con TODAS sus posiciones por
+         cada codigo consultado, y si la tienda no tenia guias construidas se
+         llamaba a llaveroRebuildAllGuideData() dentro de ese recorrido. En la
+         vista de Lider de area con alcance multitienda son 3.220 filas de
+         traslado contra 126 guias: la pantalla se congelaba. Ahora el indice
+         codigo -> posiciones se arma UNA vez por tienda y corte, y la
+         reconstruccion se intenta una sola vez. */
+      var idx=indiceGuias269();
+      (idx[code]||[]).forEach(function(x){add(x.g,x.n,x.f);});
     }catch(_){ }
     /* Respaldo directo sobre la guía consolidada: solo posiciones evaluables y sin existencia actual. */
     if(!out.length){
@@ -1248,9 +1535,35 @@
     }
     return out;
   }
-  function transferConditionSets67(){var store=st(),rot=new Set(),evac=new Set();(Array.isArray(store.rot)?store.rot:[]).forEach(function(r){rot.add(s(r&&r[0]));});(Array.isArray(store.evac)?store.evac:[]).forEach(function(r){evac.add(s(r&&r[0]));});return{rot:rot,evac:evac};}
+  /* V86.269: se llamaba una vez por fila de traslado y reconstruia los dos
+     conjuntos recorriendo rot y evac completos. Con el alcance multitienda del
+     Lider son ~10.000 filas de rotacion y evacuacion por cada una de las 544
+     filas en pantalla. Ahora se memoriza por tienda y corte. */
+  var _cond269=null,_condClave269='';
+  function transferConditionSets67(){
+    var cur=(typeof CUR!=='undefined'?CUR:''),fec='';
+    try{fec=s(DB&&DB.meta&&DB.meta.fecha)}catch(_){}
+    var clave=cur+'|'+fec;
+    if(_cond269&&_condClave269===clave)return _cond269;
+    var store=st(),rot=new Set(),evac=new Set();
+    (Array.isArray(store.rot)?store.rot:[]).forEach(function(r){rot.add(s(r&&r[0]));});
+    (Array.isArray(store.evac)?store.evac:[]).forEach(function(r){evac.add(s(r&&r[0]));});
+    _cond269={rot:rot,evac:evac};_condClave269=clave;return _cond269;
+  }
+  /* transferImpacts67(code) tambien se invoca varias veces por fila (una para
+     pintar el impacto y otra para filtrar por tipo). Se memoriza igual. */
+  var _imp269=Object.create(null),_impClave269='';
+  function impactosMemo269(code){
+    var cur=(typeof CUR!=='undefined'?CUR:''),fec='';
+    try{fec=s(DB&&DB.meta&&DB.meta.fecha)}catch(_){}
+    var clave=cur+'|'+fec;
+    if(_impClave269!==clave){_imp269=Object.create(null);_impClave269=clave}
+    var k=s(code);
+    if(!(k in _imp269))_imp269[k]=transferImpacts67(k);
+    return _imp269[k];
+  }
   function transferImpacts67(code){var sets=transferConditionSets67(),guides=transferGuideImpacts67(code),items=[];guides.forEach(function(g){items.push({kind:'amb',title:'Ambiente '+(g.code||g.name),sub:(g.name&&g.name!==g.code?g.name+' · ':'')+'Piso '+g.floor,guide:g});});if(sets.rot.has(s(code)))items.push({kind:'rot',title:'Rotación',sub:'Antigüedad mayor a 90 días'});if(sets.evac.has(s(code)))items.push({kind:'evac',title:'Evacuación',sub:'Producto fuera de surtido'});if(!items.length)items.push({kind:'none',title:'Sin condición',sub:'No impacta ambientes, rotación ni evacuación'});return items;}
-  function transferImpactHtml67(code){return '<div class="v155ImpactStack">'+transferImpacts67(code).map(function(x){return '<div class="v155ImpactItem '+x.kind+'"><i></i><div><b>'+esc(x.title)+'</b><small>'+esc(x.sub)+'</small></div></div>';}).join('')+'</div>';}
+  function transferImpactHtml67(code){return '<div class="v155ImpactStack">'+impactosMemo269(code).map(function(x){return '<div class="v155ImpactItem '+x.kind+'"><i></i><div><b>'+esc(x.title)+'</b><small>'+esc(x.sub)+'</small></div></div>';}).join('')+'</div>';}
   function pending67(){
     var arr=(Array.isArray(st().trDetalle)?st().trDetalle:[]).filter(function(r){return trStatus67(r)==='Pendiente';}),orders={};
     arr.forEach(function(r){var id=s(r.entrega||'SIN IDENTIFICAR'),code=s(r.codigo),o=orders[id]||(orders[id]={id:id,byCode:{}}),x=o.byCode[code];if(!x){x=o.byCode[code]=Object.assign({},r);x.unidades=0;x.__statuses=new Set();}x.unidades+=n(r.unidades);x.__statuses.add(trStatus67(r));});
@@ -1288,7 +1601,7 @@
       var rows=o.rows.filter(function(r){
         var c=s(r.codigo);
         if(q&&norm(o.id+' '+c+' '+s(r.nombre)).indexOf(q)<0)return false;
-        if(impactFilter){var kinds=transferImpacts67(c).map(function(x){return x.kind;});if(kinds.indexOf(impactFilter)<0)return false;}
+        if(impactFilter){var kinds=impactosMemo269(c).map(function(x){return x.kind;});if(kinds.indexOf(impactFilter)<0)return false;}
         return true;
       });
       if(!rows.length)return'';
@@ -1700,7 +2013,7 @@ function isGift(r){var p=prod(r.code),t=norm([r.name,p.n,r.category,p.cat,r.line
 function classOf(r){var p=prod(r.code),x=norm(r.cc||p.cc||'');if(x.indexOf('CORE')>=0)return'CORE';if(x.indexOf('COMPLEMENT')>=0)return'COMPLEMENTO';return'SIN CLASIFICACIÓN'}
 function correctedRows(sc){sc=sc||CUR;var raw=[];try{raw=(baseRows?baseRows(sc):[]).slice()}catch(_){raw=[]}return raw.filter(function(r){return r&&!isGift(r)}).map(function(r){r=Object.assign({},r);r.cc=classOf(r);var sug=nullable(r.discount),cur=nullable(r.currentDiscount),offer=nullable(r.systemOfferDiscount),tol=.049,key=r.statusKey,reason=r.reason||'';if(cur==null)cur=0;if(sug==null){key='no_policy';r.statusLabel='Sin política';}else if(key==='review'){r.statusLabel='Revisar dato';}else if(cur>sug+tol){key='exceed';r.statusLabel='Supera política';reason='El descuento muestra supera la política.';}else if(cur>=sug-tol){key='comply';r.statusLabel='Cumple política';reason='El descuento muestra cumple la política.';}else if(offer!=null&&offer>=sug-tol){key='offer_covered';r.statusLabel='Oferta ya supera sugerido';reason='La oferta comercial ya cubre o supera la política. No requiere actualización del descuento muestra.';}else{key='manage';r.statusLabel='Gestionar descuento';reason='El descuento sugerido es mayor al descuento muestra y la oferta no cubre la política.';}r.currentDiscount=cur;r.adminDiscount=cur;r.gap=sug==null?null:sug-cur;r.statusKey=key;r.actionable=key==='manage';r.updateSample=false;r.reason=reason;r.actionText=reason;if(key!=='manage')r.impact=0;return r;});}
 function mdState(){window.mdState8618=window.mdState8618||{};return window.mdState8618}
-function filteredRows(sc){var rows=correctedRows(sc),f=mdState(),q=norm(f.q||'');if(f.card&&f.card!=='all'&&f.card!=='actionable')rows=rows.filter(function(r){return r.statusKey===f.card});else if(f.card==='actionable')rows=rows.filter(function(r){return r.statusKey==='manage'});if(f.type&&f.type!=='all')rows=rows.filter(function(r){if(f.type==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(f.type==='last_unit')return r.typeKey==='fs_last';return r.typeKey===f.type});if(f.age&&f.age!=='all')rows=rows.filter(function(r){return r.ageKey===f.age});if(f.discount&&f.discount!=='all')rows=rows.filter(function(r){return String(r.discount)===String(f.discount)});if(f.responsible&&f.responsible!=='all')rows=rows.filter(function(r){if(r.statusKey!=='manage')return false;return f.responsible==='leader'?n(r.discount)>50:n(r.discount)<=50});if(f.classification&&f.classification!=='all')rows=rows.filter(function(r){return r.cc===f.classification});if(f.policyGroup==='rot')rows=rows.filter(function(r){return norm(r.policyApplied).indexOf('ROT')>=0});else if(f.policyGroup==='evac')rows=rows.filter(function(r){return norm(r.policyApplied).indexOf('EVAC')>=0});if(q)rows=rows.filter(function(r){return norm([r.code,r.name,r.category,r.line,r.subline,r.cc,r.policyApplied,r.ruleApplied,r.statusLabel].join(' ')).indexOf(q)>=0});return rows}
+function filteredRows(sc){var rows=correctedRows(sc),f=mdState(),q=norm(f.q||'');if(f.card&&f.card!=='all'&&f.card!=='actionable')rows=rows.filter(function(r){return r.statusKey===f.card});else if(f.card==='actionable')rows=rows.filter(function(r){return r.statusKey==='manage'});if(f.type&&f.type!=='all')rows=rows.filter(function(r){if(f.type==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(f.type==='last_unit')return r.typeKey==='fs_last';return r.typeKey===f.type});if(f.age&&f.age!=='all')rows=rows.filter(function(r){return r.ageKey===f.age});if(f.discount&&f.discount!=='all')rows=rows.filter(function(r){return String(r.discount)===String(f.discount)});if(f.responsible&&f.responsible!=='all')rows=rows.filter(function(r){if(r.statusKey!=='manage')return false;return f.responsible==='leader'?n(r.discount)>50:n(r.discount)<=50});if(f.classification&&f.classification!=='all')rows=rows.filter(function(r){return r.cc===f.classification});if(f.policyGroup==='rot')rows=rows.filter(function(r){return norm(r.policyApplied).indexOf('ROT')>=0});else if(f.policyGroup==='evac')rows=rows.filter(function(r){return norm(r.policyApplied).indexOf('EVAC')>=0});if(q)rows=rows.filter(function(r){return window.buscaMultiple([r.code,r.name,r.category,r.line,r.subline,r.cc,r.policyApplied,r.ruleApplied,r.statusLabel].join(' '),q)});return rows}
 function statusClass(r){if(r.statusKey==='manage')return'bad';if(r.statusKey==='review')return'warn';if(r.statusKey==='no_policy')return'none';if(r.statusKey==='offer_covered')return'warn';return'good'}
 function selectionMemory(){var key='llavero_markdown_gestion_v8623_'+s(DB&&DB.meta&&DB.meta.fecha||'SIN_CORTE').replace(/[^0-9A-Za-z_-]+/g,'_');try{return {key:key,data:JSON.parse(localStorage.getItem(key)||'{"items":{}}')}}catch(_){return {key:key,data:{items:{}}}}}
 function selected(sc,c){var m=selectionMemory().data;return !!(m.items&&m.items[s(sc)+'|'+s(c)])}
@@ -2154,7 +2467,7 @@ function needsGenericFilters(body,table){if(!body||!table)return false;if(table.
 function addGenericFilters(modal,body,table){if(!needsGenericFilters(body,table))return;var ths=Array.prototype.slice.call(table.querySelectorAll('thead th')),title=norm(modalTitle(modal)),fields=[];ths.forEach(function(th,i){var key=headerKey(th.textContent);if(!filterAllowed(key))return;var vals=optionsFor(table,i);if(vals.length<2||vals.length>24)return;if(key==='antiguedad'&&/(0.?60|61.?90|91.?120|91.?150|121.?150|151.?180|181.?210|211.?240|241.?360|\+?360)/.test(title))return;if(key==='clasificacion'&&(title.indexOf('CORE')>=0||title.indexOf('COMPLEMENTO')>=0||title.indexOf('SIN CLASIFIC')>=0))return;fields.push({key:key,idx:i,label:s(th.textContent).trim(),values:vals})});
  var box=document.createElement('div');box.className='ux104Filters';box.dataset.ux104Filters='1';box.innerHTML='<div class="ux104Field"><label>Búsqueda rápida</label><input type="search" data-ux104-q placeholder="Código, producto o texto visible..."></div>'+fields.map(function(f){return'<div class="ux104Field"><label>'+esc(f.label)+'</label><select data-ux104-filter="'+f.idx+'"><option value="">Todos</option>'+f.values.map(function(v){return'<option value="'+esc(norm(v))+'">'+esc(v)+'</option>'}).join('')+'</select></div>'}).join('')+'<div class="ux104Field"><label>Acción</label><button type="button" data-ux104-clear>Limpiar filtros</button></div><div class="ux104FilterCount" data-ux104-count></div>';
  var anchor=table.closest('.ux104DetailTableWrap')||table.parentElement||table;anchor.parentNode.insertBefore(box,anchor);
- function apply(){var q=norm((box.querySelector('[data-ux104-q]')||{}).value||''),selects=Array.prototype.slice.call(box.querySelectorAll('[data-ux104-filter]')),shown=0;visibleRows(table).forEach(function(r){var ok=!q||norm(r.textContent).indexOf(q)>=0;if(ok)selects.forEach(function(sel){if(!ok||!sel.value)return;var idx=Number(sel.dataset.ux104Filter),v=norm(r.cells[idx]&&r.cells[idx].textContent);if(v!==sel.value)ok=false});r.style.display=ok?'':'none';if(ok)shown++});var c=box.querySelector('[data-ux104-count]');if(c)c.textContent=fi(shown)+' de '+fi(visibleRows(table).length)+' productos'}
+ function apply(){var q=norm((box.querySelector('[data-ux104-q]')||{}).value||''),selects=Array.prototype.slice.call(box.querySelectorAll('[data-ux104-filter]')),shown=0;visibleRows(table).forEach(function(r){var ok=!q||window.buscaMultiple(r.textContent,q);if(ok)selects.forEach(function(sel){if(!ok||!sel.value)return;var idx=Number(sel.dataset.ux104Filter),v=norm(r.cells[idx]&&r.cells[idx].textContent);if(v!==sel.value)ok=false});r.style.display=ok?'':'none';if(ok)shown++});var c=box.querySelector('[data-ux104-count]');if(c)c.textContent=fi(shown)+' de '+fi(visibleRows(table).length)+' productos'}
  box.querySelector('[data-ux104-q]').addEventListener('input',apply);box.querySelectorAll('select').forEach(function(x){x.addEventListener('change',apply)});box.querySelector('[data-ux104-clear]').onclick=function(){box.querySelector('[data-ux104-q]').value='';box.querySelectorAll('select').forEach(function(x){x.value=''});apply()};apply()
 }
 function standardizeExistingFilters(body){if(!body)return;body.querySelectorAll('.v866Filters,.v866ListFilters,.v8664DetailTools,.v8692MdDetailFilters,.v8695MdFilters,.v80Filters').forEach(function(x){x.classList.add('ux104ExistingFilters')})}
@@ -2239,7 +2552,7 @@ function openModal108(title,sub,html){var b=modal108(),t=document.getElementById
 function floorRows108(floor){var st=(typeof S!=='undefined'&&S&&S[CUR])||{},gm=guideStateMap108(),rows=[];(Array.isArray(st.guias)?st.guias:[]).forEach(function(g){var gc=s(g&&g[0]),gn=s(g&&g[1]||'Guía'),gcat=s(g&&g[2]||'');(Array.isArray(g&&g[6])?g[6]:[]).forEach(function(p){var pf=s(p&&p[1]||'3');if(pf!==String(floor))return;var c=code108(p&&p[0]),prod=product108(c),stt=status108(p);rows.push({code:c,name:s(p&&p[6]||prod.n||c),cc:class108(c),cat:s(prod.cat||'—'),lin:s(prod.lin||'—'),sub:s(prod.sub||'—'),guideCode:gc,guideName:gn,guideCat:gcat,guideState:gm[gc+'|'+c+'|'+pf]||'Sin dato',status:stt.text,statusClass:stt.cls,covered:stt.covered,canSum:p&&p[2],inv:num108(p&&p[11]),canMin:p&&p[3],cendis:p&&p[9]?num108(p&&p[4]):null})})});return rows}
 function unique108(rows,key){return Array.from(new Set(rows.map(function(r){return s(r[key]).trim()}).filter(Boolean))).sort(function(a,b){return a.localeCompare(b,'es')})}
 function opts108(arr){return '<option value="">Todos</option>'+arr.map(function(v){return '<option value="'+esc108(norm(v))+'">'+esc108(v)+'</option>'}).join('')}
-function applyFloorFilters108(){var body=document.getElementById('v80ModalBody');if(!body)return;var q=norm((body.querySelector('[data-v108-q]')||{}).value||''),cl=(body.querySelector('[data-v108-class]')||{}).value||'',cat=(body.querySelector('[data-v108-cat]')||{}).value||'',lin=(body.querySelector('[data-v108-lin]')||{}).value||'',sub=(body.querySelector('[data-v108-sub]')||{}).value||'',shown=0;body.querySelectorAll('.v108FloorTable tbody tr[data-code]').forEach(function(tr){var ok=(!q||norm(tr.textContent).indexOf(q)>=0)&&(!cl||tr.dataset.class===cl)&&(!cat||tr.dataset.cat===cat)&&(!lin||tr.dataset.lin===lin)&&(!sub||tr.dataset.sub===sub);tr.classList.toggle('v108-filtered-out',!ok);if(ok)shown++});var c=body.querySelector('[data-v108-count]');if(c)c.textContent=fi108(shown)+' productos'}
+function applyFloorFilters108(){var body=document.getElementById('v80ModalBody');if(!body)return;var q=norm((body.querySelector('[data-v108-q]')||{}).value||''),cl=(body.querySelector('[data-v108-class]')||{}).value||'',cat=(body.querySelector('[data-v108-cat]')||{}).value||'',lin=(body.querySelector('[data-v108-lin]')||{}).value||'',sub=(body.querySelector('[data-v108-sub]')||{}).value||'',shown=0;body.querySelectorAll('.v108FloorTable tbody tr[data-code]').forEach(function(tr){var ok=(!q||window.buscaMultiple(tr.textContent,q))&&(!cl||tr.dataset.class===cl)&&(!cat||tr.dataset.cat===cat)&&(!lin||tr.dataset.lin===lin)&&(!sub||tr.dataset.sub===sub);tr.classList.toggle('v108-filtered-out',!ok);if(ok)shown++});var c=body.querySelector('[data-v108-count]');if(c)c.textContent=fi108(shown)+' productos'}
 window.clearFloorFilters108=function(){var body=document.getElementById('v80ModalBody');if(!body)return;body.querySelectorAll('.v108HierarchyFilters input,.v108HierarchyFilters select').forEach(function(x){x.value=''});applyFloorFilters108()}
 window.openAmbFloorDetail108=function(floor){var rows=floorRows108(floor),covered=rows.filter(function(r){return r.covered}).length,unique=new Set(rows.map(function(r){return r.code})).size,pending=Math.max(0,rows.length-covered),st=(typeof S!=='undefined'&&S&&S[CUR])||{},title='Ambientes · Piso '+floor+(String(floor)==='3'?' · Informativo':'');var filters='<div class="v108HierarchyFilters"><div class="v108Field"><label>Búsqueda rápida</label><input data-v108-q type="search" placeholder="Código, producto o ambiente..."></div><div class="v108Field"><label>Clasificación</label><select data-v108-class>'+opts108(unique108(rows,'cc'))+'</select></div><div class="v108Field"><label>Categoría</label><select data-v108-cat>'+opts108(unique108(rows,'cat'))+'</select></div><div class="v108Field"><label>Línea</label><select data-v108-lin>'+opts108(unique108(rows,'lin'))+'</select></div><div class="v108Field"><label>Sublínea</label><select data-v108-sub>'+opts108(unique108(rows,'sub'))+'</select></div><div class="v108Field"><label>Acción</label><button type="button" onclick="clearFloorFilters108()">Limpiar filtros</button></div><div class="v108Count" data-v108-count>'+fi108(rows.length)+' productos</div></div>';var trs=rows.map(function(r){return '<tr data-code="'+esc108(r.code)+'" data-class="'+esc108(norm(r.cc))+'" data-cat="'+esc108(norm(r.cat))+'" data-lin="'+esc108(norm(r.lin))+'" data-sub="'+esc108(norm(r.sub))+'" onclick="if(typeof openGuideProduct===\'function\')openGuideProduct('+JSON.stringify(r.code)+');else if(typeof openInventoryProduct===\'function\')openInventoryProduct('+JSON.stringify(r.code)+')"><td>'+((typeof imageThumb==='function')?imageThumb(r.code,'sm'):'')+'</td><td><span class="code">'+esc108(r.code)+'</span></td><td class="prod"><b>'+esc108(r.name)+'</b></td><td>'+badge108(r.cc)+'</td><td class="hier">'+esc108(r.cat)+'</td><td class="hier">'+esc108(r.lin)+'</td><td class="hier">'+esc108(r.sub)+'</td><td class="guide"><b>'+esc108(r.guideName)+'</b><small>'+esc108(r.guideCode)+' · '+esc108(r.guideCat)+'</small></td><td>'+guideStateBadge108(r.guideState)+'</td><td class="state"><span class="guideStatus '+r.statusClass+'">'+esc108(r.status)+'</span></td><td class="num">'+(r.canSum==null?'Sin dato':fi108(r.canSum))+'</td><td class="num">'+fi108(r.inv)+'</td><td class="num">'+(r.canMin==null?'Sin dato':fi108(r.canMin))+'</td><td class="num">'+(r.cendis==null?'Sin dato':fi108(r.cendis)+' u')+'</td></tr>'}).join('');var html='<div class="v108FloorSummary"><div class="v108FloorKpi"><label>Posiciones</label><b>'+fi108(rows.length)+'</b><small>Piso '+floor+'</small></div><div class="v108FloorKpi"><label>Productos únicos</label><b>'+fi108(unique)+'</b><small>Referencias distintas</small></div><div class="v108FloorKpi"><label>Con existencia</label><b>'+fi108(covered)+'</b><small>Posiciones cubiertas</small></div><div class="v108FloorKpi"><label>'+((String(floor)==='3')?'Sin existencia':'Pendientes')+'</label><b>'+fi108(pending)+'</b><small>'+((String(floor)==='3')?'Informativo':'Por cubrir')+'</small></div></div>'+filters+'<div class="v108FloorTableWrap"><table class="v108FloorTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Clasificación</th><th>Categoría</th><th>Línea</th><th>Sublínea</th><th>Guía / Ambiente</th><th>Estado guía</th><th>Estado cobertura</th><th class="num">CAN SUM</th><th class="num">Inventario actual</th><th class="num">CAN MIN</th><th class="num">CENDIS</th></tr></thead><tbody>'+(trs||'<tr><td colspan="14"><div class="empty">No hay productos para este piso.</div></td></tr>')+'</tbody></table></div>';openModal108(title,(st.name||CUR)+' · '+(String(floor)==='3'?'Piso informativo; no afecta cumplimiento':'Detalle de posiciones y cobertura'),html);var body=document.getElementById('v80ModalBody');if(body){body.querySelectorAll('.v108HierarchyFilters input,.v108HierarchyFilters select').forEach(function(x){x.addEventListener(x.tagName==='INPUT'?'input':'change',applyFloorFilters108)})}}
 
@@ -2248,7 +2561,7 @@ function installFloorCards108(){if(typeof VIEW==='undefined'||VIEW!=='amb')retur
 /* Filtros jerárquicos universales: se agregan sin quitar columnas ni reemplazar filtros existentes. */
 function rowCode108(tr){var c=tr.dataset.code||tr.dataset.productCode||tr.dataset.v68Product||'';if(c)return code108(c);var cell=tr.querySelector('.code');if(cell)return code108(cell.textContent);var m=s(tr.textContent).match(/\b\d{6,8}\b/);return m?code108(m[0]):''}
 function existingLabel108(body,label){var n=norm(label);return Array.from(body.querySelectorAll('label')).some(function(l){return norm(l.textContent)===n})}
-function addHierarchyFilters108(modal){if(!modal||!modal.classList.contains('on'))return;var body=modal.querySelector('#rangeModalBody,#v80ModalBody,#guideDetailBodyV49,#guideDetailBodyV48,.modalBody');if(!body||body.querySelector('[data-v108-hierarchy]'))return;var tables=Array.from(body.querySelectorAll('table')),items=[];tables.forEach(function(table){Array.from(table.tBodies&&table.tBodies[0]?table.tBodies[0].rows:[]).forEach(function(tr){if(tr.querySelector('.empty'))return;var c=rowCode108(tr);if(!c)return;var p=product108(c);tr.dataset.v108Class=norm(class108(c));tr.dataset.v108Cat=norm(p.cat||'—');tr.dataset.v108Lin=norm(p.lin||'—');tr.dataset.v108Sub=norm(p.sub||'—');items.push(tr)})});if(items.length<2)return;var vals=function(key){return Array.from(new Set(items.map(function(r){return s(r.dataset[key]).trim()}).filter(function(v){return v&&v!=='—'}))).sort(function(a,b){return a.localeCompare(b,'es')})};var defs=[['v108Class','Clasificación'],['v108Cat','Categoría'],['v108Lin','Línea'],['v108Sub','Sublínea']].filter(function(d){return !existingLabel108(body,d[1])&&vals(d[0]).length>1});if(!defs.length)return;var hasSearch=!!body.querySelector('input[type="search"],input[placeholder*="Buscar"],input[placeholder*="buscar"]'),bar=document.createElement('div');bar.className='v108HierarchyFilters';bar.dataset.v108Hierarchy='1';bar.innerHTML=(hasSearch?'':'<div class="v108Field"><label>Búsqueda rápida</label><input type="search" data-v108-gq placeholder="Código o producto..."></div>')+defs.map(function(d){return '<div class="v108Field"><label>'+d[1]+'</label><select data-v108-gfilter="'+d[0]+'">'+opts108(vals(d[0]))+'</select></div>'}).join('')+'<div class="v108Field"><label>Acción</label><button type="button" data-v108-gclear>Limpiar filtros</button></div><div class="v108Count" data-v108-gcount></div>';var first=tables[0],anchor=first.closest('.ux104DetailTableWrap,.v80TableWrap,.guideFloorTableWrapV50,.guideModalTableWrapV48,.guideDetailTableWrapV49')||first.parentElement||first;anchor.parentNode.insertBefore(bar,anchor);function apply(){var q=norm((bar.querySelector('[data-v108-gq]')||{}).value||''),sels=Array.from(bar.querySelectorAll('[data-v108-gfilter]')),shown=0;items.forEach(function(r){var ok=!q||norm(r.textContent).indexOf(q)>=0;if(ok)sels.forEach(function(sel){if(sel.value&&r.dataset[sel.dataset.v108Gfilter]!==sel.value)ok=false});r.classList.toggle('v108-filtered-out',!ok);if(ok)shown++});var c=bar.querySelector('[data-v108-gcount]');if(c)c.textContent=fi108(shown)+' de '+fi108(items.length)+' productos'}var qi=bar.querySelector('[data-v108-gq]');if(qi)qi.addEventListener('input',apply);bar.querySelectorAll('select').forEach(function(x){x.addEventListener('change',apply)});bar.querySelector('[data-v108-gclear]').onclick=function(){if(qi)qi.value='';bar.querySelectorAll('select').forEach(function(x){x.value=''});items.forEach(function(r){r.classList.remove('v108-filtered-out')});apply()};apply()}
+function addHierarchyFilters108(modal){if(!modal||!modal.classList.contains('on'))return;var body=modal.querySelector('#rangeModalBody,#v80ModalBody,#guideDetailBodyV49,#guideDetailBodyV48,.modalBody');if(!body||body.querySelector('[data-v108-hierarchy]'))return;var tables=Array.from(body.querySelectorAll('table')),items=[];tables.forEach(function(table){Array.from(table.tBodies&&table.tBodies[0]?table.tBodies[0].rows:[]).forEach(function(tr){if(tr.querySelector('.empty'))return;var c=rowCode108(tr);if(!c)return;var p=product108(c);tr.dataset.v108Class=norm(class108(c));tr.dataset.v108Cat=norm(p.cat||'—');tr.dataset.v108Lin=norm(p.lin||'—');tr.dataset.v108Sub=norm(p.sub||'—');items.push(tr)})});if(items.length<2)return;var vals=function(key){return Array.from(new Set(items.map(function(r){return s(r.dataset[key]).trim()}).filter(function(v){return v&&v!=='—'}))).sort(function(a,b){return a.localeCompare(b,'es')})};var defs=[['v108Class','Clasificación'],['v108Cat','Categoría'],['v108Lin','Línea'],['v108Sub','Sublínea']].filter(function(d){return !existingLabel108(body,d[1])&&vals(d[0]).length>1});if(!defs.length)return;var hasSearch=!!body.querySelector('input[type="search"],input[placeholder*="Buscar"],input[placeholder*="buscar"]'),bar=document.createElement('div');bar.className='v108HierarchyFilters';bar.dataset.v108Hierarchy='1';bar.innerHTML=(hasSearch?'':'<div class="v108Field"><label>Búsqueda rápida</label><input type="search" data-v108-gq placeholder="Código o producto..."></div>')+defs.map(function(d){return '<div class="v108Field"><label>'+d[1]+'</label><select data-v108-gfilter="'+d[0]+'">'+opts108(vals(d[0]))+'</select></div>'}).join('')+'<div class="v108Field"><label>Acción</label><button type="button" data-v108-gclear>Limpiar filtros</button></div><div class="v108Count" data-v108-gcount></div>';var first=tables[0],anchor=first.closest('.ux104DetailTableWrap,.v80TableWrap,.guideFloorTableWrapV50,.guideModalTableWrapV48,.guideDetailTableWrapV49')||first.parentElement||first;anchor.parentNode.insertBefore(bar,anchor);function apply(){var q=norm((bar.querySelector('[data-v108-gq]')||{}).value||''),sels=Array.from(bar.querySelectorAll('[data-v108-gfilter]')),shown=0;items.forEach(function(r){var ok=!q||window.buscaMultiple(r.textContent,q);if(ok)sels.forEach(function(sel){if(sel.value&&r.dataset[sel.dataset.v108Gfilter]!==sel.value)ok=false});r.classList.toggle('v108-filtered-out',!ok);if(ok)shown++});var c=bar.querySelector('[data-v108-gcount]');if(c)c.textContent=fi108(shown)+' de '+fi108(items.length)+' productos'}var qi=bar.querySelector('[data-v108-gq]');if(qi)qi.addEventListener('input',apply);bar.querySelectorAll('select').forEach(function(x){x.addEventListener('change',apply)});bar.querySelector('[data-v108-gclear]').onclick=function(){if(qi)qi.value='';bar.querySelectorAll('select').forEach(function(x){x.value=''});items.forEach(function(r){r.classList.remove('v108-filtered-out')});apply()};apply()}
 function decorateOpenDetails108(){document.querySelectorAll('#rangeModal.on,#v80ModalBack.on,#guideDetailModalBackV49.on,#guideDetailModalBackV48.on,.modalBack.on').forEach(addHierarchyFilters108)}
 function schedule108(){requestAnimationFrame(function(){setTimeout(function(){installFloorCards108();decorateOpenDetails108();},0)})}
 
@@ -2441,11 +2754,25 @@ function oldestLabel(raw,onlyOld){var es=Object.keys((raw&&raw.rangos)||{}).filt
 function salesMap(st){var m={};try{if(typeof normalizeProductSalesRows==='function')(normalizeProductSalesRows(st)||[]).forEach(function(r){m[code(r.c)]={units:n(r.u),value:n(r.v)};});}catch(_){}rawInventory(st).forEach(function(r){var c=code(r.codigo);if(!m[c])m[c]={units:n(r.unidadesFacUlt3Meses),value:n(r.facturacionUlt3Meses)};});return m;}
 function normalizedInventory(st){return rawInventory(st).map(function(raw){var c=code(raw.codigo||raw.c),p=prod(c,raw);return Object.assign({},raw,{c:c,p:p,stock:n(raw.stock),valorInventario:n(raw.valorInventario),valorUnitarioPromedio:n(raw.valorUnitarioPromedio),dispCendis:n(raw.dispCendis),entradas:n(raw.entradas),rangos:(raw.rangos&&typeof raw.rangos==='object')?raw.rangos:{}});});}
 function calc(st){
-  st=st||{};var se=sets(st),rows=normalizedInventory(st),im=invMap(st),sm=salesMap(st),healthy=[],prox=[],rotRowsRaw=[],evRowsRaw=[];
-  rows.forEach(function(r){if(se.ev.has(r.c))return;if(se.rot.has(r.c))return;healthy.push(r);if(proxUnits(r)>0)prox.push(r);});
+  st=st||{};var se=sets(st),rows=normalizedInventory(st),im=invMap(st),sm=salesMap(st),healthy=[],prox=[],aged=[],rotRowsRaw=[],evRowsRaw=[];
+  /* V86.266: sano estricto. Antes bastaba con no estar en las listas oficiales
+     de Rotacion y Evacuacion, y quedaban como sanos productos que SI tenian
+     unidades de mas de 90 dias (353 en las 21 tiendas con el corte del 02/09):
+     no entran en Rotacion porque la regla oficial pide estado A / Linea, ni en
+     Evacuacion porque pide fuera de surtido con estado N. Ahora sano exige que
+     TODAS sus unidades esten por debajo de 90 dias, y esos casos intermedios se
+     reportan aparte en "vencidos", para que la suma siga cerrando contra el
+     inventario y no desaparezca nada. */
+  rows.forEach(function(r){
+    if(se.ev.has(r.c))return;
+    if(se.rot.has(r.c))return;
+    if(rangeUnits(r,91,null)>0){aged.push(r);return;}
+    healthy.push(r);
+    if(proxUnits(r)>0)prox.push(r);
+  });
   (Array.isArray(st.rot)?st.rot:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);rotRowsRaw.push({c:c,u:n(a&&a[1]),aux:n(a&&a[2]),age:typeof ageRankFromLabel==='function'?ageRankFromLabel(a&&a[5]):-1,val:n(a&&a[3]),price:n(a&&a[4]),ageLabel:s(a&&a[5])||oldestLabel(raw,true),m1:n(a&&a[6]),m2:n(a&&a[7]),m3:n(a&&a[8]),sales3m:n(a&&a[6])+n(a&&a[7])+n(a&&a[8]),p:p,row:Object.assign({},raw,{c:c,p:p})});});
   (Array.isArray(st.evac)?st.evac:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);evRowsRaw.push({c:c,u:n(a&&a[1]),v:n(a&&a[2]),cendis:n(a&&a[3]),sales1:n(a&&a[4]),sales2:n(a&&a[5]),edad:s(a&&a[6])||oldestLabel(raw,false),p:p,active:true,row:Object.assign({},raw,{c:c,p:p}),sales3m:n(a&&a[4])+n(a&&a[5])});});
-  return {rows:rows,healthy:healthy,prox:prox,rotRows:rotRowsRaw,evRows:evRowsRaw,se:se,sm:sm};
+  return {rows:rows,healthy:healthy,prox:prox,aged:aged,rotRows:rotRowsRaw,evRows:evRowsRaw,se:se,sm:sm};
 }
 window.normalizeInventoryRows=function(st){return normalizedInventory(st||((typeof S!=='undefined'&&S&&S[CUR])||{}));};
 window.normalizeRotRows=function(st){return calc(st||((typeof S!=='undefined'&&S&&S[CUR])||{})).rotRows;};
@@ -2453,8 +2780,8 @@ window.normalizeEvacRows=function(st){return calc(st||((typeof S!=='undefined'&&
 window.rotationDetailedRows=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});return window.normalizeRotRows(st).map(function(x){var r=x.row||{};return Object.assign({},r,{c:x.c,p:x.p,entries:Object.entries(r.rangos||{}).filter(function(e){return n(e[1])>0&&rangeLow(e[0])>=91;}).sort(function(a,b){return rangeLow(b[0])-rangeLow(a[0]);}),u:x.u,age:x.age,val:x.val,sales3m:x.sales3m,dispCendis:n(r.dispCendis)});});};
 window.evacuationDetailedRows=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});return window.normalizeEvacRows(st).map(function(x){var r=x.row||{};return Object.assign({},r,{c:x.c,p:x.p,entries:Object.entries(r.rangos||{}).filter(function(e){return n(e[1])>0;}).sort(function(a,b){return rangeLow(b[0])-rangeLow(a[0]);}),u:x.u,v:x.v,cendis:x.cendis,sales3m:x.sales3m});});};
 window.upcomingRotationRows=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});var x=calc(st);return x.prox.map(function(r){var u=proxUnits(r),sl=x.sm[r.c]||{};return {c:r.c,p:r.p,units:u,stock:n(r.stock),share:n(r.stock)>0?u/n(r.stock)*100:0,value:n(r.stock)>0?n(r.valorInventario)*u/n(r.stock):0,cendis:n(r.dispCendis),salesUnits:n(sl.units),salesValue:n(sl.value),rangos:r.rangos,row:r};});};
-window.inventorySummary=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});var x=calc(st),rows=x.rows,rotCodes=x.se.rot,evCodes=x.se.ev;var rotRows=rows.filter(function(r){return rotCodes.has(r.c);}),evRows=rows.filter(function(r){return evCodes.has(r.c);});return {rows:rows,refs:rows.length,units:rows.reduce(function(a,r){return a+n(r.stock);},0),value:rows.reduce(function(a,r){return a+n(r.valorInventario);},0),critical:rows.filter(function(r){return Object.keys(r.rangos||{}).some(function(k){return rangeLow(k)>=360&&n(r.rangos[k])>0;});}).length,supported:rows.filter(function(r){return n(r.dispCendis)>0;}).length,healthy:x.healthy.length,prox:x.prox.length,rotation:x.rotRows.length,evacuation:x.evRows.length,healthyRows:x.healthy,proxRows:x.prox,rotationRows:rotRows,evacuationRows:evRows};};
-window.inventoryStateRows=function(st,name){var x=window.inventorySummary(st);if(name==='Rotación')return x.rotationRows.slice();if(name==='Evacuación')return x.evacuationRows.slice();if(name==='Próximo a rotar'||name==='Próximos a rotar')return x.proxRows.slice();if(name==='Sano'||name==='Sanos')return x.healthyRows.slice();return x.rows.slice();};
+window.inventorySummary=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});var x=calc(st),rows=x.rows,rotCodes=x.se.rot,evCodes=x.se.ev;var rotRows=rows.filter(function(r){return rotCodes.has(r.c);}),evRows=rows.filter(function(r){return evCodes.has(r.c);});return {rows:rows,refs:rows.length,units:rows.reduce(function(a,r){return a+n(r.stock);},0),value:rows.reduce(function(a,r){return a+n(r.valorInventario);},0),critical:rows.filter(function(r){return Object.keys(r.rangos||{}).some(function(k){return rangeLow(k)>=360&&n(r.rangos[k])>0;});}).length,supported:rows.filter(function(r){return n(r.dispCendis)>0;}).length,healthy:x.healthy.length,prox:x.prox.length,aged:(x.aged||[]).length,rotation:x.rotRows.length,evacuation:x.evRows.length,healthyRows:x.healthy,proxRows:x.prox,agedRows:(x.aged||[]),rotationRows:rotRows,evacuationRows:evRows};};
+window.inventoryStateRows=function(st,name){var x=window.inventorySummary(st);if(name==='Rotación')return x.rotationRows.slice();if(name==='Evacuación')return x.evacuationRows.slice();if(name==='Próximo a rotar'||name==='Próximos a rotar')return x.proxRows.slice();if(name==='Sano'||name==='Sanos')return x.healthyRows.slice();if(name==='Vencidos'||name==='Con unidades vencidas')return (x.agedRows||[]).slice();return x.rows.slice();};
 window.recalcOperationalKpis=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});var x=calc(st),k=st.kpi||(st.kpi={});var rotU=x.rotRows.reduce(function(a,r){return a+n(r.u);},0),rotVal=x.rotRows.reduce(function(a,r){return a+n(r.val);},0),evU=x.evRows.reduce(function(a,r){return a+n(r.u);},0),evVal=x.evRows.reduce(function(a,r){return a+n(r.v);},0);Object.assign(k,{stockRefs:x.rows.length,rotN:x.rotRows.length,rotU:rotU,rotVal:rotVal,rotSin:x.rotRows.filter(function(r){return n(r.sales3m)<=0;}).length,evacN:x.evRows.length,evacU:evU,evacVal:evVal,evacSR:x.evRows.filter(function(r){return n(r.cendis)<=0;}).length});return k;};
 try{normalizeInventoryRows=window.normalizeInventoryRows;normalizeRotRows=window.normalizeRotRows;normalizeEvacRows=window.normalizeEvacRows;rotationDetailedRows=window.rotationDetailedRows;evacuationDetailedRows=window.evacuationDetailedRows;upcomingRotationRows=window.upcomingRotationRows;inventorySummary=window.inventorySummary;inventoryStateRows=window.inventoryStateRows;recalcOperationalKpis=window.recalcOperationalKpis;}catch(_){}
 function syncStore(st){if(st)window.recalcOperationalKpis(st);}
@@ -2554,7 +2881,7 @@ function impactGroupHtml(type,title){var x=impactSummary(type);return'<div class
 
 /* 10. Markdown: selección simple, individual, múltiple y persistente entre políticas/filtros. */
 function mdAllRows(){try{return typeof window.mdRows8664==='function'?window.mdRows8664(CUR):[]}catch(_){return[]}}
-function mdFilteredRows(){var rows=mdAllRows(),f=window.mdState8618||{},q=norm(f.q||'');if(f.card&&f.card!=='all'&&f.card!=='actionable')rows=rows.filter(function(r){return r.statusKey===f.card});else if(f.card==='actionable')rows=rows.filter(function(r){return r.statusKey==='manage'});if(f.type&&f.type!=='all')rows=rows.filter(function(r){if(f.type==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(f.type==='last_unit')return r.typeKey==='fs_last';return r.typeKey===f.type});if(f.age&&f.age!=='all')rows=rows.filter(function(r){return r.ageKey===f.age});if(f.discount&&f.discount!=='all')rows=rows.filter(function(r){return s(r.discount)===s(f.discount)});if(f.responsible&&f.responsible!=='all')rows=rows.filter(function(r){if(r.statusKey!=='manage')return false;return f.responsible==='leader'?n(r.discount)>50:n(r.discount)<=50});if(f.classification&&f.classification!=='all')rows=rows.filter(function(r){return r.cc===f.classification});if(f.policyGroup==='rot')rows=rows.filter(function(r){return norm(r.policyApplied).indexOf('ROT')>=0});if(f.policyGroup==='evac')rows=rows.filter(function(r){return norm(r.policyApplied).indexOf('EVAC')>=0});if(q)rows=rows.filter(function(r){return norm([r.code,r.name,r.category,r.line,r.subline,r.cc,r.policyApplied,r.ruleApplied,r.statusLabel].join(' ')).indexOf(q)>=0});return rows}
+function mdFilteredRows(){var rows=mdAllRows(),f=window.mdState8618||{},q=norm(f.q||'');if(f.card&&f.card!=='all'&&f.card!=='actionable')rows=rows.filter(function(r){return r.statusKey===f.card});else if(f.card==='actionable')rows=rows.filter(function(r){return r.statusKey==='manage'});if(f.type&&f.type!=='all')rows=rows.filter(function(r){if(f.type==='outside')return r.typeKey==='fs'||r.typeKey==='fs_last';if(f.type==='last_unit')return r.typeKey==='fs_last';return r.typeKey===f.type});if(f.age&&f.age!=='all')rows=rows.filter(function(r){return r.ageKey===f.age});if(f.discount&&f.discount!=='all')rows=rows.filter(function(r){return s(r.discount)===s(f.discount)});if(f.responsible&&f.responsible!=='all')rows=rows.filter(function(r){if(r.statusKey!=='manage')return false;return f.responsible==='leader'?n(r.discount)>50:n(r.discount)<=50});if(f.classification&&f.classification!=='all')rows=rows.filter(function(r){return r.cc===f.classification});if(f.policyGroup==='rot')rows=rows.filter(function(r){return norm(r.policyApplied).indexOf('ROT')>=0});if(f.policyGroup==='evac')rows=rows.filter(function(r){return norm(r.policyApplied).indexOf('EVAC')>=0});if(q)rows=rows.filter(function(r){return window.buscaMultiple([r.code,r.name,r.category,r.line,r.subline,r.cc,r.policyApplied,r.ruleApplied,r.statusLabel].join(' '),q)});return rows}
 function mdStorageKey(){var d=s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'SIN_CORTE').replace(/[^0-9A-Za-z_-]+/g,'_');return'llavero_markdown_gestion_v8623_'+d}
 function mdRead(){try{var m=JSON.parse(localStorage.getItem(mdStorageKey())||'{"items":{}}');if(!m.items)m.items={};return m}catch(_){return{items:{}}}}
 function mdWrite(m){try{localStorage.setItem(mdStorageKey(),JSON.stringify(m))}catch(_){}try{if(typeof updateBar==='function')updateBar();}catch(_){}try{if(window.V8623&&typeof window.V8623.updateBar==='function')window.V8623.updateBar();}catch(_){}}
@@ -2921,7 +3248,7 @@ function openLeaderAllV129(){
   }).join('');
   body.innerHTML='<div class="v129LeaderNote">✓ <span>Esta vista usa la lógica final de Markdown de cada tienda. Solo incluye productos en <b>Gestionar descuento</b> cuyo descuento sugerido es <b>mayor al 50%</b>, que corresponden al Líder de Área.</span></div>'+
     '<div class="v129LeaderToolbar"><button type="button" data-v129-all="1">Seleccionar visibles</button><button type="button" data-v129-none="1">Quitar visibles</button>'+
-    '<input id="v129LeaderQ" type="search" placeholder="Buscar tienda, código o producto"><select id="v129LeaderStore"><option value="all">Todas las tiendas</option>'+stores.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join('')+'</select>'+
+    '<input id="v129LeaderQ" type="search" placeholder="Buscar tienda, código o producto · varios separados por coma"><select id="v129LeaderStore"><option value="all">Todas las tiendas</option>'+stores.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join('')+'</select>'+
     '<select id="v129LeaderPolicy"><option value="all">Rotación y Evacuación</option>'+policies.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join('')+'</select>'+
     '<span class="count" id="v129LeaderCount">'+fmtInt(rows.length)+' seleccionados</span><button type="button" class="primary" data-v129-export="1">Generar Excel consolidado</button></div>'+
     '<div class="v129LeaderTableWrap"><table class="v129LeaderTable" id="v129LeaderTable"><thead><tr><th class="sel"><input type="checkbox" checked aria-label="Seleccionar visibles"></th><th class="img">Imagen</th><th class="store">Tienda</th><th class="codecol">Código</th><th>Producto</th><th class="num pctcol">Actual/Muestra</th><th class="num pctcol">Oferta</th><th class="num pctcol">Sugerido</th><th class="statecol">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>';
@@ -3178,8 +3505,13 @@ function createBar(){
 }
 function apply(){
   if(view()!=='amb')return;
-  var bar=createBar(),map=currentRows();if(!bar)return;
+  /* V86.232: la tabla se comprobaba DESPUES de construir currentRows(), que
+     normaliza las ~26.000 posiciones de las 2.625 guias del alcance nacional.
+     En el consolidado del Lider esa tabla no existe, asi que se hacia todo ese
+     trabajo para descartarlo. Ahora se sale antes. */
   var table=document.getElementById('guias-tbl');if(!table)return;
+  var bar=createBar();if(!bar)return;
+  var map=currentRows();
   var rows=Array.from(table.querySelectorAll('tbody tr.guideListRowV48, tbody tr[data-guide-code]'));
   if(!rows.length)rows=Array.from(table.querySelectorAll('tbody tr')).filter(function(r){return r.cells&&r.cells.length>=7});
   var visible=0;
@@ -3278,6 +3610,12 @@ function expectedFor(sc){
     else if(typeof window.markdownCount8670==='function')out['nc-md']=num(window.markdownCount8670(sc));
     else out['nc-md']=null;
   }catch(_){out['nc-md']=null}
+  /* V86.240: punto de ajuste. Este módulo es el ÚNICO que puede escribir en el
+     sidebar de forma duradera -- su MutationObserver revierte cualquier valor
+     que ponga otro parche --, así que la corrección de los conteos en alcance
+     multitienda se aplica aquí, y no repintando el DOM por fuera. */
+  try{if(typeof window.__v240Ajuste==='function'){var aj240=window.__v240Ajuste(sc,out);if(aj240)out=aj240}}
+  catch(e240){console.error('V86.240 ajuste de conteos',e240)}
   return out;
 }
 function refreshExpected(sc){
@@ -3334,6 +3672,9 @@ function wrap(name){
 }
 function install(){
   mark();stabilize();installObserver();wrap('setView');wrap('refresh');
+  /* V86.240: se expone para que el cambio de alcance del líder (que no pasa por
+     setView ni por el selector de tienda) pueda pedir un recálculo. */
+  window.__v140Stabilize=stabilize;
   document.addEventListener('change',function(e){
     if(e.target&&e.target.id==='store'){
       // Usamos el valor seleccionado inmediatamente, antes de que otros parches repinten el sidebar.
@@ -3471,7 +3812,12 @@ function enhanceGuideDetail(){
 function trStatus(r){var e=norm(r&&r.estatus);if(e.indexOf('ENTREG')>=0)return'Entregado';if(e.indexOf('PICK')>=0)return'En picking';if(e.indexOf('RUTA')>=0)return'En ruta';if(e.indexOf('PEND')>=0)return'Pendiente';var p=norm(r&&r.statusGlobalPicking),m=norm(r&&r.statusMovimiento),w=norm(r&&r.lugarPuestaDispos);if(p==='C'&&m==='C')return'Entregado';if(p==='C'&&m==='A')return'En ruta';if(p==='A'&&m==='A'&&w.indexOf('WMS')>=0)return'En picking';return'Pendiente'}
 function pendingTr(){return (Array.isArray(store().trDetalle)?store().trDetalle:[]).filter(function(r){return trStatus(r)!=='Entregado'})}
 function conditionSets145(){var st=store(),rot=new Set(),evac=new Set();(Array.isArray(st.rot)?st.rot:[]).forEach(function(r){rot.add(s(r&&r[0]))});(Array.isArray(st.evac)?st.evac:[]).forEach(function(r){evac.add(s(r&&r[0]))});return{rot:rot,evac:evac}}
-function guideNamesFor(code){var out=[],st=store();(Array.isArray(st.guias)?st.guias:[]).forEach(function(g){var hit=(Array.isArray(g&&g[6])?g[6]:[]).some(function(p){return s(p&&p[0])===s(code)&&s(p&&p[5])==='camino'});if(hit)out.push({code:s(g&&g[0]),name:s(g&&g[1])})});return out}
+function guideNamesFor(code){/* V86.231: por índice, no recorriendo todas las guías por código. */
+  var st=store(),c=s(code),out=[],seen={};
+  try{var hits=(window.__LLV_IDX&&window.__LLV_IDX.guidesByCode(st)[c])||[];
+    for(var i=0;i<hits.length;i++){var h=hits[i];if(h.state!=='camino')continue;if(seen[h.gcode])continue;seen[h.gcode]=1;out.push({code:h.gcode,name:h.gname})}
+    return out;}catch(_){}
+  (Array.isArray(st.guias)?st.guias:[]).forEach(function(g){var hit=(Array.isArray(g&&g[6])?g[6]:[]).some(function(p){return s(p&&p[0])===c&&s(p&&p[5])==='camino'});if(hit)out.push({code:s(g&&g[0]),name:s(g&&g[1])})});return out}
 function transferImpact145(){var pend=pendingTr(),codes=new Set(pend.map(function(r){return s(r.codigo)})),sets=conditionSets145(),by={};pend.forEach(function(r){var c=s(r.codigo),gs=guideNamesFor(c),rot=sets.rot.has(c),evac=sets.evac.has(c),amb=gs.length>0;if(!(rot||evac||amb))return;var o=by[c]||(by[c]={code:c,name:s(r.nombre)||pinfo(c).n||c,orders:new Set(),statuses:new Set(),units:0,rot:rot,evac:evac,guides:gs});o.orders.add(s(r.entrega||'Sin identificar'));o.statuses.add(trStatus(r));o.units+=n(r.unidades)});return Object.values(by).sort(function(a,b){return b.units-a.units||a.name.localeCompare(b.name,'es')})}
 function showRange145(title,sub,html){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;if(tt)tt.textContent=title;if(ss)ss.textContent=sub||'';body.innerHTML=html;modal.classList.add('on');document.body.style.overflow='hidden';setTimeout(normalizeOpenModals,50)}
 window.openImpactOrders145=function(code){var rows=pendingTr().filter(function(r){return s(r.codigo)===s(code)}),p=pinfo(code),guides=guideNamesFor(code),groups={};rows.forEach(function(r){var id=s(r.entrega||'Sin identificar');(groups[id]||(groups[id]=[])).push(r)});var ids=Object.keys(groups),trs=ids.map(function(id){var a=groups[id],units=a.reduce(function(x,r){return x+n(r.unidades)},0),sts=Array.from(new Set(a.map(trStatus)));return'<tr><td><b>'+esc(id)+'</b></td><td>'+esc(a[0]&&a[0].fechaEntrega||'—')+'</td><td>'+esc(sts.join(' / '))+'</td><td class="num"><b>'+fi(units)+'</b></td><td>'+esc(a[0]&&a[0].ruta||'—')+'</td></tr>'}).join('');var env=guides.length?guides.map(function(g){return esc(g.name)+' <small>'+esc(g.code)+'</small>'}).join('<br>'):'No impacta ambientes';showRange145('Entregas por entregar del producto '+esc(code),(store().name||CUR)+' · '+esc(p.n||code),'<'+'div class="v127DetailSummary"><div><label>Órdenes por entregar</label><b>'+fi(ids.length)+'</b></div><div><label>Unidades pendientes</label><b>'+fi(rows.reduce(function(a,r){return a+n(r.unidades)},0))+'</b></div><div><label>Ambientes / guías</label><b style="font-size:10px;white-space:normal">'+env+'</b></div></div><div class="v127TableWrap"><table class="v127Table"><thead><tr><th>Orden de entrega</th><th>Entrega estimada</th><th>Estado</th><th class="num">Unidades</th><th>Ruta</th></tr></thead><tbody>'+trs+'</tbody></table></div>')};
@@ -3664,7 +4010,12 @@ function patchGuideDetail(){
 function trStatus(r){var e=norm(r&&r.estatus);if(e.indexOf('ENTREG')>=0)return'Entregado';if(e.indexOf('PICK')>=0)return'En picking';if(e.indexOf('RUTA')>=0)return'En ruta';if(e.indexOf('PEND')>=0)return'Pendiente';var p=norm(r&&r.statusGlobalPicking),m=norm(r&&r.statusMovimiento),w=norm(r&&r.lugarPuestaDispos);if(p==='C'&&m==='C')return'Entregado';if(p==='C'&&m==='A')return'En ruta';if(p==='A'&&m==='A'&&w.indexOf('WMS')>=0)return'En picking';return'Pendiente'}
 function pendingRows(){return (Array.isArray(st().trDetalle)?st().trDetalle:[]).filter(function(r){return trStatus(r)==='Pendiente'})}
 function conditions(){var rot=new Set(),evac=new Set();try{(typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71('rot',st()):[]).forEach(function(r){rot.add(s(r.c))});(typeof aggregateModuleProducts71==='function'?aggregateModuleProducts71('evac',st()):[]).forEach(function(r){evac.add(s(r.c))})}catch(_){}return{rot:rot,evac:evac}}
-function guideNames(code){var out=[];(Array.isArray(st().guias)?st().guias:[]).forEach(function(g){var ps=Array.isArray(g&&g[6])?g[6]:[];if(ps.some(function(p){return s(p&&p[0])===s(code)&&s(p&&p[5])==='camino'}))out.push({code:s(g&&g[0]),name:s(g&&g[1])})});return out}
+function guideNames(code){/* V86.231: por índice. */
+  var store=st(),c=s(code),out=[],seen={};
+  try{var hits=(window.__LLV_IDX&&window.__LLV_IDX.guidesByCode(store)[c])||[];
+    for(var i=0;i<hits.length;i++){var h=hits[i];if(h.state!=='camino')continue;if(seen[h.gcode])continue;seen[h.gcode]=1;out.push({code:h.gcode,name:h.gname})}
+    return out;}catch(_){}
+  (Array.isArray(store.guias)?store.guias:[]).forEach(function(g){var ps=Array.isArray(g&&g[6])?g[6]:[];if(ps.some(function(p){return s(p&&p[0])===c&&s(p&&p[5])==='camino'}))out.push({code:s(g&&g[0]),name:s(g&&g[1])})});return out}
 function transferImpact(){var c=conditions(),map={};pendingRows().forEach(function(r){var code=s(r.codigo),gs=guideNames(code),rot=c.rot.has(code),evac=c.evac.has(code),amb=gs.length>0;if(!(rot||evac||amb))return;var o=map[code]||(map[code]={code:code,name:s(r.nombre)||product(code).n||code,orders:new Set(),statuses:new Set(),units:0,rot:rot,evac:evac,guides:gs});o.orders.add(s(r.entrega||'Sin identificar'));o.statuses.add(trStatus(r));o.units+=n(r.unidades)});return Object.values(map).sort(function(a,b){return b.units-a.units||a.name.localeCompare(b.name,'es')})}
 function openTransferImpact(){var rows=transferImpact(),rc=rows.filter(function(r){return r.rot}).length,ec=rows.filter(function(r){return r.evac}).length,ac=rows.filter(function(r){return r.guides.length}).length,trs=rows.map(function(r){var p=product(r.code),impact=[r.rot?'Rotación':'',r.evac?'Evacuación':'',r.guides.length?'Ambientes':''].filter(Boolean).join(' · '),env=r.guides.length?r.guides.map(function(g){return'<span><b>'+esc(g.name)+'</b><small>'+esc(g.code)+'</small></span>'}).join(''):'<span>—</span>';return'<tr class="v147TransferRow" data-v147-transfer="'+esc(r.code)+'"><td>'+image(r.code)+'</td><td><span class="code">'+esc(r.code)+'</span></td><td><b>'+esc(r.name)+'</b><small>'+esc([p.cat,p.lin,p.sub].filter(Boolean).join(' · '))+'</small></td><td>'+esc(impact)+'</td><td><div class="v145Env">'+env+'</div></td><td class="v145Orders">'+esc(Array.from(r.orders).join(' · '))+'</td><td>'+esc(Array.from(r.statuses).join(' / '))+'</td><td class="num"><b>'+fi(r.units)+'</b></td></tr>'}).join('');rangeOpen('Productos con impacto por entregar',(st().name||CUR)+' · solo órdenes POR ENTREGAR (se excluyen todas las entregadas)','<div class="v147TransferImpact"><div class="v127DetailSummary"><div><label>Productos únicos</label><b>'+fi(rows.length)+'</b></div><div><label>Rotación</label><b>'+fi(rc)+'</b></div><div><label>Evacuación</label><b>'+fi(ec)+'</b></div><div><label>Ambientes</label><b>'+fi(ac)+'</b></div></div><div class="v127TableWrap"><table class="v127Table"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Impacto</th><th>Ambiente / guía</th><th>Orden(es) por entregar</th><th>Estado</th><th class="num">Uds. pendientes</th></tr></thead><tbody>'+trs+'</tbody></table></div></div>')}
 window.openTransferImpact127=openTransferImpact;
@@ -3714,12 +4065,34 @@ function fi(v){try{return typeof fInt==='function'?fInt(n(v)):Math.round(n(v)).t
 function currentView(){try{return typeof VIEW!=='undefined'?VIEW:''}catch(_){return''}}
 function st(){try{return (typeof S!=='undefined'&&S&&S[CUR])?S[CUR]:{}}catch(_){return{}}}
 function prod(code){try{return (typeof P!=='undefined'&&P&&P[s(code)])?P[s(code)]:((typeof productInfo==='function'&&productInfo(s(code)))||{})}catch(_){return{}}}
+/* V86.230: esta búsqueda era un recorrido lineal del inventario POR CADA
+   posición de guía. Con una tienda (≈400 filas) no se notaba; con el alcance
+   nacional (14.045 filas y 2.625 guías) el hilo quedaba bloqueado ~32 s y la
+   aplicación parecía colgada. Se reemplaza por un índice código→fila que se
+   construye una sola vez por tienda y se invalida solo si cambia el arreglo de
+   inventario. El resultado es idéntico: se conserva la PRIMERA fila que
+   coincide, igual que hacía find(). */
+var __invIdx230=new WeakMap();
+function invIndex230(store){
+  var inv=Array.isArray(store&&store.inventario)?store.inventario:[];
+  var hit=__invIdx230.get(store);
+  if(hit&&hit.src===inv)return hit.map;
+  var m=Object.create(null),i,r,c,sap;
+  for(i=0;i<inv.length;i++){
+    r=inv[i];if(!r)continue;
+    c=s(r.codigo);
+    if(c&&m[c]===undefined)m[c]=r;
+    sap=s(r.codigoSap).replace(/^0+/,'');
+    if(sap&&m[sap]===undefined)m[sap]=r;
+  }
+  try{__invIdx230.set(store,{src:inv,map:m})}catch(_){}
+  return m;
+}
 function actualCovered(p){
   var code=s(p&&p[0]), x=s(p&&p[5]);
   /* V86.149: la existencia real de tienda tiene prioridad sobre SEUS. */
   try{
-    var store=st(), inv=Array.isArray(store&&store.inventario)?store.inventario:[];
-    var row=inv.find(function(r){return s(r&&r.codigo)===code || s(r&&r.codigoSap).replace(/^0+/,'')===code;});
+    var row=invIndex230(st())[code];
     if(row && n(row.stock)>0) return true;
   }catch(_){}
   return x==='ok'||x==='ok_requested'||x==='ok_inv';
@@ -3787,6 +4160,11 @@ function applyGuideRules(store){
   agg.faltTot=Math.max(0,agg.reqTotal-agg.haveTotal);agg.compTotalPct=agg.reqTotal?Math.round(1000*agg.haveTotal/agg.reqTotal)/10:0;
   store.amb=Object.assign({},store.amb||{},agg);store.kpi=store.kpi||{};store.kpi.guiaComp=agg.compTotalPct;store.kpi.guiaFalt=agg.faltTot;store.kpi.guiaCompletas=agg.gCompletas;
 }
+/* V86.263: se publican las dos funciones para poder construir el cuadro de
+   guias (completas / con avance / sin avance y respaldo CENDIS) sin duplicar la
+   logica de equivalencias de Piso 1 y Piso 2. Es la MISMA funcion que usa el
+   modulo, no una copia. */
+window.LlaveroGuias148={efectiva:guideEffective,aplicar:applyGuideRules,cendisTiene:function(members){return statusPriority(members)==="available"}};
 function ensureGuideRules(){
   var store=st();if(!Array.isArray(store.guias)||!store.guias.length){try{if(typeof window.llaveroRebuildAllGuideData==='function')window.llaveroRebuildAllGuideData()}catch(_){}}
   applyGuideRules(st());
@@ -3998,7 +4376,14 @@ function ensureAmbienteExportButton(){
   pdfBtn.title='Genera un PDF gráfico de los mismos faltantes, con la imagen de cada producto y su ambiente.';
 }
 function patchAmbientImpact(){
-  if(currentView()!=='amb')return;ensureGuideRules();var root=document.getElementById('content');if(!root)return;
+  if(currentView()!=='amb')return;
+  /* V86.232: en alcance multitienda la vista de Ambientes la construye V86.225
+     (consolidado por tienda) y aqui no hay nada que parchear; calcular las
+     reglas de las 2.625 guias solo para no usarlas costaba varios segundos. */
+  if(window.__LLV_AMB_CONSOLIDADO)return;
+  var root=document.getElementById('content');if(!root)return;
+  if(!root.querySelector('.guideFloorGrid')&&!document.getElementById('guias-tbl'))return;
+  ensureGuideRules();
   var nodes=Array.from(root.querySelectorAll('.v71ImpactCard,.v117AmbImpactInline,.v145AmbientImpact,.v147AmbientImpact,.v148AmbientImpact,.v155AmbientImpact'));
   var host=nodes.find(function(x){return x.classList.contains('v155AmbientImpact')})||nodes[0]||document.createElement('section');
   nodes.forEach(function(x){if(x!==host)x.remove()});
@@ -4091,7 +4476,7 @@ function ambientCodesCurrent(){
   var store=st();if((!Array.isArray(store.guias)||!store.guias.length)&&typeof window.llaveroRebuildAllGuideData==='function'){try{window.llaveroRebuildAllGuideData();store=st()}catch(_){}}
   var set=new Set();(store.guias||[]).forEach(function(g){(g[6]||[]).forEach(function(p){if(p&&p[10]&&s(p[5])==='camino')set.add(s(p[0]))})});return set
 }
-function guideRefsForPending(code){var store=st();if((!Array.isArray(store.guias)||!store.guias.length)&&typeof window.llaveroRebuildAllGuideData==='function'){try{window.llaveroRebuildAllGuideData();store=st();}catch(_){}}var out=[];(Array.isArray(store.guias)?store.guias:[]).forEach(function(g){(Array.isArray(g&&g[6])?g[6]:[]).forEach(function(p){if(s(p&&p[0])===s(code)&&!!p[10]&&s(p[5])==='camino')out.push({code:s(g[0]),name:s(g[1]),floor:s(p[1])});});});var seen={};return out.filter(function(g){var k=g.code+'|'+g.floor;if(seen[k])return false;seen[k]=1;return true;});}
+function guideRefsForPending(code){var store=st();if((!Array.isArray(store.guias)||!store.guias.length)&&typeof window.llaveroRebuildAllGuideData==='function'){try{window.llaveroRebuildAllGuideData();store=st();}catch(_){}}var out=[];/* V86.231: por índice; el criterio (p[10] y estado 'camino') es el mismo. */var __idx=null;try{__idx=window.__LLV_IDX&&window.__LLV_IDX.guidesByCode(store)}catch(_){__idx=null}if(__idx){var __h=__idx[s(code)]||[];for(var __i=0;__i<__h.length;__i++){var __p=__h[__i];if(!!__p.flag&&__p.state==='camino')out.push({code:__p.gcode,name:__p.gname,floor:__p.floor});}}else{(Array.isArray(store.guias)?store.guias:[]).forEach(function(g){(Array.isArray(g&&g[6])?g[6]:[]).forEach(function(p){if(s(p&&p[0])===s(code)&&!!p[10]&&s(p[5])==='camino')out.push({code:s(g[0]),name:s(g[1]),floor:s(p[1])});});});}var seen={};return out.filter(function(g){var k=g.code+'|'+g.floor;if(seen[k])return false;seen[k]=1;return true;});}
 function transferStateSince155(r,status){if(status==='En picking')return s(r.fechaPicking||r.fechaCreacion||'—');if(status==='En ruta')return s(r.fechaPicking||r.fechaCreacion||'—');return s(r.fechaCreacion||'—');}
 function transferDetailRows(){var pending=pendingRows(),sets=conditionSets(),map={};pending.forEach(function(r){var code=s(r.codigo),guides=guideRefsForPending(code),rot=sets.rot.has(code),evac=sets.evac.has(code);if(!(rot||evac||guides.length))return;var order=s(r.entrega||'Sin identificar'),k=code+'|'+order,o=map[k]||(map[k]={code:code,order:order,name:s(r.nombre)||s(prod(code).n)||code,units:0,statuses:new Set(),since:new Set(),rot:rot,evac:evac,guides:guides});var status=transferStatus(r);o.units+=n(r.unidades);o.statuses.add(status);o.since.add(transferStateSince155(r,status));});return Object.values(map).sort(function(a,b){return s(a.order).localeCompare(s(b.order),'es')||s(a.name).localeCompare(s(b.name),'es');});}
 window.openTransferImpact148=function(){
@@ -4141,8 +4526,13 @@ window.openTransferImpact148=function(){
 function supplyState160(code){
   code=s(code);
   try{
-    var inv=Array.isArray(st().inventario)?st().inventario:[];
-    for(var i=0;i<inv.length;i++){if(s(inv[i].codigo)===code){var e=s(inv[i].estadoAbastecimiento).trim().toUpperCase();if(e)return e;break;}}
+    /* V86.231: índice código->fila; antes recorría todo el inventario por código. */
+    var row=(window.__LLV_IDX&&window.__LLV_IDX.invByCode(st())[code])||null;
+    if(row){var e=s(row.estadoAbastecimiento).trim().toUpperCase();if(e)return e;}
+    else{
+      var inv=Array.isArray(st().inventario)?st().inventario:[];
+      for(var i=0;i<inv.length;i++){if(s(inv[i].codigo)===code){var e2=s(inv[i].estadoAbastecimiento).trim().toUpperCase();if(e2)return e2;break;}}
+    }
   }catch(_){}
   try{var pr=(typeof P!=='undefined'&&P&&P[code])||null;if(pr)return s(pr.estado).trim().toUpperCase();}catch(_){}
   return '';
@@ -4584,6 +4974,14 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
     return null;
   }
   function scope210(){
+    /* V86.258: fuera del Dashboard no existen los selectores de zona/ciudad, así
+       que quien reutilice esta tarjeta (el módulo de Ambientes) puede declarar su
+       propio alcance. Si el override devuelve null se sigue leyendo el Dashboard
+       como siempre. */
+    try{
+      var ov=window.__V210_SCOPE_OVERRIDE;
+      if(typeof ov==='function'){var o=ov();if(o&&o.codes&&o.codes.length)return o;}
+    }catch(_){}
     var S1=stores210(),T=terr210(),all=Object.keys(S1);
     var z=selBy210('todas las zonas'),d=selBy210('todos los departamentos'),c=selBy210('todas las ciudades'),s=selBy210('todas las tiendas');
     var zv=z?z.value:'all',dv=d?d.value:'all',cv=c?c.value:'all',sv=s?s.value:'all';
@@ -4732,17 +5130,37 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
   function cardAmbientes210(sc,rs){
     var gs=guides210(rs.map(function(r){return r.code;}));
     if(!gs.length)return '';
-    var ord=gs.slice().sort(function(a,b){return b.pct-a.pct||a.name.localeCompare(b.name,'es');});
+    /* V86.239: filtro por tipo de ambiente. Las categorías salen de los propios
+       datos (Social, Dormitorio, Integrales...), no de una lista fija, para que
+       no haya que tocar código si mañana aparece otra. */
+    var todasCats=[];
+    gs.forEach(function(g){var c=e210(g.cat||'').trim();if(c&&todasCats.indexOf(c)<0)todasCats.push(c)});
+    todasCats.sort(function(a,b){return a.localeCompare(b,'es')});
+    var catSel=window.__v239AmbCat||'todas';
+    if(catSel!=='todas'&&todasCats.indexOf(catSel)<0){catSel='todas';window.__v239AmbCat='todas'}
+    var gsTotal=gs.length;
+    if(catSel!=='todas')gs=gs.filter(function(g){return e210(g.cat||'').trim()===catSel});
+    if(!gs.length){gs=guides210(rs.map(function(r){return r.code;}));catSel='todas';window.__v239AmbCat='todas'}
+    var chips210='<div class="v239Cats"><button type="button" class="v239Cat'+(catSel==='todas'?' on':'')+'" data-v239-cat="todas">Ambas · todas <b>'+i210(gsTotal)+'</b></button>'+
+      todasCats.map(function(c){
+        var n=guides210(rs.map(function(r){return r.code;})).filter(function(g){return e210(g.cat||'').trim()===c}).length;
+        return '<button type="button" class="v239Cat'+(catSel===c?' on':'')+'" data-v239-cat="'+e210(c)+'">'+e210(c)+' <b>'+i210(n)+'</b></button>';
+      }).join('')+'</div>';
+
     /* "Completa en todas las tiendas del alcance" a nivel nacional da casi
        siempre cero y no sirve para decidir. Se reportan dos lecturas útiles:
        en cuántas tiendas al menos una guía llegó al 100%, y el promedio de
        guías completas por tienda. */
+    var ord=gs.slice().sort(function(a,b){return b.pct-a.pct||a.name.localeCompare(b.name,'es');});
     var enAlguna=gs.filter(function(g){return g.completas>0;}).length;
     var enTodas=gs.filter(function(g){return g.stores&&g.completas>=g.stores;}).length;
     var promTienda=rs.length?rs.reduce(function(a,r){return a+r.ambCompletas;},0)/rs.length:0;
     var req=gs.reduce(function(a,g){return a+g.req;},0),have=gs.reduce(function(a,g){return a+g.have;},0);
     function tabla(list,cls){
-      return '<div class="twrap"><table class="v8618Table v210GuideTable"><thead><tr><th>Guía</th><th class="num">Completitud</th><th class="num">Posiciones</th><th class="num">Tiendas</th></tr></thead><tbody>'+list.map(function(g){
+      /* V86.239: antes eran 10 guías fijas por columna. Ahora entran muchas más
+         dentro de una caja con scroll, que es lo que permite revisar el bloque
+         completo sin salir de la tarjeta. */
+      return '<div class="twrap v239Scroll"><table class="v8618Table v210GuideTable"><thead><tr><th>Guía</th><th class="num">Completitud</th><th class="num">Posiciones</th><th class="num">Tiendas</th></tr></thead><tbody>'+list.map(function(g){
         return '<tr data-v210-guide="'+e210(g.code)+'" tabindex="0" title="Ver en qué tiendas está incompleta"><td><b>'+e210(g.name)+'</b><div class="muted">'+e210(g.code)+(g.cat?' · '+e210(g.cat):'')+'</div></td><td class="num"><b class="'+(g.pct>=95?'v210Good':g.pct>=70?'':'v210Bad')+'">'+p210(g.pct)+'</b></td><td class="num">'+i210(g.have)+' / '+i210(g.req)+'</td><td class="num">'+i210(g.completas)+' de '+i210(g.stores)+'</td></tr>';
       }).join('')+'</tbody></table></div>';
     }
@@ -4751,7 +5169,7 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
       kpi210('v210Inv','%','Posiciones cubiertas',p210(req?have/req*100:0),i210(have)+' de '+i210(req)+' posiciones cubiertas')+
       kpi210('v210Rot','↑','Mejor completitud',ord.length?p210(ord[0].pct):'—',ord.length?e210(ord[0].name):'')+
       kpi210('v210Evac','↓','Menor completitud',ord.length?p210(ord[ord.length-1].pct):'—',ord.length?e210(ord[ord.length-1].name):'')+
-    '</div><div class="v210TwoCol"><div><div class="v170SugTitle">Mayor cobertura</div>'+tabla(ord.slice(0,10))+'</div><div><div class="v170SugTitle">Menor cobertura · atender primero</div>'+tabla(ord.slice(-10).reverse())+'</div></div><div class="dashboardNote">Promedio de guías completas por tienda en el alcance: <b>'+promTienda.toFixed(1)+'</b>. Selecciona cualquier guía para ver tienda por tienda cuántas posiciones le faltan.</div></div></div>';
+    '</div>'+chips210+'<div class="v210TwoCol"><div><div class="v170SugTitle">Mayor cobertura <small>'+i210(Math.min(40,ord.length))+' de '+i210(ord.length)+'</small></div>'+tabla(ord.slice(0,40))+'</div><div><div class="v170SugTitle">Menor cobertura · atender primero <small>'+i210(Math.min(40,ord.length))+' de '+i210(ord.length)+'</small></div>'+tabla(ord.slice(-40).reverse())+'</div></div><div class="dashboardNote">Promedio de guías completas por tienda en el alcance: <b>'+promTienda.toFixed(1)+'</b>. Selecciona cualquier guía para ver tienda por tienda cuántas posiciones le faltan.</div></div></div>';
   }
 
   /* --- detalle de una guía --- */
@@ -4774,6 +5192,13 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
     try{if(typeof window.openTerritoryStore8618==='function'){window.openTerritoryStore8618(code);return;}}catch(_){}
     try{CUR=code;var s=document.getElementById('store');if(s)s.value=code;if(typeof window.setView==='function')window.setView('resumen');}catch(_){}
   }
+
+  /* V86.258: la tarjeta se publica tal cual para poder repetirla en el módulo de
+     Ambientes sin duplicar el cálculo. Es la MISMA función, no una copia. */
+  window.LlaveroAmbCard210={
+    scope:scope210,rows:rows210,guides:guides210,
+    card:cardAmbientes210,openGuide:openGuide210,openStore:openStore210
+  };
 
   /* --- las tarjetas existentes de exposición ya ordenan por % del inventario
          propio; se conservan y solo se les agrega unidades y valor --- */
@@ -4804,7 +5229,11 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
     var dl=deltas210(sc.codes);
     var sig=sc.codes.join(',')+'|'+dl.__base+'|'+dl.__last;
     var host=document.getElementById('v210Host');
-    if(host&&sig===lastSig210)return;
+    /* V86.259: el anclaje ahora viene en el HTML del dashboard, vacío y en su
+       posición final. Antes bastaba con que existiera para dar por hecho que ya
+       estaba relleno; si el dashboard se redibuja, el anclaje reaparece vacío y
+       la firma no ha cambiado, así que hay que exigir que además tenga contenido. */
+    if(host&&host.firstElementChild&&sig===lastSig210)return;
     lastSig210=sig;
     /* V86.218: "Avance" y "Alertas" quedaron reemplazados por los rankings y el
        comparativo por nivel. Se dejan de GENERAR aqui (antes se quitaban despues
@@ -6012,7 +6441,8 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
        mismo recorrido Nacional -> Zona -> Departamento -> Ciudad -> Tienda que ya
        hace el bloque nuevo; se retira por clase para no confundirlo con el mio,
        que tiene el mismo titulo pero vive dentro de #v218Host */
-    Array.prototype.forEach.call(root.querySelectorAll('.v8630HierarchySection,.v8630QuadrantSection'),function(x){x.remove();});
+    /* V86.259: el cuadrante y el comparativo viejo ya no se generan (ver
+       dashboardTerritoryExtras8649), no hay nada que retirar aqui. */
     var extras=root.querySelector('.v8649TerritoryExtras');
     if(extras&&!extras.querySelector('.card')&&!extras.querySelector('table')&&!extras.querySelector('svg'))extras.remove();
 
@@ -6254,4 +6684,6215 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
   window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,240)});
   document.addEventListener('click',function(){schedule()},true);
+})();
+
+/* ===== V86.224 · Alcance del Líder de Área en todos los módulos =====
+
+   Hasta ahora cada módulo se dibujaba con UNA tienda (S[CUR]) y el único
+   filtro geográfico vivía dentro del Dashboard general. Este módulo agrega:
+
+   1. Un estado de alcance compartido (zona / departamento / ciudad / tienda /
+      búsqueda). Es uno solo para toda la aplicación: si se cambia en Inventario,
+      Markdown queda con el mismo alcance. Por eso TODOS los módulos se
+      actualizan, no solo aquel donde se tocó el filtro.
+
+   2. Una tienda sintética "__ALL__" que concatena las filas de las tiendas del
+      alcance y suma sus indicadores. Se registra en S como propiedad NO
+      ENUMERABLE: Object.keys(S) sigue devolviendo solo las 21 tiendas reales,
+      así que ningún ranking, historial ni exportación se contamina con la
+      tienda agregada. Como todos los módulos leen S[CUR], apuntar CUR a la
+      tienda sintética los hace consolidados sin tocar el código de cada vista.
+
+   3. La opción "Todas las tiendas" en el selector del encabezado.
+
+   Nota sobre Ambientes: el índice de inventario por guía (_guideInvIdx45) NO se
+   puede fusionar entre tiendas -- el inventario de una tienda cubriría la guía
+   de otra e inflaría la completitud. En alcance multitienda ese módulo usa un
+   consolidado por tienda en lugar del listado fusionado. */
+(function(){
+  var ALL='__ALL__';
+  var ROWS=['rot','evac','ventas','ventasProducto','inventario','tr','trDetalle','guias'];
+
+  function nrm(s){var t=String(s==null?'':s);try{t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}catch(_){}return t.toUpperCase().replace(/\s+/g,' ').trim()}
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+
+  /* ---------- geografía ---------- */
+  var geoCache={};
+  function geo(code){
+    if(geoCache[code])return geoCache[code];
+    var g={zone:'Sin zona',dep:'Sin departamento',city:'Sin ciudad',name:''};
+    try{
+      if(typeof storeTerritoryMetric8618==='function'){
+        var m=storeTerritoryMetric8618(code)||{};
+        g={zone:m.zone||'Sin zona',dep:m.department||'Sin departamento',city:m.city||'Sin ciudad',name:m.name||''};
+      }
+    }catch(_){}
+    try{var s=SS();if(s&&s[code]&&s[code].name)g.name=s[code].name}catch(_){}
+    geoCache[code]=g;return g;
+  }
+  function realCodes(){var s=SS();return s?Object.keys(s):[]}
+
+  /* ---------- estado de alcance ---------- */
+  var SCOPE={zone:'all',dep:'all',city:'all',store:'all',q:''};
+  var syncing=false;
+
+  function matches(code){
+    var g=geo(code);
+    if(SCOPE.zone!=='all'&&g.zone!==SCOPE.zone)return false;
+    if(SCOPE.dep!=='all'&&g.dep!==SCOPE.dep)return false;
+    if(SCOPE.city!=='all'&&g.city!==SCOPE.city)return false;
+    if(SCOPE.store!=='all'&&code!==SCOPE.store)return false;
+    if(SCOPE.q){
+      var hay=nrm([g.name,g.zone,g.dep,g.city,code].join(' '));
+      if(hay.indexOf(nrm(SCOPE.q))<0)return false;
+    }
+    return true;
+  }
+  function scopeCodes(){return realCodes().filter(matches)}
+  function scopeLabel(codes){
+    var n=codes.length;
+    if(n===1)return geo(codes[0]).name||codes[0];
+    var parts=[];
+    if(SCOPE.city!=='all')parts.push(SCOPE.city);
+    else if(SCOPE.dep!=='all')parts.push(SCOPE.dep);
+    else if(SCOPE.zone!=='all')parts.push(SCOPE.zone);
+    else parts.push('Todas las tiendas');
+    return parts[0]+' · '+n+' tiendas';
+  }
+
+  /* ---------- construcción de la tienda agregada ---------- */
+  function tagRow(r,code){
+    if(Array.isArray(r)){var a=r.slice();try{a.__st=code}catch(_){}return a}
+    if(r&&typeof r==='object'){var o={};for(var k in r)if(Object.prototype.hasOwnProperty.call(r,k))o[k]=r[k];o.__st=code;return o}
+    return r;
+  }
+  function sumInto(acc,o){
+    if(!o)return;
+    Object.keys(o).forEach(function(k){var v=o[k];if(typeof v==='number'&&isFinite(v))acc[k]=(acc[k]||0)+v});
+  }
+  function buildAgg(codes){
+    var s=SS();if(!s)return null;
+    var agg={name:scopeLabel(codes),__scope:true,__codes:codes.slice(),__byStore:{}};
+    ROWS.forEach(function(f){agg[f]=[]});
+    var kpi={},amb={},maxUnique=0,cats={};
+    codes.forEach(function(c){
+      var st=s[c];if(!st||typeof st!=='object')return;
+      agg.__byStore[c]=st._guideInvIdx45||{};
+      ROWS.forEach(function(f){
+        var rows=st[f];if(!Array.isArray(rows))return;
+        for(var i=0;i<rows.length;i++)agg[f].push(tagRow(rows[i],c));
+      });
+      sumInto(kpi,st.kpi);sumInto(amb,st.amb);
+      if(st.amb&&st.amb.uniqueRequired>maxUnique)maxUnique=st.amb.uniqueRequired;
+      if(Array.isArray(st.inventario))st.inventario.forEach(function(r){if(r&&r.categoria)cats[r.categoria]=1});
+    });
+    /* Los porcentajes y los conteos de códigos únicos NO son sumables. */
+    if(amb.reqTotal)amb.compTotalPct=Math.round(1000*(amb.haveTotal||0)/amb.reqTotal)/10;
+    if(maxUnique)amb.uniqueRequired=maxUnique;
+    kpi.guiaComp=amb.compTotalPct;
+    kpi.guiaFalt=amb.faltTot;
+    kpi.guiaCompletas=amb.gCompletas;
+    kpi.ncat=Object.keys(cats).length||kpi.ncat;
+    agg.kpi=kpi;agg.amb=amb;
+    /* Fusionar el índice de inventario por guía haría que el stock de una
+       tienda cubriera la guía de otra. Se deja vacío y el módulo de Ambientes
+       resuelve por la tienda de origen de cada fila (ver V86.225). */
+    agg._guideInvIdx45={};
+    return agg;
+  }
+
+  function installAgg(agg){
+    var s=SS();if(!s||!agg)return false;
+    try{
+      Object.defineProperty(s,ALL,{value:agg,enumerable:false,configurable:true,writable:true});
+    }catch(_){
+      try{s[ALL]=agg}catch(__){return false}
+    }
+    return true;
+  }
+
+  /* ---------- aplicar el alcance ---------- */
+  var lastKey='';
+  function scopeKey(codes){return codes.join(',')}
+
+  function applyScope(rerender){
+    if(!leader())return;
+    var codes=scopeCodes();
+    if(!codes.length){toastScope('Ningún resultado con esos filtros. Se mantiene el alcance anterior.');return}
+    var target;
+    if(codes.length===1){target=codes[0]}
+    else{
+      var agg=buildAgg(codes);
+      if(!installAgg(agg))return;
+      target=ALL;
+    }
+    var key=scopeKey(codes);
+    var changed=(key!==lastKey);
+    lastKey=key;
+    try{
+      if(typeof CUR!=='undefined'&&CUR!==target){CUR=target}
+      var sel=document.getElementById('store');
+      if(sel){ensureAllOption(sel);sel.value=target}
+    }catch(_){}
+    if(rerender!==false&&changed)redraw();
+  }
+  function redraw(){
+    try{
+      /* Las búsquedas rápidas por módulo se limpian: pertenecen al alcance anterior. */
+      if(typeof state!=='undefined'&&state){
+        ['prox','rot','evac','tr','inventario'].forEach(function(k){if(state[k])state[k].q=''});
+      }
+      var g=document.getElementById('gsearch');if(g)g.value='';
+    }catch(_){}
+    try{
+      if(view()==='dashboard'){if(typeof window.setView==='function')window.setView('dashboard');return}
+      if(typeof window.refresh==='function')window.refresh();
+      else if(typeof window.setView==='function')window.setView(view());
+    }catch(e){console.error('V86.224 redraw',e)}
+  }
+  function toastScope(msg){try{if(typeof toast==='function')toast(msg,'err');else console.warn(msg)}catch(_){}}
+
+  /* ---------- opción "Todas las tiendas" en el selector del encabezado ---------- */
+  function ensureAllOption(sel){
+    if(!leader()||!sel)return;
+    if(sel.querySelector('option[value="'+ALL+'"]'))return;
+    var o=document.createElement('option');
+    o.value=ALL;o.textContent='★ Todas las tiendas';
+    sel.insertBefore(o,sel.firstChild);
+  }
+
+  /* ---------- barra de alcance ---------- */
+  function opts(list,cur,allLabel){
+    return '<option value="all">'+esc(allLabel)+'</option>'+list.map(function(x){
+      return '<option value="'+esc(x)+'"'+(String(cur)===String(x)?' selected':'')+'>'+esc(x)+'</option>';
+    }).join('');
+  }
+  function barHtml(){
+    var codes=realCodes();
+    /* Las listas se encadenan: el departamento respeta la zona elegida, etc. */
+    var zoneOk=codes.filter(function(c){return SCOPE.zone==='all'||geo(c).zone===SCOPE.zone});
+    var depOk=zoneOk.filter(function(c){return SCOPE.dep==='all'||geo(c).dep===SCOPE.dep});
+    var cityOk=depOk.filter(function(c){return SCOPE.city==='all'||geo(c).city===SCOPE.city});
+    function uniq(list,f){return Array.from(new Set(list.map(f))).sort(function(a,b){return String(a).localeCompare(String(b),'es')})}
+    var zones=uniq(codes,function(c){return geo(c).zone});
+    var deps=uniq(zoneOk,function(c){return geo(c).dep});
+    var cities=uniq(depOk,function(c){return geo(c).city});
+    var stores=cityOk.map(function(c){return {code:c,name:geo(c).name||c}}).sort(function(a,b){return a.name.localeCompare(b.name,'es')});
+    var storeOpts='<option value="all">Todas las tiendas</option>'+stores.map(function(x){
+      return '<option value="'+esc(x.code)+'"'+(SCOPE.store===x.code?' selected':'')+'>'+esc(x.name)+'</option>';
+    }).join('');
+    var n=scopeCodes().length;
+    return '<div class="v224Bar" id="v224Bar">'+
+      '<div class="v224Field"><label>Zona</label><select data-v224="zone">'+opts(zones,SCOPE.zone,'Todas las zonas')+'</select></div>'+
+      '<div class="v224Field"><label>Departamento</label><select data-v224="dep">'+opts(deps,SCOPE.dep,'Todos los departamentos')+'</select></div>'+
+      '<div class="v224Field"><label>Ciudad</label><select data-v224="city">'+opts(cities,SCOPE.city,'Todas las ciudades')+'</select></div>'+
+      '<div class="v224Field"><label>Tienda</label><select data-v224="store">'+storeOpts+'</select></div>'+
+      '<div class="v224Field v224Search"><label>Buscar</label><input type="search" data-v224="q" value="'+esc(SCOPE.q)+'" placeholder="Zona, ciudad, tienda o código"></div>'+
+      '<button type="button" class="v224Clear" data-v224-clear="1">Limpiar</button>'+
+      '<span class="v224Count">'+(n===1?'1 tienda':fint(n)+' tiendas')+'</span>'+
+    '</div>';
+  }
+
+  function wireBar(bar){
+    if(!bar||bar.dataset.v224Wired==='1')return;
+    bar.dataset.v224Wired='1';
+    bar.addEventListener('change',function(e){
+      var k=e.target&&e.target.dataset?e.target.dataset.v224:'';
+      if(!k||k==='q')return;
+      SCOPE[k]=e.target.value;
+      /* Al subir de nivel se sueltan los niveles inferiores para no dejar
+         combinaciones imposibles (ciudad de otra zona, etc.). */
+      if(k==='zone'){SCOPE.dep='all';SCOPE.city='all';SCOPE.store='all'}
+      if(k==='dep'){SCOPE.city='all';SCOPE.store='all'}
+      if(k==='city'){SCOPE.store='all'}
+      pushToDashboard();
+      applyScope(true);
+    });
+    var t=null;
+    bar.addEventListener('input',function(e){
+      if(!e.target||!e.target.dataset||e.target.dataset.v224!=='q')return;
+      var v=e.target.value;
+      clearTimeout(t);t=setTimeout(function(){SCOPE.q=v;applyScope(true)},320);
+    });
+    var clr=bar.querySelector('[data-v224-clear]');
+    if(clr)clr.onclick=function(){
+      SCOPE={zone:'all',dep:'all',city:'all',store:'all',q:''};
+      pushToDashboard();applyScope(true);
+    };
+  }
+
+  function injectBar(){
+    if(!leader())return;
+    var v=view();
+    if(!v||v==='dashboard')return;      /* el Dashboard ya tiene su propia barra */
+    var content=document.getElementById('content');if(!content)return;
+    var bar=document.getElementById('v224Bar');
+    if(bar&&bar.parentElement===content&&content.firstElementChild===bar){wireBar(bar);return}
+    if(bar)bar.remove();
+    content.insertAdjacentHTML('afterbegin',barHtml());
+    wireBar(document.getElementById('v224Bar'));
+  }
+
+  /* ---------- sincronía con el filtro del Dashboard ---------- */
+  function pushToDashboard(){
+    if(syncing)return;
+    try{
+      if(!window.V8620||typeof window.V8620.setTerritoryFilter!=='function')return;
+      if(view()!=='dashboard')return;   /* solo si está montado */
+      syncing=true;
+      window.V8620.setTerritoryFilter('zone',SCOPE.zone);
+      window.V8620.setTerritoryFilter('department',SCOPE.dep);
+      window.V8620.setTerritoryFilter('city',SCOPE.city);
+      window.V8620.setTerritoryFilter('store',SCOPE.store);
+    }catch(_){}finally{syncing=false}
+  }
+  function hookDashboard(){
+    try{
+      if(!window.V8620||window.V8620.__v224)return;
+      var orig=window.V8620.setTerritoryFilter;
+      if(typeof orig!=='function')return;
+      var map={zone:'zone',department:'dep',city:'city',store:'store'};
+      window.V8620.setTerritoryFilter=function(kind,value){
+        if(!syncing&&map[kind]){
+          SCOPE[map[kind]]=value;
+          if(kind==='zone'){SCOPE.dep='all';SCOPE.city='all';SCOPE.store='all'}
+          if(kind==='department'){SCOPE.city='all';SCOPE.store='all'}
+          if(kind==='city'){SCOPE.store='all'}
+        }
+        var r=orig.apply(this,arguments);
+        if(!syncing)applyScope(false);
+        return r;
+      };
+      var origClear=window.V8620.clearTerritories;
+      if(typeof origClear==='function'){
+        window.V8620.clearTerritories=function(){
+          SCOPE={zone:'all',dep:'all',city:'all',store:'all',q:''};
+          var r=origClear.apply(this,arguments);applyScope(false);return r;
+        };
+      }
+      window.V8620.__v224=true;
+    }catch(_){}
+  }
+
+  /* ---------- selector del encabezado ---------- */
+  function hookStoreSelect(){
+    var sel=document.getElementById('store');
+    if(!sel||sel.dataset.v224==='1')return;
+    sel.dataset.v224='1';
+    ensureAllOption(sel);
+    sel.addEventListener('change',function(){
+      var v=sel.value;
+      if(v===ALL){SCOPE.store='all';applyScope(false)}
+      else{SCOPE.store=v;SCOPE.zone='all';SCOPE.dep='all';SCOPE.city='all';SCOPE.q='';lastKey=''}
+      setTimeout(injectBar,120);
+    },true);
+  }
+
+  /* ---------- API pública ---------- */
+  window.LlaveroScope={
+    get:function(){var c={};for(var k in SCOPE)c[k]=SCOPE[k];return c},
+    codes:scopeCodes,
+    isMulti:function(){return scopeCodes().length>1},
+    storeName:function(code){return geo(code).name||code},
+    geo:geo,
+    set:function(k,v){if(k in SCOPE){SCOPE[k]=v;applyScope(true)}},
+    reset:function(){SCOPE={zone:'all',dep:'all',city:'all',store:'all',q:''};applyScope(true)}
+  };
+
+  /* ---------- arranque ---------- */
+  function tick(){
+    if(!leader())return;
+    hookStoreSelect();hookDashboard();
+    var sel=document.getElementById('store');if(sel)ensureAllOption(sel);
+    injectBar();
+  }
+  function install(){
+    tick();
+    var content=document.getElementById('content');
+    if(content&&!content.__v224Obs){
+      content.__v224Obs=true;
+      try{new MutationObserver(function(){tick()}).observe(content,{childList:true})}catch(_){}
+    }
+    if(!window.__v224Tick)window.__v224Tick=setInterval(tick,700);
+    console.info('LLAVERO V86.224 · Alcance del Líder en todos los módulos');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,400)},{once:true});
+  else setTimeout(install,400);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,300)});
+})();
+
+/* ===== V86.225 · Alcance multitienda: columna de tienda, Markdown y Ambientes =====
+
+   Complementa a V86.224 con lo que la tienda agregada por sí sola no resuelve:
+
+   1. Columna "Tienda" en Inventario, Rotación, Evacuación y Traslados. Sin ella
+      el consolidado es ilegible: el mismo código aparece hasta 21 veces sin
+      decir de dónde sale. Las vistas de index.html ya llaman a __scopeCol /
+      __scopeCell; aquí se definen, y solo existen cuando el alcance abarca más
+      de una tienda (con una sola tienda el render queda exactamente igual).
+
+   2. Markdown: mdRows8664(code) resuelve el descuento por D.map[code], y la
+      tienda sintética no está en ese mapa. Se concatenan las filas reales de
+      cada tienda del alcance, que es como ya lo hacía la vista del Líder.
+
+   3. Ambientes: fusionar 2.625 guías no solo cuelga la vista, es incorrecto --
+      el índice de inventario por guía es por tienda y, fusionado, el stock de
+      una tienda cubriría la guía de otra. En alcance multitienda se muestra un
+      consolidado por tienda (cifras ya calculadas por cada una) y al pulsar una
+      fila se abre esa tienda con su vista de Ambientes normal. */
+(function(){
+  var ALL='__ALL__';
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function agg(){var s=SS();return (s&&s[ALL]&&s[ALL].__scope)?s[ALL]:null}
+  function isMulti(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+  function sname(code){
+    try{if(window.LlaveroScope&&window.LlaveroScope.storeName)return window.LlaveroScope.storeName(code)}catch(_){}
+    var s=SS();return (s&&s[code]&&s[code].name)||code;
+  }
+
+  /* ---------- 1. columna Tienda ---------- */
+  function storeOfRow(r){
+    if(!r)return '';
+    if(r.__st)return r.__st;
+    if(typeof r==='object'&&r.fuenteBodegaCodigo)return String(r.fuenteBodegaCodigo);
+    return '';
+  }
+  function refreshScopeCols(){
+    if(isMulti()){
+      window.__scopeCol=function(){return ['Tienda','x',0]};
+      window.__scopeCell=function(r){
+        var c=storeOfRow(r);
+        if(!c)return '<span class="v225StoreCell v225Unknown">—</span>';
+        return '<span class="v225StoreCell" title="'+esc(sname(c))+'"><b>'+esc(sname(c))+'</b><small>'+esc(c)+'</small></span>';
+      };
+    }else{
+      try{delete window.__scopeCol}catch(_){window.__scopeCol=undefined}
+      try{delete window.__scopeCell}catch(_){window.__scopeCell=undefined}
+    }
+  }
+
+  /* ---------- 2. Markdown consolidado ---------- */
+  var mdCache=null,mdKey='';
+  function wrapMdRows(){
+    if(typeof window.mdRows8664!=='function'||window.mdRows8664.__v225)return;
+    var orig=window.mdRows8664;
+    var wrapped=function(code){
+      if(code!==ALL)return orig.apply(this,arguments);
+      var cs=codes(),key=cs.join(',');
+      if(mdCache&&mdKey===key)return mdCache;
+      var out=[],prev=cur();
+      try{
+        cs.forEach(function(sc){
+          var rows=[];
+          try{if(typeof CUR!=='undefined')CUR=sc;rows=orig(sc)||[]}catch(_){rows=[]}
+          rows.forEach(function(r){
+            if(!r||typeof r!=='object')return;
+            var o={};for(var k in r)if(Object.prototype.hasOwnProperty.call(r,k))o[k]=r[k];
+            o.__st=sc;o.storeCode=sc;o.storeName=sname(sc);
+            out.push(o);
+          });
+        });
+      }catch(e){console.error('V86.225 markdown consolidado',e)}
+      finally{try{if(typeof CUR!=='undefined')CUR=prev}catch(_){}}
+      mdCache=out;mdKey=key;return out;
+    };
+    wrapped.__v225=true;
+    window.mdRows8664=wrapped;
+  }
+  function clearMdCache(){mdCache=null;mdKey=''}
+
+  /* ---------- 3. Ambientes consolidado por tienda ---------- */
+  function ambRow(code){
+    var s=SS(),st=s&&s[code];if(!st)return null;
+    var a=st.amb||{},g=Array.isArray(st.guias)?st.guias:[];
+    return {
+      code:code,name:sname(code),
+      nG:a.nG||g.length||0,
+      completas:a.gCompletas||0,
+      incompletas:a.gIncompletas||0,
+      pct:a.compTotalPct==null?0:a.compTotalPct,
+      req:a.reqTotal||0,have:a.haveTotal||0,
+      falt:a.faltTot||0,
+      camino:a.faltCamino||0,solicitados:a.faltRequested||0,disponibles:a.faltAvailable||0,sin:a.faltSin||0
+    };
+  }
+  function ambConsolidado(){
+    var cs=codes().slice(),rows=cs.map(ambRow).filter(Boolean);
+    rows.sort(function(a,b){return a.pct-b.pct||b.falt-a.falt});
+    var T=rows.reduce(function(t,r){
+      t.nG+=r.nG;t.completas+=r.completas;t.incompletas+=r.incompletas;t.req+=r.req;t.have+=r.have;
+      t.falt+=r.falt;t.camino+=r.camino;t.solicitados+=r.solicitados;t.disponibles+=r.disponibles;t.sin+=r.sin;return t;
+    },{nG:0,completas:0,incompletas:0,req:0,have:0,falt:0,camino:0,solicitados:0,disponibles:0,sin:0});
+    var pct=T.req?Math.round(1000*T.have/T.req)/10:0;
+    function bar(p){var col=p>=80?'var(--ok)':p>=45?'var(--amb)':'var(--rot)';
+      return '<div class="v225Track"><div class="v225Fill" style="width:'+Math.max(0,Math.min(100,p))+'%;background:'+col+'"></div></div>';}
+    var trs=rows.map(function(r){
+      return '<tr data-v225-store="'+esc(r.code)+'">'+
+        '<td class="v225St"><b>'+esc(r.name)+'</b><small>'+esc(r.code)+'</small></td>'+
+        '<td class="v225PctCell"><b>'+r.pct.toFixed(1)+'%</b>'+bar(r.pct)+'<small>'+fint(r.have)+' de '+fint(r.req)+' posiciones</small></td>'+
+        '<td class="num"><b>'+fint(r.completas)+'</b></td>'+
+        '<td class="num">'+fint(r.incompletas)+'</td>'+
+        '<td class="num v225Bad"><b>'+fint(r.falt)+'</b></td>'+
+        '<td class="num">'+fint(r.camino)+'</td>'+
+        '<td class="num">'+fint(r.solicitados)+'</td>'+
+        '<td class="num v225Warn">'+fint(r.disponibles)+'</td>'+
+        '<td class="num">'+fint(r.sin)+'</td>'+
+      '</tr>';
+    }).join('');
+    return '<div class="card"><div class="chead"><div class="cnum n4">▦</div><div>'+
+      '<div class="tt">Ambientes · consolidado por tienda</div>'+
+      '<div class="ds">'+fint(rows.length)+' tiendas en el alcance · presiona una fila para abrir esa tienda</div></div>'+
+      '<div class="rt"><span class="badge mut">'+pct.toFixed(1)+'% completitud</span></div></div>'+
+      '<div class="cbody">'+
+      '<div class="v225Note">Este módulo no fusiona las guías de varias tiendas: el inventario de una tienda no puede cubrir la guía de otra. Cada fila trae las cifras calculadas por su propia tienda; el detalle de guías se abre entrando a la tienda.</div>'+
+      /* V86.279: los 4 KPI del consolidado eran solo lectura. "Completitud
+         consolidada" lleva al detalle por tienda que ya está justo debajo en
+         esta misma tarjeta (no hay que duplicar esa tabla en un modal); los
+         otros tres abren el cuadro de guías (V86.263), que ya calcula
+         exactamente estos mismos conjuntos -- se reutiliza el dato, no se
+         recalcula nada. */
+      '<div class="v225Kpis">'+
+        '<div class="v225Kpi v225Click" onclick="document.querySelector(\'.v225TableWrap\')&&document.querySelector(\'.v225TableWrap\').scrollIntoView({behavior:\'smooth\',block:\'center\'})"><label>Completitud consolidada</label><b>'+pct.toFixed(1)+'%</b><small>'+fint(T.have)+' de '+fint(T.req)+' posiciones · ver tabla ↓</small></div>'+
+        '<div class="v225Kpi v225Click" onclick="window.abrirCuadro263&&window.abrirCuadro263(\'completas\')"><label>Guías completas</label><b>'+fint(T.completas)+'</b><small>de '+fint(T.nG)+' guías evaluadas · ver detalle</small></div>'+
+        '<div class="v225Kpi v225Click" onclick="window.abrirCuadro263&&window.abrirCuadro263(\'incompletas\')"><label>Posiciones faltantes</label><b class="v225Bad">'+fint(T.falt)+'</b><small>en todo el alcance · ver detalle</small></div>'+
+        '<div class="v225Kpi v225Click" onclick="window.abrirCuadro263&&window.abrirCuadro263(\'cendisTodas\')"><label>Puedes solicitar</label><b class="v225Warn">'+fint(T.disponibles)+'</b><small>faltantes con CENDIS disponible · ver detalle</small></div>'+
+      '</div>'+
+      '<div class="v225TableWrap"><table class="v225Table"><thead><tr>'+
+      '<th>Tienda</th><th>Completitud</th><th class="num">Completas</th><th class="num">Incompletas</th>'+
+      '<th class="num">Faltantes</th><th class="num">En traslado</th><th class="num">Solicitados</th>'+
+      '<th class="num">Puedes solicitar</th><th class="num">Sin gestión</th>'+
+      '</tr></thead><tbody>'+trs+'</tbody></table></div>'+
+      '</div></div>';
+  }
+  function renderAmbConsolidado(){
+    var c=document.getElementById('content');if(!c)return;
+    c.innerHTML=ambConsolidado();
+    c.querySelectorAll('[data-v225-store]').forEach(function(tr){
+      tr.onclick=function(){
+        var sc=tr.dataset.v225Store;
+        try{
+          if(window.LlaveroScope)window.LlaveroScope.set('store',sc);
+          else{CUR=sc;var s=document.getElementById('store');if(s)s.value=sc;window.setView('amb')}
+        }catch(_){}
+      };
+    });
+  }
+
+  /* ---------- enganche a setView ---------- */
+  function hookSetView(){
+    if(typeof window.setView!=='function'||window.setView.__v225)return;
+    var orig=window.setView;
+    var wrapped=function(v){
+      refreshScopeCols();
+      if(v==='amb'&&leader()&&isMulti()){
+        try{if(typeof VIEW!=='undefined')VIEW='amb'}catch(_){}
+        try{if(typeof setActiveNav==='function')setActiveNav('amb')}catch(_){}
+        window.__LLV_AMB_CONSOLIDADO=true;
+        renderAmbConsolidado();
+        return;
+      }
+      window.__LLV_AMB_CONSOLIDADO=false;
+      return orig.apply(this,arguments);
+    };
+    wrapped.__v225=true;
+    window.setView=wrapped;
+    try{setView=wrapped}catch(_){}
+  }
+
+  function tick(){
+    refreshScopeCols();wrapMdRows();hookSetView();
+    if(!isMulti()){clearMdCache();window.__LLV_AMB_CONSOLIDADO=false;return}
+    /* V86.232: el envoltorio de setView no siempre gana la carrera con el
+       manejador original del selector de tienda (en el mismo elemento los
+       listeners corren en orden de registro, no por fase de captura). Si la
+       vista de Ambientes quedó dibujada con las guías fusionadas, se rehace
+       aquí: además de ser lo correcto, evita renderizar 2.625 guías. */
+    try{
+      if(view()==='amb'&&!document.querySelector('.v225Table')){
+        window.__LLV_AMB_CONSOLIDADO=true;
+        renderAmbConsolidado();
+      }
+    }catch(e){console.error('V86.232 ambientes consolidado',e)}
+  }
+  function install(){
+    tick();
+    if(!window.__v225Tick)window.__v225Tick=setInterval(tick,700);
+    console.info('LLAVERO V86.225 · Columna de tienda, Markdown consolidado y Ambientes por tienda');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,450)},{once:true});
+  else setTimeout(install,450);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,350)});
+})();
+
+/* ===== V86.226 · Columna "Tienda" en el Inventario consolidado =====
+
+   Rotación y Evacuación agrupan por código de producto (aggregate71 suma las
+   unidades y el valor de todas las filas con el mismo código), así que en
+   alcance multitienda ya muestran una fila por producto con el total del
+   alcance: no hay nada que desambiguar.
+
+   Inventario NO agrupa: lista una fila por registro, de modo que el mismo
+   código aparece tantas veces como tiendas lo tengan y no se sabe de cuál es
+   cada fila. La tabla la construye inventoryTableHTML(rows) -- una función que
+   recibe las filas y devuelve el HTML --, así que se envuelve y se inserta la
+   columna usando el ORDEN de esas filas, que es el mismo del cuerpo generado.
+   Es un mapeo exacto, no una heurística por código. */
+(function(){
+  var ALL='__ALL__';
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function multi(){var s=SS();return cur()===ALL&&!!(s&&s[ALL]&&s[ALL].__scope)}
+  function sname(code){
+    try{if(window.LlaveroScope&&window.LlaveroScope.storeName)return window.LlaveroScope.storeName(code)}catch(_){}
+    var s=SS();return (s&&s[code]&&s[code].name)||code;
+  }
+  function storeOf(r){
+    if(!r||typeof r!=='object')return '';
+    return r.__st||r.fuenteBodegaCodigo||'';
+  }
+  function cell(r){
+    var c=storeOf(r);
+    if(!c)return '<td class="v226Td"><span class="v225StoreCell v225Unknown">—</span></td>';
+    return '<td class="v226Td"><span class="v225StoreCell" title="'+esc(sname(c))+'"><b>'+esc(sname(c))+'</b><small>'+esc(c)+'</small></span></td>';
+  }
+
+  function withStoreColumn(html,rows){
+    if(typeof html!=='string'||!html)return html;
+    var out=html;
+    /* una columna más en el colgroup, para que los anchos no se corran */
+    out=out.replace(/<colgroup[^>]*>/i,function(m){return m+'<col class="v226Col">'});
+    /* encabezado */
+    out=out.replace(/(<thead[^>]*>\s*<tr[^>]*>)/i,function(m,a){return a+'<th class="v226Th">Tienda</th>'});
+    /* el mensaje de "sin registros" ocupa una columna más */
+    out=out.replace(/colspan="(\d+)"/gi,function(m,n){return 'colspan="'+(Number(n)+1)+'"'});
+    /* cuerpo: una celda al inicio de cada fila, en el mismo orden de `rows` */
+    var i=0,inserted=0;
+    out=out.replace(/<tbody[^>]*>[\s\S]*?<\/tbody>/i,function(block){
+      return block.replace(/<tr\b[^>]*>/gi,function(tr){
+        var r=rows&&rows[i];i++;
+        if(r===undefined)return tr;      /* fila de estado vacío: ya lleva colspan */
+        inserted++;
+        return tr+cell(r);
+      });
+    });
+    /* Si el número de filas no coincide con el de datos, se deja la tabla como
+       estaba: más vale sin columna que con las columnas corridas. */
+    if(rows&&rows.length&&inserted!==rows.length)return html;
+    return out;
+  }
+
+  function wrap(){
+    /* DESACTIVADO en V86.238.
+
+       Este módulo ponía el NOMBRE de la tienda en cada fila del Inventario,
+       porque la tabla listaba un registro por tienda. V86.238 cambió eso: ahora
+       agrupa por producto y muestra el NÚMERO de tiendas, que es lo que se pidió.
+
+       Además ambos envoltorios se envolvían mutuamente en su intervalo (cada uno
+       veía la función del otro como "sin envolver") y acababan añadiendo la
+       columna 25 veces. Se deja aquí, inerte y documentado, en vez de borrarlo,
+       para que quede constancia de por qué. */
+    return;
+  }
+
+  function install(){
+    wrap();
+    if(!window.__v226Tick)window.__v226Tick=setInterval(wrap,700);
+    console.info('LLAVERO V86.226 · Columna Tienda en el Inventario consolidado');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,500)},{once:true});
+  else setTimeout(install,500);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,400)});
+})();
+
+/* ===== V86.227 · Desglose por tienda de cada producto =====
+
+   En alcance multitienda las vistas suman: "este código tiene 47 unidades en
+   rotación". Faltaba lo importante para gestionar: EN CUÁLES tiendas está y
+   cómo está en cada una. Este módulo agrega dos cosas:
+
+   1. Columna "Tiendas" en Rotación y Evacuación. Esas tablas agrupan por
+      código, así que cada fila es un producto y el conteo es exacto; el mapeo
+      se hace por data-code, que ahí no se repite.
+
+   2. Panel "Detalle por tienda" dentro de la ficha del producto: una fila por
+      tienda con su estado, unidades, valor, antigüedad, respaldo CENDIS y
+      descuento de muestra. Los datos salen del inventario real de cada tienda
+      (S[tienda].inventario), no de la tienda agregada, así que no hay riesgo de
+      que una tienda herede cifras de otra. */
+(function(){
+  var ALL='__ALL__';
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function money(n){try{return '$ '+Number(n||0).toLocaleString('es-CO',{maximumFractionDigits:0})}catch(_){return '$ '+(n||0)}}
+  function num(v){var n=Number(v);return isFinite(n)?n:0}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var s=SS();return (s&&s[ALL]&&s[ALL].__scope)?s[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+  function sname(c){
+    try{if(window.LlaveroScope&&window.LlaveroScope.storeName)return window.LlaveroScope.storeName(c)}catch(_){}
+    var s=SS();return (s&&s[c]&&s[c].name)||c;
+  }
+  function code6(v){return String(v==null?'':v).trim()}
+
+  /* ---------- índice código -> tiendas ---------- */
+  var IDX=null,IDXKEY='';
+  function index(){
+    var cs=codes(),key=cs.join(',');
+    if(IDX&&IDXKEY===key)return IDX;
+    var s=SS(),map={};
+    cs.forEach(function(sc){
+      var st=s&&s[sc];if(!st||!Array.isArray(st.inventario))return;
+      st.inventario.forEach(function(r){
+        var c=code6(r&&r.codigo);if(!c)return;
+        (map[c]=map[c]||[]).push({sc:sc,inv:r});
+      });
+    });
+    IDX=map;IDXKEY=key;return map;
+  }
+  /* Rotación y Evacuación por tienda, para marcar el estado sin depender del
+     campo `estados` del inventario (que puede venir vacío). */
+  var RE=null,REKEY='';
+  function reIndex(){
+    var cs=codes(),key=cs.join(',');
+    if(RE&&REKEY===key)return RE;
+    var s=SS(),m={rot:{},evac:{}};
+    cs.forEach(function(sc){
+      var st=s&&s[sc];if(!st)return;
+      (Array.isArray(st.rot)?st.rot:[]).forEach(function(r){var c=code6(r&&r[0]);if(c)(m.rot[c]=m.rot[c]||{})[sc]=1});
+      (Array.isArray(st.evac)?st.evac:[]).forEach(function(r){var c=code6(r&&r[0]);if(c)(m.evac[c]=m.evac[c]||{})[sc]=1});
+    });
+    RE=m;REKEY=key;return m;
+  }
+  function storeCount(code){var l=index()[code6(code)];return l?l.length:0}
+
+  /* descuento de muestra por tienda (índice 5 del catálogo D) */
+  function sampleDiscount(sc,code){
+    try{
+      var D=window.__LLAVERO_DISCOUNT_DATA__;if(!D||!D.map||!D.rows)return null;
+      var src=D.map[sc];if(!src)return null;
+      var row=D.rows[src]&&D.rows[src][code6(code)];
+      if(!row)return null;
+      var v=row[5];return v==null?null:num(v);
+    }catch(_){return null}
+  }
+  function ageOf(r){
+    var g=r&&r.rangos;if(!g)return '—';
+    var e=Object.keys(g).filter(function(k){return num(g[k])>0});
+    if(!e.length)return '—';
+    return e.map(function(k){return fint(g[k])+' u · '+k}).join(' / ');
+  }
+  function stateOf(sc,code,r){
+    var m=reIndex(),c=code6(code),tags=[];
+    if(m.rot[c]&&m.rot[c][sc])tags.push('<span class="v227Tag rot">Rotación</span>');
+    if(m.evac[c]&&m.evac[c][sc])tags.push('<span class="v227Tag evac">Evacuación</span>');
+    if(!tags.length){
+      var e=(r&&Array.isArray(r.estados))?r.estados:[];
+      if(e.indexOf('Rotación')>=0)tags.push('<span class="v227Tag rot">Rotación</span>');
+      else if(e.indexOf('Evacuación')>=0)tags.push('<span class="v227Tag evac">Evacuación</span>');
+      else tags.push('<span class="v227Tag ok">Sano</span>');
+    }
+    var ab=r&&r.estadoAbastecimiento;
+    if(ab==='T')tags.push('<span class="v227Tag t">Testeo</span>');
+    else if(ab==='O')tags.push('<span class="v227Tag o">Novedad</span>');
+    else if(ab==='N')tags.push('<span class="v227Tag n">Fuera de surtido</span>');
+    return tags.join(' ');
+  }
+
+  function breakdownHtml(code){
+    var c=code6(code),list=(index()[c]||[]).slice();
+    if(!list.length){
+      return '<section class="v227Box"><div class="v227Head"><b>Detalle por tienda</b>'+
+        '<span>Ninguna de las tiendas del alcance tiene este producto en inventario.</span></div></section>';
+    }
+    list.sort(function(a,b){return num(b.inv.stock)-num(a.inv.stock)||sname(a.sc).localeCompare(sname(b.sc),'es')});
+    var tU=0,tV=0,tC=0;
+    var trs=list.map(function(x){
+      var r=x.inv,u=num(r.stock),v=num(r.valorInventario),cd=num(r.dispCendis),d=sampleDiscount(x.sc,c);
+      tU+=u;tV+=v;tC+=cd;
+      return '<tr data-v227-store="'+esc(x.sc)+'">'+
+        '<td class="v227St"><b>'+esc(sname(x.sc))+'</b><small>'+esc(x.sc)+'</small></td>'+
+        '<td class="v227States">'+stateOf(x.sc,c,r)+'</td>'+
+        '<td class="num"><b>'+fint(u)+'</b></td>'+
+        '<td class="num">'+money(v)+'</td>'+
+        '<td class="v227Age">'+esc(ageOf(r))+'</td>'+
+        '<td class="num">'+(cd>0?fint(cd)+' u':'<span class="v227Muted">0 u</span>')+'</td>'+
+        '<td class="num">'+(d==null?'<span class="v227Muted">—</span>':'<b>'+d+'%</b>')+'</td>'+
+      '</tr>';
+    }).join('');
+    return '<section class="v227Box">'+
+      '<div class="v227Head"><b>Detalle por tienda</b>'+
+      '<span>Este producto está en <b>'+fint(list.length)+'</b> de las '+fint(codes().length)+' tiendas del alcance. '+
+      'Presiona una fila para abrir esa tienda.</span></div>'+
+      '<div class="v227Wrap"><table class="v227Table"><thead><tr>'+
+      '<th>Tienda</th><th>Estado</th><th class="num">Uds.</th><th class="num">Valor</th>'+
+      '<th>Antigüedad</th><th class="num">CENDIS</th><th class="num">Dcto muestra</th>'+
+      '</tr></thead><tbody>'+trs+'</tbody>'+
+      '<tfoot><tr><td><b>Total del alcance</b></td><td></td><td class="num"><b>'+fint(tU)+'</b></td>'+
+      '<td class="num"><b>'+money(tV)+'</b></td><td></td><td class="num">'+fint(tC)+' u</td><td></td></tr></tfoot>'+
+      '</table></div></section>';
+  }
+
+  /* ---------- inyección en la ficha del producto ---------- */
+  var lastCode='';
+  function rememberCode(fnName){
+    var f=window[fnName];
+    if(typeof f!=='function'||f.__v227)return;
+    var w=function(c){try{if(c!=null)lastCode=code6(c)}catch(_){}return f.apply(this,arguments)};
+    w.__v227=true;
+    window[fnName]=w;
+    try{eval(fnName+'=w')}catch(_){}
+  }
+  function hookOpeners(){
+    ['openInventoryProduct','openMdProduct8664','openBestProductDetail','openGuideProduct','openImpactProductV129']
+      .forEach(rememberCode);
+  }
+  function codeFromModal(body){
+    if(lastCode)return lastCode;
+    var el=body.querySelector('.code');
+    if(el)return code6(el.textContent);
+    var m=(body.textContent||'').match(/\b\d{6,8}\b/);
+    return m?m[0]:'';
+  }
+  function inject(){
+    if(!leader()||!multi())return;
+    var modal=document.getElementById('inventoryProductModal');
+    var body=document.getElementById('inventoryProductBody');
+    if(!modal||!body||!modal.classList.contains('on'))return;
+    var c=codeFromModal(body);
+    if(!c)return;
+    var old=body.querySelector('.v227Box');
+    if(old&&old.dataset.v227Code===c)return;
+    if(old)old.remove();
+    body.insertAdjacentHTML('afterbegin',breakdownHtml(c));
+    var box=body.querySelector('.v227Box');
+    if(box){
+      box.dataset.v227Code=c;
+      box.querySelectorAll('[data-v227-store]').forEach(function(tr){
+        tr.onclick=function(){
+          var sc=tr.dataset.v227Store;
+          try{
+            var m=document.getElementById('inventoryProductModal');if(m)m.classList.remove('on');
+            if(window.LlaveroScope)window.LlaveroScope.set('store',sc);
+          }catch(_){}
+        };
+      });
+    }
+  }
+
+  /* ---------- columna "Tiendas" en Rotación y Evacuación ---------- */
+  function addCountColumn(){
+    if(!leader()||!multi())return;
+    var v='';try{v=(typeof VIEW!=='undefined'?VIEW:'')}catch(_){}
+    if(v!=='rot'&&v!=='evac')return;
+    var root=document.getElementById(v+'-tbl');if(!root)return;
+    var table=root.querySelector('table');if(!table)return;
+    var head=table.querySelector('thead tr');if(!head)return;
+    if(head.querySelector('.v227Th'))return;
+    var rows=Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
+    /* Solo se agrega si cada fila trae su código: es el mapeo que hace exacto
+       el conteo. Si alguna no lo trae, no se toca la tabla. */
+    if(!rows.length)return;
+    var withCode=rows.filter(function(tr){return !!tr.dataset.code});
+    if(withCode.length!==rows.length)return;
+    var cg=table.querySelector('colgroup');
+    if(cg)cg.insertAdjacentHTML('beforeend','<col class="v227Col" style="width:7%">');
+    var th=document.createElement('th');
+    th.className='v227Th num';th.textContent='Tiendas';
+    head.appendChild(th);
+    rows.forEach(function(tr){
+      var n=storeCount(tr.dataset.code);
+      var td=document.createElement('td');
+      td.className='num v227Count';
+      td.innerHTML='<span class="v227Pill" title="Presiona la fila para ver el detalle por tienda">'+fint(n)+'</span>';
+      tr.appendChild(td);
+    });
+  }
+
+  function tick(){
+    if(!leader())return;
+    hookOpeners();
+    try{inject()}catch(e){}
+    try{addCountColumn()}catch(e){}
+  }
+  function install(){
+    tick();
+    if(!window.__v227Tick)window.__v227Tick=setInterval(tick,600);
+    var m=document.getElementById('inventoryProductModal');
+    if(m&&!m.__v227Obs){
+      m.__v227Obs=true;
+      try{new MutationObserver(function(){setTimeout(inject,40)}).observe(m,{attributes:true,childList:true,subtree:true})}catch(_){}
+    }
+    console.info('LLAVERO V86.227 · Desglose por tienda de cada producto');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,550)},{once:true});
+  else setTimeout(install,550);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,450)});
+  window.LlaveroBreakdown={html:breakdownHtml,count:storeCount};
+})();
+
+/* ===== V86.228 · Ficha del producto: cifras del alcance, no de una tienda suelta =====
+
+   La ficha se arma con la PRIMERA fila de inventario que encuentra para el
+   código. Con la tienda agregada eso significaba mostrar el stock y el valor de
+   una sola tienda debajo de un encabezado que dice "5 tiendas": el número se
+   leía como si fuera el consolidado y no lo era.
+
+   Aquí, en alcance multitienda, se reemplazan esas cifras por la suma real de
+   las tiendas del alcance y se marca de cuántas tiendas sale, para que ninguna
+   cifra de la ficha se pueda confundir con la de una tienda concreta (el detalle
+   tienda por tienda ya está arriba, en el panel de V86.227). */
+(function(){
+  var ALL='__ALL__';
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function multi(){var s=SS();return cur()===ALL&&!!(s&&s[ALL]&&s[ALL].__scope)}
+  function codes(){var s=SS();return (s&&s[ALL]&&s[ALL].__codes)||[]}
+  function num(v){var n=Number(v);return isFinite(n)?n:0}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function money(n){try{return '$ '+Number(n||0).toLocaleString('es-CO',{maximumFractionDigits:0})}catch(_){return '$ '+(n||0)}}
+
+  function totals(code){
+    var s=SS(),c=String(code||'').trim(),t={stores:0,stock:0,value:0,disp:0,exh:0,cendis:0,oc:0,entradas:0,conRango:0,sinRango:0};
+    codes().forEach(function(sc){
+      var st=s&&s[sc];if(!st||!Array.isArray(st.inventario))return;
+      var hit=false;
+      st.inventario.forEach(function(r){
+        if(String(r&&r.codigo).trim()!==c)return;
+        hit=true;
+        t.stock+=num(r.stock);t.value+=num(r.valorInventario);
+        t.disp+=num(r.disponible);t.exh+=num(r.exhibidas);
+        t.oc+=num(r.unidadesOC);t.entradas+=num(r.entradas);
+        var g=r.rangos||{};
+        Object.keys(g).forEach(function(k){
+          var u=num(g[k]);
+          if(String(k).toUpperCase().indexOf('SIN DEFINIR')>=0)t.sinRango+=u;else t.conRango+=u;
+        });
+        /* CENDIS es disponibilidad central: es la misma cifra para todas las
+           tiendas, así que se toma el máximo y NO se suma. */
+        t.cendis=Math.max(t.cendis,num(r.dispCendis));
+      });
+      if(hit)t.stores++;
+    });
+    return t;
+  }
+
+  function setItem(body,label,html){
+    var found=null;
+    Array.prototype.forEach.call(body.querySelectorAll('.detailItem'),function(d){
+      if(found)return;
+      var l=d.querySelector('label');
+      if(l&&(l.textContent||'').trim().toLowerCase()===label.toLowerCase())found=d;
+    });
+    if(!found)return false;
+    var b=found.querySelector('b');if(!b)return false;
+    b.innerHTML=html;found.classList.add('v228Fixed');
+    return true;
+  }
+
+  function fix(){
+    if(!leader()||!multi())return;
+    var modal=document.getElementById('inventoryProductModal'),body=document.getElementById('inventoryProductBody');
+    if(!modal||!body||!modal.classList.contains('on'))return;
+    var box=body.querySelector('.v227Box');
+    var code=box?box.dataset.v227Code:'';
+    if(!code)return;
+    if(body.dataset.v228===code)return;
+    var t=totals(code);
+    if(!t.stores)return;
+    body.dataset.v228=code;
+    var hero=body.querySelector('.detailHeroValue');
+    if(hero){
+      var hb=hero.querySelector('b'),hs=hero.querySelector('span');
+      if(hb)hb.textContent=money(t.value);
+      if(hs)hs.textContent='Valor del inventario en '+fint(t.stores)+(t.stores===1?' tienda':' tiendas')+' del alcance';
+      hero.classList.add('v228Fixed');
+    }
+    setItem(body,'Stock total','<span>'+fint(t.stock)+' unidades</span><small class="v228Note">suma de '+fint(t.stores)+(t.stores===1?' tienda':' tiendas')+'</small>');
+    setItem(body,'Disponible',fint(t.disp)+' unidades');
+    setItem(body,'Exhibidas',fint(t.exh)+' unidades');
+    setItem(body,'Disponibilidad CENDIS','<span>'+fint(t.cendis)+' unidades</span><small class="v228Note">disponibilidad central, no se suma</small>');
+    setItem(body,'Unidades con rango definido',fint(t.conRango)+' unidades');
+    setItem(body,'Unidades sin definir',fint(t.sinRango)+' unidades');
+    setItem(body,'Unidades en OC',fint(t.oc)+' unidades');
+    setItem(body,'Entradas previstas',fint(t.entradas)+' unidades');
+    setItem(body,'Valor promedio por unidad',money(t.stock?t.value/t.stock:0));
+  }
+
+  function install(){
+    if(!window.__v228Tick)window.__v228Tick=setInterval(function(){try{fix()}catch(_){}} ,600);
+    var m=document.getElementById('inventoryProductModal');
+    if(m&&!m.__v228Obs){
+      m.__v228Obs=true;
+      try{new MutationObserver(function(){setTimeout(function(){try{fix()}catch(_){}},60)}).observe(m,{attributes:true,childList:true,subtree:true})}catch(_){}
+      m.addEventListener('click',function(){setTimeout(function(){var b=document.getElementById('inventoryProductBody');if(b&&!m.classList.contains('on'))b.dataset.v228=''},80)});
+    }
+    console.info('LLAVERO V86.228 · Ficha del producto con cifras del alcance');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,600)},{once:true});
+  else setTimeout(install,600);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,500)});
+})();
+
+/* ===== V86.229 · Memoria de los normalizadores (arreglo del bloqueo con "Todas las tiendas") =====
+
+   Al medir el congelamiento con 21 tiendas, el perfil mostró:
+     normalizeRotRows        2.141 llamadas  34.314 ms
+     normalizeInventoryRows  2.350 llamadas  18.424 ms
+     inventorySummary           20 llamadas  13.002 ms
+     normalizeEvacRows         138 llamadas   6.140 ms
+   Cada llamada reconstruye TODAS las filas de la tienda. Con una tienda son
+   ~400 filas y no se nota; con el alcance nacional son 14.045 y el hilo queda
+   bloqueado casi un minuto.
+
+   Estas cuatro funciones son puras: dependen solo del arreglo de origen de la
+   tienda. Aquí se memoiza el resultado y se invalida solo cuando ese arreglo
+   cambia de identidad -- que es justo lo que pasa cuando se reconstruye la
+   tienda agregada al cambiar el alcance, así que el dato nunca queda viejo.
+
+   Se devuelve una copia superficial del arreglo (los mismos objetos de fila)
+   para que un `sort()` en el llamador no reordene la copia memorizada. */
+(function(){
+  function cur229(){try{return (typeof S!=='undefined'&&S&&typeof CUR!=='undefined'&&S[CUR])||null}catch(_){return null}}
+  /* La huella del caché son las REFERENCIAS de los arreglos de origen: si
+     alguno se reemplaza, el resultado memorizado deja de ser válido. Se
+     comparan una a una; no sirve juntarlas en una cadena. */
+  function stamp229(st,fields){
+    var f=(fields||'').split('|'),out=[];
+    for(var i=0;i<f.length;i++)out.push(st[f[i]]);
+    return out;
+  }
+  function same229(a,b){
+    if(!a||!b||a.length!==b.length)return false;
+    for(var i=0;i<a.length;i++)if(a[i]!==b[i])return false;
+    return true;
+  }
+  function memoize(name, srcField){
+    var f=window[name];
+    if(typeof f!=='function'||f.__v229)return false;
+    var cache=new WeakMap();
+    var w=function(st){
+      if(arguments.length>1)return f.apply(this,arguments);   /* variantes con opciones: sin caché */
+      /* Muchos llamadores invocan sin argumento y la función original resuelve
+         sola la tienda actual; hay que memorizar bajo ESA tienda o el caché
+         nunca acierta (fue el caso de normalizeRotRows: 1.386 fallos). */
+      var key=st, noArg=(arguments.length===0||st==null);
+      if(noArg)key=cur229();
+      if(!key||typeof key!=='object')return f.apply(this,arguments);
+      var src=stamp229(key,srcField);
+      var hit=cache.get(key);
+      if(hit&&same229(hit.src,src))return hit.out.slice();
+      var out=noArg?f.call(this):f.call(this,st);
+      if(Array.isArray(out))cache.set(key,{src:src,out:out});
+      return Array.isArray(out)?out.slice():out;
+    };
+    w.__v229=true;
+    window[name]=w;
+    try{eval(name+'=w')}catch(_){}
+    return true;
+  }
+  function memoizeObj(name, srcField){
+    var f=window[name];
+    if(typeof f!=='function'||f.__v229)return false;
+    var cache=new WeakMap();
+    var w=function(st){
+      if(arguments.length>1)return f.apply(this,arguments);
+      var key=st, noArg=(arguments.length===0||st==null);
+      if(noArg)key=cur229();
+      if(!key||typeof key!=='object')return f.apply(this,arguments);
+      var src=stamp229(key,srcField);
+      var hit=cache.get(key);
+      if(hit&&same229(hit.src,src))return hit.out;
+      var out=noArg?f.call(this):f.call(this,st);
+      cache.set(key,{src:src,out:out});
+      return out;
+    };
+    w.__v229=true;
+    window[name]=w;
+    try{eval(name+'=w')}catch(_){}
+    return true;
+  }
+
+  function install(){
+    var done=[];
+    if(memoize('normalizeInventoryRows','inventario'))done.push('normalizeInventoryRows');
+    if(memoize('normalizeRotRows','rot|inventario|ventasProducto'))done.push('normalizeRotRows');
+    if(memoize('normalizeEvacRows','evac|inventario'))done.push('normalizeEvacRows');
+    /* El 79% de las llamadas a normalizeRotRows salían de aquí: memorizarla
+       corta el árbol completo, no solo la hoja. */
+    if(memoize('normalizeProductSalesRows','rot|ventasProducto|inventario'))done.push('normalizeProductSalesRows');
+    if(memoize('upcomingRotationRows','rot|inventario'))done.push('upcomingRotationRows');
+    if(memoize('rotationDetailedRows','rot|inventario|ventasProducto'))done.push('rotationDetailedRows');
+    if(memoize('inventoryFallbackRows','rot|evac|inventario'))done.push('inventoryFallbackRows');
+    if(memoizeObj('inventorySummary','inventario'))done.push('inventorySummary');
+    if(done.length)console.info('LLAVERO V86.229 · normalizadores memorizados:',done.join(', '));
+  }
+  /* Se reintenta un rato porque varios parches redefinen estas funciones
+     después del arranque; memorizar la última definición es lo correcto. */
+  var tries=0;
+  function retry(){
+    tries++;
+    ['normalizeInventoryRows','normalizeRotRows','normalizeEvacRows','normalizeProductSalesRows','upcomingRotationRows','rotationDetailedRows','inventoryFallbackRows','inventorySummary'].forEach(function(n){
+      var f=window[n];if(typeof f==='function'&&!f.__v229){install();}
+    });
+    if(tries<40)setTimeout(retry,300);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(retry,200)},{once:true});
+  else setTimeout(retry,200);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(retry,150)});
+})();
+
+/* ===== V86.231 · Índices compartidos de guías e inventario =====
+
+   Varias funciones de Traslados resuelven "¿en qué guías aparece este código?"
+   y "¿cuál es su estado de abastecimiento?" recorriendo TODAS las guías o TODO
+   el inventario, una vez por cada producto pendiente. Con una tienda son 125
+   guías y ~400 filas; con el alcance nacional son 2.625 guías (~26.000
+   posiciones) y 14.045 filas, y ese recorrido se repite por cada uno de los
+   2.614 traslados pendientes. El perfil de CPU lo mostró como el mayor bloque
+   de tiempo de la vista.
+
+   Aquí se publican índices construidos UNA vez por tienda, invalidados solo si
+   cambia el arreglo de origen (que es justo lo que ocurre al reconstruir la
+   tienda agregada). No cambian ningún criterio: solo evitan repetir el
+   recorrido. */
+(function(){
+  var gCache=new WeakMap(), iCache=new WeakMap();
+  function s(v){return v==null?'':String(v)}
+
+  function guidesByCode(store){
+    if(!store||typeof store!=='object')return Object.create(null);
+    var src=Array.isArray(store.guias)?store.guias:null;
+    var hit=gCache.get(store);
+    if(hit&&hit.src===src)return hit.map;
+    var map=Object.create(null);
+    if(src){
+      for(var i=0;i<src.length;i++){
+        var g=src[i];if(!g)continue;
+        var gc=s(g[0]),gn=s(g[1]),ps=Array.isArray(g[6])?g[6]:[];
+        for(var j=0;j<ps.length;j++){
+          var p=ps[j];if(!p)continue;
+          var c=s(p[0]);if(!c)continue;
+          (map[c]||(map[c]=[])).push({gcode:gc,gname:gn,floor:s(p[1]),state:s(p[5]),flag:p[10]});
+        }
+      }
+    }
+    try{gCache.set(store,{src:src,map:map})}catch(_){}
+    return map;
+  }
+  function invByCode(store){
+    if(!store||typeof store!=='object')return Object.create(null);
+    var src=Array.isArray(store.inventario)?store.inventario:null;
+    var hit=iCache.get(store);
+    if(hit&&hit.src===src)return hit.map;
+    var map=Object.create(null);
+    if(src){
+      for(var i=0;i<src.length;i++){
+        var r=src[i];if(!r)continue;
+        var c=s(r.codigo);
+        if(c&&map[c]===undefined)map[c]=r;
+        var sap=s(r.codigoSap).replace(/^0+/,'');
+        if(sap&&map[sap]===undefined)map[sap]=r;
+      }
+    }
+    try{iCache.set(store,{src:src,map:map})}catch(_){}
+    return map;
+  }
+  window.__LLV_IDX={guidesByCode:guidesByCode, invByCode:invByCode};
+  console.info('LLAVERO V86.231 · índices de guías e inventario disponibles');
+})();
+
+/* ===== V86.233 · Tienda en Traslados y descuentos en el desglose por producto =====
+
+   1. TRASLADOS. En alcance multitienda la vista lista las 465 órdenes de las
+      21 tiendas sin decir a cuál va dirigida cada una, ni en la tabla ni en los
+      detalles de las tarjetas (Pendientes, En picking, En ruta...). Se agrega
+      la columna "Tienda". El mapeo es exacto: se verificó que ningún número de
+      entrega se repite entre tiendas (465 órdenes, 0 duplicadas), así que la
+      orden identifica su tienda sin ambigüedad. Cuando una fila no trae número
+      de orden se usa el código de producto como respaldo.
+
+   2. DESCUENTOS. El desglose por tienda de la ficha del producto mostraba solo
+      el descuento de muestra. Ahora trae los tres que se comparan al gestionar:
+      oferta del sistema, muestra (el cargado) y sugerido por política, más la
+      brecha entre muestra y sugerido. */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function nrm(v){var t=String(v==null?'':v);try{t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}catch(_){}return t.toUpperCase().replace(/\s+/g,' ').trim()}
+  function num(v){var n=Number(v);return isFinite(n)?n:null}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+  function sname(c){try{if(window.LlaveroScope&&window.LlaveroScope.storeName)return window.LlaveroScope.storeName(c)}catch(_){}
+    var x=SS();return (x&&x[c]&&x[c].name)||c}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+
+  /* ---------- índices orden→tienda y código→tienda(s) ---------- */
+  var ORD=null,ORDKEY='';
+  function orderIdx(){
+    var cs=codes(),key=cs.join(',');
+    if(ORD&&ORDKEY===key)return ORD;
+    var x=SS(),byOrder=Object.create(null),byCode=Object.create(null);
+    cs.forEach(function(sc){
+      var st=x&&x[sc];if(!st||!Array.isArray(st.trDetalle))return;
+      st.trDetalle.forEach(function(r){
+        var o=s(r&&r.entrega);if(o&&byOrder[o]===undefined)byOrder[o]=sc;
+        var c=s(r&&r.codigo);if(c&&byCode[c]===undefined)byCode[c]=sc;
+      });
+    });
+    ORD={order:byOrder,code:byCode};ORDKEY=key;return ORD;
+  }
+
+  /* ---------- descuentos por tienda ---------- */
+  var SUG={},SUGKEY='';
+  function sugeridos(sc){
+    var key=cur();
+    if(SUGKEY!==key){SUG={};SUGKEY=key}
+    if(SUG[sc])return SUG[sc];
+    var m=Object.create(null);
+    try{
+      var prev=cur(),rows=[];
+      try{if(typeof CUR!=='undefined')CUR=sc;rows=(typeof window.mdRows8664==='function'?window.mdRows8664(sc):[])||[]}
+      finally{try{if(typeof CUR!=='undefined')CUR=prev}catch(_){}}
+      rows.forEach(function(r){var c=s(r&&r.code);if(c&&m[c]===undefined)m[c]={sug:num(r.discount),estado:s(r.statusLabel),pol:s(r.policyApplied)}});
+    }catch(e){}
+    SUG[sc]=m;return m;
+  }
+  function ofertaMuestra(sc,code){
+    var out={oferta:null,muestra:null};
+    try{
+      if(typeof window.discountActual18==='function'){
+        var d=window.discountActual18(sc,code)||{};
+        out.oferta=num(d.descuentoOfertaSistema);
+        out.muestra=num(d.descuentoAdministrado);
+        return out;
+      }
+    }catch(_){}
+    try{
+      var D=window.__LLAVERO_DISCOUNT_DATA__,src=D&&D.map&&D.map[sc];
+      var row=src&&D.rows[src]&&D.rows[src][s(code)];
+      if(row){out.oferta=num(row[4]);out.muestra=num(row[5])}
+    }catch(_){}
+    return out;
+  }
+  function pct(v){return v==null?'<span class="v233Mut">—</span>':'<b>'+(Math.round(Number(v)*10)/10).toFixed(1).replace(/\.0$/,'')+'%</b>'}
+
+  /* ---------- 1. columna Tienda en tablas de Traslados ---------- */
+  var ORDER_HEADERS=['ORDEN DE ENTREGA','ORDEN','ENTREGA','N ENTREGA','NO ENTREGA','DOCUMENTO'];
+  function headerIndex(table,names){
+    var ths=table.querySelectorAll('thead th');
+    for(var i=0;i<ths.length;i++){
+      var t=nrm(ths[i].textContent);
+      for(var j=0;j<names.length;j++)if(t===names[j]||t.indexOf(names[j])===0)return i;
+    }
+    return -1;
+  }
+  function codeOfRow(tr){
+    var c=tr.dataset&&(tr.dataset.code||tr.dataset.productCode);
+    if(c)return s(c);
+    var el=tr.querySelector('.code');
+    if(el)return s(el.textContent);
+    var m=nrm(tr.textContent).match(/\b\d{6,8}\b/);
+    return m?m[0]:'';
+  }
+  function storeCellHtml(sc){
+    if(!sc)return '<td class="v233Td"><span class="v233Mut">—</span></td>';
+    return '<td class="v233Td"><span class="v233Store"><b>'+esc(sname(sc))+'</b><small>'+esc(sc)+'</small></span></td>';
+  }
+  function addStoreColumn(table){
+    if(!table||table.dataset.v233==='1')return;
+    var head=table.querySelector('thead tr');if(!head)return;
+    var rows=Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
+    if(!rows.length)return;
+    var idx=orderIdx();
+    var oi=headerIndex(table,ORDER_HEADERS);
+    /* Se resuelve la tienda de cada fila ANTES de tocar el DOM: si alguna no se
+       puede resolver, no se agrega la columna a medias. */
+    var resolved=rows.map(function(tr){
+      if(tr.querySelector('td[colspan]'))return '__skip__';
+      var sc='';
+      if(oi>=0&&tr.cells&&tr.cells[oi])sc=idx.order[s(tr.cells[oi].textContent)]||'';
+      if(!sc){var c=codeOfRow(tr);if(c)sc=idx.code[c]||''}
+      return sc;
+    });
+    var utiles=resolved.filter(function(x){return x!=='__skip__'});
+    var ok=utiles.filter(Boolean).length;
+    if(!utiles.length||ok/utiles.length<0.5)return;   /* no aporta: se deja igual */
+    table.dataset.v233='1';
+    var cg=table.querySelector('colgroup');
+    if(cg)cg.insertAdjacentHTML('beforeend','<col class="v233Col">');
+    var th=document.createElement('th');th.className='v233Th';th.textContent='Tienda';
+    head.appendChild(th);
+    rows.forEach(function(tr,i){
+      var r=resolved[i];
+      if(r==='__skip__'){var td0=tr.querySelector('td[colspan]');if(td0)td0.colSpan=td0.colSpan+1;return}
+      tr.insertAdjacentHTML('beforeend',storeCellHtml(r));
+    });
+  }
+  function tablesToPatch(){
+    var out=[];
+    if(view()==='traslados'){
+      var c=document.getElementById('content');
+      if(c)Array.prototype.push.apply(out,c.querySelectorAll('table'));
+    }
+    ['rangeModal','v80Modal','inventoryProductModal'].forEach(function(id){
+      var m=document.getElementById(id);
+      if(m&&m.classList.contains('on'))Array.prototype.push.apply(out,m.querySelectorAll('table'));
+    });
+    document.querySelectorAll('.modal.on table,.v80ModalBack.on table').forEach(function(t){out.push(t)});
+    return out;
+  }
+  function patchTransfers(){
+    if(!leader()||!multi())return;
+    tablesToPatch().forEach(function(t){
+      try{
+        /* Solo tablas que hablen de órdenes o de productos trasladados. */
+        var head=nrm(t.textContent.slice(0,0)+Array.prototype.map.call(t.querySelectorAll('thead th'),function(x){return x.textContent}).join(' '));
+        if(head.indexOf('TIENDA')>=0)return;
+        var esTraslado=(view()==='traslados')||ORDER_HEADERS.some(function(h){return head.indexOf(h)>=0});
+        if(!esTraslado)return;
+        addStoreColumn(t);
+      }catch(e){}
+    });
+  }
+
+  /* ---------- 2. descuentos en el desglose por tienda ---------- */
+  function enrichBreakdown(){
+    if(!leader()||!multi())return;
+    var box=document.querySelector('.v227Box');
+    if(!box||box.dataset.v233==='1')return;
+    var code=box.dataset.v227Code;if(!code)return;
+    var head=box.querySelector('thead tr');if(!head)return;
+    var rows=Array.prototype.slice.call(box.querySelectorAll('tbody tr[data-v227-store]'));
+    if(!rows.length){box.dataset.v233='1';return}
+    box.dataset.v233='1';
+    /* Se reemplaza la columna única "Dcto muestra" por las tres comparables. */
+    var ths=head.querySelectorAll('th');
+    var last=ths[ths.length-1];
+    if(last&&nrm(last.textContent).indexOf('DCTO MUESTRA')>=0){
+      last.textContent='Dcto oferta';
+      head.insertAdjacentHTML('beforeend','<th class="num">Dcto muestra</th><th class="num">Dcto sugerido</th><th class="num">Brecha</th>');
+    }else{
+      head.insertAdjacentHTML('beforeend','<th class="num">Dcto oferta</th><th class="num">Dcto muestra</th><th class="num">Dcto sugerido</th><th class="num">Brecha</th>');
+    }
+    rows.forEach(function(tr){
+      var sc=tr.dataset.v227Store;
+      var om=ofertaMuestra(sc,code);
+      var sg=(sugeridos(sc)[s(code)]||{});
+      var brecha=(sg.sug!=null&&om.muestra!=null)?(sg.sug-om.muestra):null;
+      var cells=tr.querySelectorAll('td');
+      var lastTd=cells[cells.length-1];
+      if(lastTd&&lastTd.classList.contains('num'))lastTd.innerHTML=pct(om.oferta);
+      else tr.insertAdjacentHTML('beforeend','<td class="num">'+pct(om.oferta)+'</td>');
+      tr.insertAdjacentHTML('beforeend',
+        '<td class="num">'+pct(om.muestra)+'</td>'+
+        '<td class="num">'+pct(sg.sug)+(sg.pol?'<small class="v233Pol">'+esc(sg.pol)+'</small>':'')+'</td>'+
+        '<td class="num">'+(brecha==null?'<span class="v233Mut">—</span>':
+          '<b class="'+(brecha>0.05?'v233Gap':'')+'">'+(brecha>0?'+':'')+(Math.round(brecha*10)/10).toFixed(1).replace(/\.0$/,'')+' pp</b>')+'</td>');
+    });
+    /* el pie de totales necesita las mismas columnas para no descuadrar */
+    var foot=box.querySelector('tfoot tr');
+    if(foot){
+      var n=head.querySelectorAll('th').length, have=foot.querySelectorAll('td').length;
+      for(var i=have;i<n;i++)foot.insertAdjacentHTML('beforeend','<td></td>');
+    }
+    var note=box.querySelector('.v227Head span');
+    if(note&&note.dataset.v233!=='1'){
+      note.dataset.v233='1';
+      note.insertAdjacentHTML('beforeend',' <b>Oferta</b> es el descuento del sistema, <b>muestra</b> el que está cargado y <b>sugerido</b> el que pide la política; la brecha es lo que falta por aplicar.');
+    }
+  }
+
+  function tick(){
+    try{patchTransfers()}catch(e){}
+    try{enrichBreakdown()}catch(e){}
+  }
+  function install(){
+    tick();
+    if(!window.__v233Tick)window.__v233Tick=setInterval(tick,650);
+    /* NO poner aquí un MutationObserver para acelerar la columna "Tienda".
+       Lo probé (01/09/2026) y sale mal: con el observador la tabla del
+       consolidado nacional terminaba con ONCE columnas, es decir la columna
+       Tienda insertada dos veces. El temporizador de 650 ms es lo que hace de
+       cerrojo entre este parche y los demás que reescriben la misma tabla;
+       adelantarlo rompe ese equilibrio. El precio es que la columna puede
+       tardar hasta 0,65 s en aparecer tras un repintado. Se acepta. */
+    console.info('LLAVERO V86.233 · Tienda en Traslados y descuentos en el desglose');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,600)},{once:true});
+  else setTimeout(install,600);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,500)});
+})();
+
+/* ===== V86.234 · Registro de uso (logs) =====
+
+   Registra inicios de sesión, módulos abiertos y acciones de gestión, y los
+   envía a una hoja de Google a través de un Apps Script publicado como Web App.
+
+   CÓMO SE CONECTA
+   ---------------
+   Al final de este archivo hay una línea con la URL del Apps Script. Mientras
+   esté vacía, el registro NO se envía a ningún lado: se guarda en el navegador
+   y se puede descargar en Excel desde la consola con LlaveroLog.exportar().
+   Eso permite ver exactamente qué se registra antes de montar nada en Google.
+
+   QUÉ ES Y QUÉ NO ES
+   ------------------
+   Es un registro de USO: quién entra, qué módulos abre y qué acciones ejecuta.
+   NO es una auditoría a prueba de manipulación: los PIN de Llavero viven en el
+   propio JavaScript del sitio y la URL del Apps Script también, así que alguien
+   con conocimientos podría enviar filas falsas. Sirve para medir uso y hacer
+   seguimiento, no para exigirle cuentas a nadie con valor probatorio.
+
+   CÓMO ESTÁ HECHO
+   ---------------
+   - Cola local en localStorage: si no hay red, nada se pierde; se reintenta.
+   - Envío por lotes (no una petición por evento) para no agotar la cuota
+     diaria de Apps Script.
+   - Envío en segundo plano: la interfaz nunca espera al registro.
+   - Se manda como text/plain a propósito: evita la petición de verificación
+     previa (preflight) que Apps Script no responde. */
+(function(){
+  var CFG={
+    url: (window.LLAVERO_LOG_URL||''),      /* URL del Apps Script */
+    clave: (window.LLAVERO_LOG_KEY||''),    /* misma clave que en el script */
+    loteMax: 25,                            /* eventos por envío */
+    cadaMs: 20000,                          /* intento de envío periódico */
+    colaMax: 500                            /* tope de la cola local */
+  };
+  var LS='llavero_log_cola_v1', SES='llavero_log_sesion_v1';
+  var cola=[], enviando=false, ultimoRol='', ultimaVista='', arrancado=false;
+
+  function s(v){return v==null?'':String(v)}
+  function ahora(){return new Date()}
+  function iso(d){try{return d.toISOString()}catch(_){return ''}}
+  function local(d){
+    try{return d.toLocaleString('es-CO',{timeZone:'America/Bogota',hour12:false})}
+    catch(_){return s(d)}
+  }
+  function sesionId(){
+    try{
+      var v=sessionStorage.getItem(SES);
+      if(!v){v=(Date.now().toString(36)+Math.random().toString(36).slice(2,8)).toUpperCase();sessionStorage.setItem(SES,v)}
+      return v;
+    }catch(_){return 'SIN-SESION'}
+  }
+  function leerCola(){
+    try{var raw=localStorage.getItem(LS);cola=raw?JSON.parse(raw):[];if(!Array.isArray(cola))cola=[]}catch(_){cola=[]}
+  }
+  function guardarCola(){
+    try{
+      if(cola.length>CFG.colaMax)cola=cola.slice(cola.length-CFG.colaMax);
+      localStorage.setItem(LS,JSON.stringify(cola));
+    }catch(_){}
+  }
+
+  /* ---------- contexto ---------- */
+  function rol(){
+    try{
+      if(typeof IS_LEADER!=='undefined'&&IS_LEADER)return 'Líder de área';
+      if(typeof IS_ADMIN!=='undefined'&&IS_ADMIN)return 'Administrador de tienda';
+      var a=(typeof AUTH!=='undefined'&&AUTH)||{};
+      return a.role&&a.role!=='none'?s(a.role):'';
+    }catch(_){return ''}
+  }
+  function usuario(){try{var a=(typeof AUTH!=='undefined'&&AUTH)||{};return s(a.user||a.usuario||'')}catch(_){return ''}}
+  function tiendaCod(){
+    try{
+      var c=(typeof CUR!=='undefined')?s(CUR):'';
+      if(c==='__ALL__')return 'TODAS';
+      var a=(typeof AUTH!=='undefined'&&AUTH)||{};
+      return c||s(a.store||'');
+    }catch(_){return ''}
+  }
+  function tiendaNom(){
+    try{
+      var c=(typeof CUR!=='undefined')?s(CUR):'';
+      if(c==='__ALL__'){
+        var n=(typeof S!=='undefined'&&S&&S['__ALL__']&&S['__ALL__'].name)||'Todas las tiendas';
+        return s(n);
+      }
+      return s((typeof S!=='undefined'&&S&&S[c]&&S[c].name)||'');
+    }catch(_){return ''}
+  }
+  function alcance(){
+    try{
+      if(!window.LlaveroScope)return '';
+      var g=window.LlaveroScope.get(),p=[];
+      if(g.zone!=='all')p.push('Zona: '+g.zone);
+      if(g.dep!=='all')p.push('Depto: '+g.dep);
+      if(g.city!=='all')p.push('Ciudad: '+g.city);
+      if(g.store!=='all')p.push('Tienda: '+g.store);
+      if(g.q)p.push('Busca: '+g.q);
+      var n=window.LlaveroScope.codes().length;
+      p.push(n+(n===1?' tienda':' tiendas'));
+      return p.join(' · ');
+    }catch(_){return ''}
+  }
+  /* V86.251: la versión ya no se registra. Era la columna J de la hoja y no
+     servía para nada: todas las tiendas cargan el mismo archivo, así que el
+     valor era idéntico en todas las filas. Si algún día hace falta saber con
+     qué versión se hizo algo, está la fecha del evento y el historial de
+     publicaciones. */
+  function corte(){try{return s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){return ''}}
+  function dispositivo(){
+    try{
+      var u=navigator.userAgent,so=/Windows/.test(u)?'Windows':/Android/.test(u)?'Android':/iPhone|iPad/.test(u)?'iOS':/Mac/.test(u)?'macOS':/Linux/.test(u)?'Linux':'Otro';
+      var nav=/Edg\//.test(u)?'Edge':/Chrome\//.test(u)?'Chrome':/Firefox\//.test(u)?'Firefox':/Safari\//.test(u)?'Safari':'Otro';
+      return so+' · '+nav;
+    }catch(_){return ''}
+  }
+
+  /* ---------- registro ---------- */
+  function evento(tipo,detalle,extra){
+    try{
+      var d=ahora();
+      var e={
+        fecha:iso(d), fechaLocal:local(d),
+        usuario:usuario(), tiendaCod:tiendaCod(), tiendaNom:tiendaNom(),
+        rol:rol(), tipo:s(tipo), detalle:s(detalle),
+        alcance:alcance(), corte:corte(),
+        sesion:sesionId(), dispositivo:dispositivo(),
+        extra:extra?s(extra):''
+      };
+      cola.push(e);guardarCola();
+      if(cola.length>=CFG.loteMax)enviar();
+    }catch(_){}
+  }
+
+  /* ---------- envío ---------- */
+  function payload(lote){
+    return JSON.stringify({k:CFG.clave, app:'LLAVERO', eventos:lote});
+  }
+  function enviar(forzar){
+    if(enviando||!cola.length)return;
+    if(!CFG.url)return;                    /* sin endpoint: solo cola local */
+    enviando=true;
+    var lote=cola.slice(0,CFG.loteMax);
+    var body=payload(lote);
+    var listo=function(ok){
+      enviando=false;
+      if(ok){cola=cola.slice(lote.length);guardarCola();if(cola.length)setTimeout(enviar,400)}
+    };
+    try{
+      if(forzar&&navigator.sendBeacon){
+        var blob=new Blob([body],{type:'text/plain;charset=utf-8'});
+        var ok=navigator.sendBeacon(CFG.url,blob);
+        listo(ok);return;
+      }
+      fetch(CFG.url,{method:'POST',mode:'no-cors',keepalive:true,
+        headers:{'Content-Type':'text/plain;charset=utf-8'},body:body})
+        .then(function(){listo(true)})
+        .catch(function(){listo(false)});
+    }catch(_){listo(false)}
+  }
+
+  /* ---------- capturas automáticas ---------- */
+  function vigilarLogin(){
+    var r=rol();
+    if(r&&r!==ultimoRol){
+      ultimoRol=r;
+      evento('Inicio de sesión','Ingresó como '+r);
+      if(cola.length)enviar();
+    }
+    if(!r)ultimoRol='';
+  }
+  var NOMBRES={dashboard:'Dashboard general',inventario:'Inventario',resumen:'Resumen de tienda',
+    prox:'Próximos a rotar',rot:'Rotación',evac:'Evacuación',amb:'Ambientes',
+    traslados:'Traslados',markdown:'Markdown',acciones:'Acciones'};
+  function vigilarVista(){
+    try{
+      var v=(typeof VIEW!=='undefined')?s(VIEW):'';
+      if(!v||v===ultimaVista)return;
+      if(!rol())return;
+      ultimaVista=v;
+      evento('Módulo','Abrió '+(NOMBRES[v]||v));
+    }catch(_){}
+  }
+
+  /* Acciones de gestión: se detectan por lo que el usuario pulsa. Se registran
+     solo las que cambian algo o se llevan datos fuera; navegar no cuenta. */
+  var ACCIONES=[
+    [/EXPORTAR|GENERAR EXCEL|EXCEL CONSOLIDADO|DESCARGAR/,'Exportación'],
+    [/PDF/,'Exportación PDF'],
+    [/IMPRIMIR/,'Impresión'],
+    [/CARGAR JSON/,'Carga de datos'],
+    [/ELIMINAR ENTREGA|QUITAR DE LA ENTREGA|ELIMINAR SELECCIONAD/,'Traslados · eliminar'],
+    [/SELECCIONAR TODA PARA ENVIAR|ENVIAR SELECCION/,'Traslados · enviar'],
+    [/GESTION DE TODAS LAS TIENDAS|TODAS LAS TIENDAS >50%/,'Markdown · gestión consolidada'],
+    [/MARCAR GESTION|APLICAR DESCUENTO/,'Markdown · gestión']
+  ];
+  function nrm(v){var t=String(v==null?'':v);try{t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}catch(_){}return t.toUpperCase().replace(/\s+/g,' ').trim()}
+  function vigilarClics(){
+    document.addEventListener('click',function(ev){
+      try{
+        if(!rol())return;
+        var el=ev.target&&ev.target.closest?ev.target.closest('button,a,[role="button"],.btn,.chip'):null;
+        if(!el)return;
+        var txt=nrm(el.textContent).slice(0,80);
+        if(!txt)return;
+        for(var i=0;i<ACCIONES.length;i++){
+          if(ACCIONES[i][0].test(txt)){evento('Acción',ACCIONES[i][1],txt);return}
+        }
+      }catch(_){}
+    },true);
+  }
+
+  /* ---------- API pública ---------- */
+  window.LlaveroLog={
+    registrar:function(tipo,detalle,extra){evento(tipo,detalle,extra)},
+    pendientes:function(){return cola.length},
+    ver:function(n){return cola.slice(-(n||20))},
+    enviarYa:function(){enviar()},
+    configurar:function(url,clave){CFG.url=s(url);CFG.clave=s(clave);enviar()},
+    limpiar:function(){cola=[];guardarCola()},
+    exportar:function(){
+      /* Descarga la cola local en CSV para revisar qué se está registrando
+         antes de conectar la hoja de Google. */
+      var cols=['fechaLocal','usuario','tiendaCod','tiendaNom','rol','tipo','detalle','alcance','corte','sesion','dispositivo','extra'];
+      var esc=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'};
+      var csv=cols.join(';')+'\n'+cola.map(function(e){return cols.map(function(c){return esc(e[c])}).join(';')}).join('\n');
+      try{
+        var b=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+        var a=document.createElement('a');a.href=URL.createObjectURL(b);
+        a.download='llavero_registro_'+new Date().toISOString().slice(0,10)+'.csv';
+        document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},100);
+      }catch(e){console.error('No se pudo exportar',e)}
+      return cola.length+' eventos';
+    }
+  };
+
+  /* ---------- arranque ---------- */
+  function arrancar(){
+    if(arrancado)return;arrancado=true;
+    leerCola();
+    vigilarClics();
+    setInterval(function(){vigilarLogin();vigilarVista()},900);
+    setInterval(function(){enviar()},CFG.cadaMs);
+    /* Al cerrar o esconder la pestaña se vacía la cola con sendBeacon, que el
+       navegador entrega aunque la página ya no exista. */
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')enviar(true)});
+    window.addEventListener('pagehide',function(){enviar(true)});
+    console.info('LLAVERO V86.234 · registro de uso activo'+(CFG.url?'':' (sin endpoint: solo cola local, usa LlaveroLog.exportar())'));
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',arrancar,{once:true});else arrancar();
+})();
+
+/* ============================================================
+   CONEXIÓN CON LA HOJA DE GOOGLE
+   Pega aquí la URL que te da Apps Script al publicar la Web App
+   y la misma clave que pusiste en el script. Mientras estén
+   vacías, el registro solo se guarda en el navegador.
+   ============================================================ */
+window.LLAVERO_LOG_URL = 'https://script.google.com/macros/s/AKfycbxKBKmGGAbF2A_KhJ9mG6-SHRbt9TJeCGUM2mEvbaXvDs0cqOrechmgUhDpeNW4NUtdog/exec';
+window.LLAVERO_LOG_KEY = 'JAMAR-LLV-2026';
+try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configurar(window.LLAVERO_LOG_URL, window.LLAVERO_LOG_KEY); }catch(_){}
+
+/* ===== V86.235 · Vista del Líder: arranca en "todas las tiendas" y barra limpia =====
+
+   1. Al entrar como Líder de Área, el alcance queda en las 21 tiendas sin que
+      tenga que seleccionarlas. Solo la primera vez de cada sesión: si después
+      elige una tienda o una zona, se respeta su elección.
+
+   2. Se ocultan para el Líder los controles de la barra superior que no le
+      corresponden: búsqueda global, Cargar JSON, Descargar HTML actualizado,
+      Exportar, Imprimir, y los distintivos de Versión y Corte de datos.
+
+      Se ocultan con CSS en vez de borrarse del documento a propósito: varias
+      partes del código original escriben en #gsearch y en #topCut sin
+      comprobar que existan (por ejemplo al cambiar de tienda), así que
+      borrarlos rompería la aplicación. El resultado visual es el mismo.
+      El administrador de tienda conserva todos sus botones. */
+(function(){
+  var ALL='__ALL__';
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  var yaArranco=false;
+
+  function marcarRol(){
+    try{
+      var b=document.body;if(!b)return;
+      b.classList.toggle('v235Lider',leader());
+    }catch(_){}
+  }
+
+  function alcanceInicial(){
+    if(yaArranco||!leader())return;
+    try{
+      if(!window.LlaveroScope)return;
+      var s=SESION();
+      if(s==='1')  {yaArranco=true;return}     /* ya se hizo en esta sesión */
+      var S0=(typeof S!=='undefined'&&S)||null;
+      if(!S0||Object.keys(S0).length<2)return; /* datos aún sin cargar */
+      yaArranco=true;
+      marcarSesion();
+      window.LlaveroScope.reset();             /* todas las tiendas */
+    }catch(e){console.error('V86.235 alcance inicial',e)}
+  }
+  function SESION(){try{return sessionStorage.getItem('llavero_v235_inicio')}catch(_){return '1'}}
+  function marcarSesion(){try{sessionStorage.setItem('llavero_v235_inicio','1')}catch(_){}}
+
+  function tick(){marcarRol();alcanceInicial()}
+  function install(){
+    tick();
+    if(!window.__v235Tick)window.__v235Tick=setInterval(tick,700);
+    console.info('LLAVERO V86.235 · Líder arranca en todas las tiendas; barra superior depurada');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,500)},{once:true});
+  else setTimeout(install,500);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,400)});
+})();
+
+/* ===== V86.236 · Credenciales cifradas =====
+
+   ANTES: los PIN de las 21 tiendas y el del Líder estaban EN TEXTO PLANO dentro
+   de index.html. Cualquiera que abriera "Ver código fuente" los leía todos.
+
+   AHORA: en el archivo solo quedan hashes PBKDF2-SHA256 con 120.000
+   iteraciones y una sal distinta por usuario. Del hash no se puede volver al
+   PIN, así que ya nadie los lee mirando el código.
+
+   QUÉ GANA Y QUÉ NO GANA -- importante que quede claro:
+
+   GANA:  se acabó la exposición directa. Un empleado curioso, alguien a quien
+          le compartan el enlace, o quien mire el repositorio, ya no ve ningún
+          PIN. Esto cubre el caso real y frecuente.
+
+   NO GANA: seguridad de verdad. Llavero es un sitio estático: la verificación
+          ocurre en el navegador del usuario, así que alguien con conocimientos
+          técnicos puede probar PIN contra los hashes sin límite de intentos.
+          Y los PIN actuales siguen un patrón ("Jm" + código de tienda + 4
+          dígitos + "!"): quien conozca UNO puede deducir el formato y probar
+          solo 10.000 combinaciones por tienda. Con estas 120.000 iteraciones
+          eso le toma minutos, no segundos, pero es alcanzable.
+
+          Por eso, si quieres que el cifrado sirva de verdad, hay que CAMBIAR
+          LOS PIN por unos sin patrón. Con PIN aleatorios el ataque deja de ser
+          viable. Ese cambio es una decisión operativa (hay que repartir las
+          claves nuevas a 21 tiendas), así que no lo hice por mi cuenta.
+
+          Y para algo a prueba de todo hace falta un servidor real que valide
+          la contraseña del lado del servidor. Eso ya es otro proyecto.
+
+   La sesión sigue guardándose en sessionStorage como antes, así que quien sepa
+   manipularla puede saltarse el login igual que ahora. Cambiar eso también
+   requiere servidor. */
+(function(){
+  var TABLA = {"iter": 120000, "users": {"LIDER": {"salt": "uMkdCpTGh4kO0jrl8mkl4A==", "hash": "T/v1ONyw3ySOjqpev55cp3i48CqAtSt7S+yHBGoIs1c=", "role": "leader"}, "ADM18": {"salt": "j8boSrDwWx9ZRZ/dhfLbww==", "hash": "Wz0TFCoQuIgJ/Ax3CGpB2UE55n7Nt+Q6h3WxPXtLiUs=", "role": "admin", "store": "18", "name": "Bucaramanga"}, "ADMCV": {"salt": "BBjD0/0KM4QFvRBwqiGCXA==", "hash": "TwJTNo7RdsG1PvCfufwlU0wDeYPKwHvrI8s2W0MxMX4=", "role": "admin", "store": "CV", "name": "Cuatro Vientos"}, "ADMH1": {"salt": "6KtWW5iLmxmIlHgw7lcbYw==", "hash": "uIU2P7Iaokiu0ZzSIu/a8tsJIg5ywXUGZltYA7588tk=", "role": "admin", "store": "H1", "name": "El Eden"}, "ADMF8": {"salt": "hYu3RqxME0QMYo/4MH9Riw==", "hash": "ykYq0o5iZWOAtBhy4cH0j3hQWOJP99d8o/qljfx6Szc=", "role": "admin", "store": "F8", "name": "Fabricato"}, "ADMF6": {"salt": "PJutID9Ryuh0ndbMpkEl6Q==", "hash": "JNw/SkIxRldcOWV4eYdXxtnj7zATiHsarUgM5pUAZ0o=", "role": "admin", "store": "F6", "name": "Florida CC"}, "ADM24": {"salt": "I1Zjq3vLgKTQHCXjO45j8w==", "hash": "gDb1iUopMtj7cL4wnTCwIEHjqJ0ruw0Uim4WAnRmGXo=", "role": "admin", "store": "24", "name": "Hiper Jamar"}, "ADMH4": {"salt": "rW+1nXjQDlJ7Zpvfvp2ZJg==", "hash": "Y7VgvhmRbfGninBhoYT9q061yGtGITxImJFt0uZ0ius=", "role": "admin", "store": "H4", "name": "Jamar Cra 30"}, "ADM84": {"salt": "oqvt+/6cwoohVata8wHShw==", "hash": "SaEzNZpcyn0UwNdD4oDmtcab44N+GTeDcHne4CMfBqw=", "role": "admin", "store": "84", "name": "La Plazuela"}, "ADMB9": {"salt": "mMduGJd6i7s0E+heKWl+Ug==", "hash": "9xM7x+WRdhe9jCfAfwuoPPJnp8/Wkh60IiCc+Cq4yCI=", "role": "admin", "store": "B9", "name": "Las Americas"}, "ADMB8": {"salt": "9ED7kjOGeMATythpRnZn8w==", "hash": "gdkVPa3N0otJtJo/wzDi7W0WaJotOGwJ/Scpcb2uviM=", "role": "admin", "store": "B8", "name": "Mayorca"}, "ADMC6": {"salt": "YaD9eGV8Ekrre1GMGNUyJQ==", "hash": "f3wptfDNRc97qjhWhdq/LiMJqBwsIt/m+OQUxuEofFU=", "role": "admin", "store": "C6", "name": "Molinos"}, "ADM55": {"salt": "6V12S23UikZRPYzv6FK5QQ==", "hash": "I1QpNVMMIlIigmzzDWb8Q9JpuOUY1JsJ6o4lIow/d9o=", "role": "admin", "store": "55", "name": "Monteria"}, "ADM95": {"salt": "uJw3Ms6GWl1WLho6476GBQ==", "hash": "u5U7SHMxd9KUdk0YhMP+/VvdlxZkwIlYS6QNt4eDslM=", "role": "admin", "store": "95", "name": "Norte"}, "ADMF7": {"salt": "v+0pm5auxKy0ySW4ZI0XoA==", "hash": "FX3WdOBtLshYf3d5FUrosIG/08Xv6x71IVejRtIFG38=", "role": "admin", "store": "F7", "name": "Norte Bogota"}, "ADM01": {"salt": "k6tsDhExJT9bGO2uk9oxig==", "hash": "boOO4SAw5Ww7ErqFhQJfsJnRoOkB60q/cara7SpeKQE=", "role": "admin", "store": "01", "name": "Principal"}, "ADM39": {"salt": "kIUcCEXl+JuZZa4J/sfiNw==", "hash": "IgBRP3alUZXxAIg0xRwzhMjYKOsKZL6pLopsiqv88R4=", "role": "admin", "store": "39", "name": "Riohacha"}, "ADM67": {"salt": "uryFRjcUe7KXhvPWx5sKAw==", "hash": "ngegyr06zS/8KFZDEI4WXvT5nODYVYrvmOjlGCHRuWM=", "role": "admin", "store": "67", "name": "San Felipe"}, "ADM85": {"salt": "gEMRTwnRM/G/YYBqwW2Tpw==", "hash": "NvgUIPYdCO2xuChpmMdYnXFC81t/IyifW3WIbDQ2spM=", "role": "admin", "store": "85", "name": "Santa Marta"}, "ADM65": {"salt": "ZVr/izEs/9GBap8Yb9LBhQ==", "hash": "iXQWHVpOGvxmQvjwrvoAQy7o5Cyf976XO+04DpY96H8=", "role": "admin", "store": "65", "name": "Sincelejo"}, "ADM29": {"salt": "3s1/bBKMtsv9gtslczPdKQ==", "hash": "+4fSITGeM/jKFRkbqs6AO+qZtGTEEkzBTapRWwANcf8=", "role": "admin", "store": "29", "name": "Trinitarias"}, "ADM45": {"salt": "Q7gl0v8AsvJGP7erAHGnEw==", "hash": "WLA2kUAl9GCq6xxuTlu7pr//URDQ7YnYMJgWnwrGxwA=", "role": "admin", "store": "45", "name": "Valledupar"}, "DEV": {"salt": "doB07RAlgyE1V5sT4hfVaQ==", "hash": "k2Uhz8aUQ7R0IIq/odXyOk0Bk0qH8tMGGvH7KYNE3FA=", "role": "dev"}}};
+
+  function b64aBytes(b64){
+    var bin=atob(b64),a=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);
+    return a;
+  }
+  function bytesAb64(a){
+    var s='';for(var i=0;i<a.length;i++)s+=String.fromCharCode(a[i]);
+    return btoa(s);
+  }
+
+  /* --- PBKDF2 con WebCrypto (rápido, requiere https) --- */
+  function derivarWebCrypto(pin,saltB64,iter){
+    var enc=new TextEncoder();
+    return crypto.subtle.importKey('raw',enc.encode(pin),{name:'PBKDF2'},false,['deriveBits'])
+      .then(function(k){
+        return crypto.subtle.deriveBits(
+          {name:'PBKDF2',salt:b64aBytes(saltB64),iterations:iter,hash:'SHA-256'},k,256);
+      })
+      .then(function(bits){return bytesAb64(new Uint8Array(bits))});
+  }
+
+  /* --- Respaldo en JavaScript puro, por si no hay WebCrypto (http:// o
+         file://). Más lento, pero da el mismo resultado. --- */
+  var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  function sha256(bytes){
+    var l=bytes.length,bl=l*8,wl=((l+8>>6)+1)*16,w=new Int32Array(wl),i;
+    for(i=0;i<l;i++)w[i>>2]|=bytes[i]<<(24-(i%4)*8);
+    w[l>>2]|=0x80<<(24-(l%4)*8);w[wl-1]=bl;
+    var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+    var m=new Int32Array(64),a,b,c,d,e,f,g,h,t1,t2,j;
+    for(i=0;i<wl;i+=16){
+      for(j=0;j<16;j++)m[j]=w[i+j];
+      for(j=16;j<64;j++){
+        var s0=(m[j-15]>>>7|m[j-15]<<25)^(m[j-15]>>>18|m[j-15]<<14)^(m[j-15]>>>3);
+        var s1=(m[j-2]>>>17|m[j-2]<<15)^(m[j-2]>>>19|m[j-2]<<13)^(m[j-2]>>>10);
+        m[j]=(m[j-16]+s0+m[j-7]+s1)|0;
+      }
+      a=H[0];b=H[1];c=H[2];d=H[3];e=H[4];f=H[5];g=H[6];h=H[7];
+      for(j=0;j<64;j++){
+        var S1=(e>>>6|e<<26)^(e>>>11|e<<21)^(e>>>25|e<<7);
+        var ch=(e&f)^(~e&g);
+        t1=(h+S1+ch+K[j]+m[j])|0;
+        var S0=(a>>>2|a<<30)^(a>>>13|a<<19)^(a>>>22|a<<10);
+        var mj=(a&b)^(a&c)^(b&c);
+        t2=(S0+mj)|0;
+        h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+      }
+      H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;
+      H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+    }
+    var out=new Uint8Array(32);
+    for(i=0;i<8;i++){out[i*4]=H[i]>>>24&255;out[i*4+1]=H[i]>>>16&255;out[i*4+2]=H[i]>>>8&255;out[i*4+3]=H[i]&255}
+    return out;
+  }
+  function hmac(key,msg){
+    var k=key;
+    if(k.length>64)k=sha256(k);
+    var pad=new Uint8Array(64);pad.set(k);
+    var oi=new Uint8Array(64),ii=new Uint8Array(64),i;
+    for(i=0;i<64;i++){oi[i]=pad[i]^0x5c;ii[i]=pad[i]^0x36}
+    var a=new Uint8Array(64+msg.length);a.set(ii);a.set(msg,64);
+    var inner=sha256(a);
+    var b=new Uint8Array(96);b.set(oi);b.set(inner,64);
+    return sha256(b);
+  }
+  function derivarPuro(pin,saltB64,iter){
+    var enc=new TextEncoder(),pw=enc.encode(pin),salt=b64aBytes(saltB64);
+    var blk=new Uint8Array(salt.length+4);blk.set(salt);
+    blk[salt.length]=0;blk[salt.length+1]=0;blk[salt.length+2]=0;blk[salt.length+3]=1;
+    var u=hmac(pw,blk),acc=u.slice(0),i,j;
+    for(i=1;i<iter;i++){u=hmac(pw,u);for(j=0;j<32;j++)acc[j]^=u[j]}
+    return Promise.resolve(bytesAb64(acc));
+  }
+  function derivar(pin,salt,iter){
+    try{
+      if(window.crypto&&crypto.subtle&&crypto.subtle.importKey)return derivarWebCrypto(pin,salt,iter);
+    }catch(_){}
+    return derivarPuro(pin,salt,iter);
+  }
+  /* Comparación en tiempo constante: no revela por dónde difieren. */
+  function igual(a,b){
+    if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;
+    var r=0;for(var i=0;i<a.length;i++)r|=a.charCodeAt(i)^b.charCodeAt(i);
+    return r===0;
+  }
+
+  function texto(v){return v==null?'':String(v)}
+  function mostrarError(msg){
+    var e=document.getElementById('leaderError');
+    if(e){if(msg)e.textContent=msg;e.style.display='block'}
+  }
+  function ocuparBoton(ocupado){
+    try{
+      var b=document.querySelector('#leaderModal button[onclick*="loginUser"],#leaderModal .primary');
+      if(!b)return;
+      if(ocupado){b.dataset.txt=b.textContent;b.textContent='Verificando…';b.disabled=true}
+      else{if(b.dataset.txt)b.textContent=b.dataset.txt;b.disabled=false}
+    }catch(_){}
+  }
+
+  /* V86.252: los usuarios ya no viven solo aquí dentro, también en la hoja de
+     Google. Si el que escriben no está en esta tabla, se le pregunta a la hoja
+     una vez y se reintenta: así alguien creado hace un minuto desde otro equipo
+     entra sin que haya que recargar ni publicar nada. Sin hoja configurada, o
+     si no responde, se comporta exactamente como antes. */
+  function refrescoRemoto(){
+    try{
+      if(window.LlaveroUsuarios&&typeof window.LlaveroUsuarios.cargar==='function')
+        return window.LlaveroUsuarios.cargar(true);
+    }catch(_){}
+    return Promise.resolve(false);
+  }
+
+  function entrar(){
+    var u=texto((document.getElementById('accessUser')||{}).value).toUpperCase().replace(/\s+/g,'');
+    var pin=texto((document.getElementById('leaderPin')||{}).value);
+    if(!u||!pin){mostrarError();return}
+    ocuparBoton(true);
+    var reg=TABLA.users[u];
+    var listo=reg?Promise.resolve():refrescoRemoto().then(function(){reg=TABLA.users[u]});
+    listo.then(function(){
+      if(!reg){ocuparBoton(false);mostrarError();return}
+      return derivar(pin,reg.salt,TABLA.iter).then(function(h){
+        ocuparBoton(false);
+        if(!igual(h,reg.hash)){mostrarError();return}
+        var next;
+        if(reg.role==='dev')         next={role:'dev',user:u,store:''};
+        else if(reg.role==='leader') next={role:'leader',user:u};
+        else                         next={role:'admin',user:u,store:reg.store};
+        try{
+          AUTH=next;
+          if(typeof saveAuthSession==='function')saveAuthSession(AUTH);
+          if(typeof applyRoleUI==='function')applyRoleUI();
+          var m=document.getElementById('leaderModal');if(m)m.classList.remove('on');
+          if(typeof IS_LEADER!=='undefined'&&IS_LEADER){
+            VIEW='dashboard';if(typeof setActiveNav==='function')setActiveNav('dashboard');
+          }else{
+            CUR=AUTH.store;VIEW='inventario';if(typeof setActiveNav==='function')setActiveNav('inventario');
+          }
+          if(typeof refresh==='function')refresh();
+        }catch(err){console.error('V86.236 entrada',err)}
+      });
+    }).catch(function(err){
+      ocuparBoton(false);mostrarError('No se pudo verificar. Intenta de nuevo.');
+      console.error('V86.236 verificación',err);
+    });
+  }
+
+  function instalar(){
+    /* V86.250: se expone lo justo para el módulo de desarrollador -- la tabla y
+       la función de derivación. No añade exposición real: la tabla ya viaja en
+       este mismo archivo, que cualquiera puede abrir. Sirve para poder crear
+       usuarios desde la propia aplicación en vez de a mano. */
+    try{
+      window.LlaveroAuth={
+        usuarios:function(){
+          var out=[];
+          Object.keys(TABLA.users).forEach(function(u){
+            var r=TABLA.users[u];
+            out.push({usuario:u,rol:r.role,tienda:r.store||'',nombre:r.name||'',
+                      origen:r.__hoja?'hoja':'archivo'});
+          });
+          return out;
+        },
+        iteraciones:TABLA.iter,
+        derivar:function(pin,saltB64,iter){return derivar(pin,saltB64,iter||TABLA.iter)},
+        tablaJSON:function(){return JSON.stringify(TABLA)},
+        registro:function(u){var r=TABLA.users[String(u||'').toUpperCase()];return r?{salt:r.salt,hash:r.hash,role:r.role,store:r.store||'',name:r.name||''}:null},
+        agregar:function(usuario,salt,hash,rol,tienda,nombre){
+          var e={salt:salt,hash:hash,role:rol};
+          if(tienda)e.store=tienda;
+          if(nombre)e.name=nombre;
+          TABLA.users[String(usuario).toUpperCase()]=e;   /* solo en memoria */
+          return true;
+        },
+        /* V86.252: mete los usuarios de la hoja de Google encima de los que
+           vienen en el archivo. Gana la hoja: es la que se puede cambiar sin
+           publicar. Los del archivo quedan de red de seguridad para cuando la
+           hoja no responde -- si un día Google falla, las 21 tiendas siguen
+           entrando con lo que ya tienen. */
+        fusionar:function(remotos){
+          var n=0;
+          Object.keys(remotos||{}).forEach(function(u){
+            var r=remotos[u];
+            if(!r||!r.salt||!r.hash)return;
+            r.__hoja=true;
+            TABLA.users[String(u).toUpperCase()]=r;n++;
+          });
+          return n;
+        }
+      };
+    }catch(_){}
+    if(window.loginUser&&window.loginUser.__v236)return;
+    entrar.__v236=true;
+    window.loginUser=entrar;
+    try{loginUser=entrar}catch(_){}
+  }
+  instalar();
+  setInterval(instalar,800);   /* otros parches redefinen funciones al arrancar */
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(instalar,200)});
+  console.info('LLAVERO V86.236 · credenciales verificadas por hash (PBKDF2-SHA256 x'+TABLA.iter+')');
+})();
+
+/* ===== V86.238 · Inventario consolidado por producto y conteos por estado =====
+
+   1. INVENTARIO. En alcance multitienda la tabla listaba un registro por tienda,
+      así que el mismo código aparecía hasta 21 veces y la columna con el NOMBRE
+      de la tienda hacía la tabla ilegible. Ahora se agrupa por producto -- una
+      fila por código, con las unidades y el valor sumados del alcance -- y la
+      columna pasa a ser "Tiendas" con el número. El detalle tienda por tienda
+      sigue estando al abrir el producto.
+
+   2. ROTACIÓN Y EVACUACIÓN. La columna "Tiendas" contaba en cuántas tiendas
+      EXISTE el producto, no en cuántas está en ese estado. En Rotación ahora
+      cuenta las tiendas donde está en rotación, y en Evacuación las de
+      evacuación, que es lo que corresponde al módulo donde se está mirando.
+
+   3. DESGLOSE POR TIENDA. Se agregan filtros por estado con su conteo, para
+      poder mirar solo las tiendas donde el producto está en rotación o solo
+      donde está sano. Las tiendas sanas se conservan a propósito: que un
+      producto rote en unas tiendas y en otras no es justo la información que
+      dice si el problema es del producto o de la tienda. */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function num(v){var n=Number(v);return isFinite(n)?n:0}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+
+  /* ---------- índices por estado ---------- */
+  var EST=null,ESTKEY='';
+  function estados(){
+    var cs=codes(),key=cs.join(',');
+    if(EST&&ESTKEY===key)return EST;
+    var x=SS(),rot={},evac={},inv={};
+    cs.forEach(function(sc){
+      var st=x&&x[sc];if(!st)return;
+      (Array.isArray(st.rot)?st.rot:[]).forEach(function(r){var c=s(r&&r[0]);if(c)(rot[c]=rot[c]||{})[sc]=1});
+      (Array.isArray(st.evac)?st.evac:[]).forEach(function(r){var c=s(r&&r[0]);if(c)(evac[c]=evac[c]||{})[sc]=1});
+      (Array.isArray(st.inventario)?st.inventario:[]).forEach(function(r){var c=s(r&&r.codigo);if(c)(inv[c]=inv[c]||{})[sc]=1});
+    });
+    EST={rot:rot,evac:evac,inv:inv};ESTKEY=key;return EST;
+  }
+  function cuantas(mapa,code){var m=mapa[s(code)];return m?Object.keys(m).length:0}
+
+  /* ---------- 1. Inventario agrupado por producto ---------- */
+  function agrupar(rows){
+    if(!Array.isArray(rows))return rows;
+    /* Idempotente a propósito: si estas filas YA están agrupadas, volver a
+       agruparlas dejaría __nTiendas en 1 (cada fila agrupada conserva el __st
+       de su primer origen). Pasó exactamente eso al envolverse dos veces. */
+    if(rows.length&&rows[0]&&rows[0].__nTiendas!=null)return rows;
+    var por={},orden=[];
+    rows.forEach(function(r){
+      var c=s(r&&r.c);if(!c)return;
+      var g=por[c];
+      if(!g){
+        g={};for(var k in r)if(Object.prototype.hasOwnProperty.call(r,k))g[k]=r[k];
+        g.rangos={};g.estados=[];g.__tiendas={};
+        por[c]=g;orden.push(c);
+      }
+      g.stock=num(g.__init?g.stock:0)+num(r.stock);
+      g.valorInventario=num(g.__init?g.valorInventario:0)+num(r.valorInventario);
+      g.entradas=num(g.__init?g.entradas:0)+num(r.entradas);
+      g.unidadesOC=num(g.__init?g.unidadesOC:0)+num(r.unidadesOC);
+      /* CENDIS es disponibilidad central: la misma para todas, no se suma. */
+      g.dispCendis=Math.max(num(g.__init?g.dispCendis:0),num(r.dispCendis));
+      g.__init=true;
+      var rg=r.rangos||{};
+      Object.keys(rg).forEach(function(k){g.rangos[k]=num(g.rangos[k])+num(rg[k])});
+      (Array.isArray(r.estados)?r.estados:[]).forEach(function(e){if(g.estados.indexOf(e)<0)g.estados.push(e)});
+      var sc=r.__st||r.fuenteBodegaCodigo;if(sc)g.__tiendas[s(sc)]=1;
+    });
+    return orden.map(function(c){
+      var g=por[c];
+      g.__nTiendas=Object.keys(g.__tiendas).length;
+      g.valorUnitarioPromedio=g.stock?g.valorInventario/g.stock:num(g.valorUnitarioPromedio);
+      delete g.__init;
+      return g;
+    });
+  }
+  function celdaConteo(n,titulo){
+    return '<td class="num v238Td"><span class="v238Pill" title="'+esc(titulo||'')+'">'+fint(n)+'</span></td>';
+  }
+  function conColumnaTiendas(html,rows){
+    if(typeof html!=='string'||!html)return html;
+    var out=html;
+    out=out.replace(/<colgroup[^>]*>/i,function(m){return m+'<col class="v238Col">'});
+    out=out.replace(/(<\/tr>\s*<\/thead>)/i,function(m,a){return '<th class="num v238Th">Tiendas</th>'+a});
+    out=out.replace(/colspan="(\d+)"/gi,function(m,n){return 'colspan="'+(Number(n)+1)+'"'});
+    var i=0,puestas=0;
+    out=out.replace(/<tbody[^>]*>[\s\S]*?<\/tbody>/i,function(bloque){
+      return bloque.replace(/<\/tr>/gi,function(cierre){
+        var r=rows&&rows[i];i++;
+        if(r===undefined)return cierre;
+        puestas++;
+        var n=r.__nTiendas!=null?r.__nTiendas:cuantas(estados().inv,r.c);
+        return celdaConteo(n,'Está en '+n+(n===1?' tienda':' tiendas')+' del alcance. Abre el producto para ver el detalle.')+cierre;
+      });
+    });
+    if(rows&&rows.length&&puestas!==rows.length)return html;
+    return out;
+  }
+  /* La agrupación se hace en normalizeInventoryRows para que TODO lo que viene
+     después -- filtros, orden, límite de filas, el pie y los indicadores -- vea
+     productos y no registros. Agrupar solo en la tabla dejaba el conteo del pie
+     y las unidades descuadradas contra el total real del alcance. */
+  var cacheGrupo=new WeakMap();
+  function envolverNormalizador(){
+    var f=window.normalizeInventoryRows;
+    if(typeof f!=='function'||f.__v238)return;
+    var w=function(st){
+      var out=f.apply(this,arguments);
+      if(!multi()||!Array.isArray(out))return out;
+      try{
+        var clave=(typeof st==='object'&&st)||null;
+        if(clave){
+          var hit=cacheGrupo.get(clave);
+          if(hit&&hit.n===out.length)return hit.out.slice();
+        }
+        var g=agrupar(out);
+        if(clave)cacheGrupo.set(clave,{n:out.length,out:g});
+        return g.slice();
+      }catch(e){console.error('V86.238 agrupar',e);return out}
+    };
+    w.__v238=true;
+    /* Se marca también como memorizado: el reintento de V86.229 envuelve todo
+       lo que no lleve esa marca, y ese ida y vuelta acababa agrupando dos veces. */
+    w.__v229=true;
+    window.normalizeInventoryRows=w;
+    try{normalizeInventoryRows=w}catch(_){}
+  }
+  function envolverInventario(){
+    envolverNormalizador();
+    var f=window.inventoryTableHTML;
+    if(typeof f!=='function'||f.__v238)return;
+    var w=function(rows){
+      var html=f.apply(this,arguments);
+      if(!multi())return html;
+      try{return conColumnaTiendas(html,rows)}catch(e){return html}
+    };
+    w.__v238=true;
+    window.inventoryTableHTML=w;
+    try{inventoryTableHTML=w}catch(_){}
+  }
+  /* El pie decía "Mostrando X de Y referencias" contando registros, no productos. */
+  function arreglarPie(){
+    if(!multi()||view()!=='inventario')return;
+    var pie=document.getElementById('inventario-cnt');if(!pie)return;
+    var t=document.querySelector('#inventario-tbl table');if(!t)return;
+    var n=t.querySelectorAll('tbody tr').length;
+    /* El total sale del resumen, no de las filas dibujadas: la tabla trae un
+       tope de filas y decir "300 productos" cuando hay 2.422 sería engañoso. */
+    var total=n;
+    try{
+      var st=(typeof S!=='undefined'&&S&&S[cur()])||null;
+      if(st&&typeof window.inventorySummary==='function'){var r=window.inventorySummary(st);if(r&&r.refs)total=r.refs}
+    }catch(_){}
+    var txt=(n<total?('Mostrando '+fint(n)+' de '+fint(total)+' productos'):(fint(total)+' productos'))+
+            ' · '+fint(codes().length)+' tiendas en el alcance';
+    if(pie.textContent!==txt)pie.textContent=txt;
+  }
+
+  /* ---------- 2. conteo por estado en Rotación y Evacuación ---------- */
+  function arreglarConteoEstado(){
+    if(!leader()||!multi())return;
+    var v=view();if(v!=='rot'&&v!=='evac')return;
+    var root=document.getElementById(v+'-tbl');if(!root)return;
+    var t=root.querySelector('table');if(!t)return;
+    var ths=t.querySelectorAll('thead th');if(!ths.length)return;
+    var ult=ths[ths.length-1];
+    if(!/TIENDA/i.test(ult.textContent||''))return;
+    if(ult.dataset.v238==='1')return;
+    ult.dataset.v238='1';
+    ult.textContent=(v==='rot')?'Tiendas en rotación':'Tiendas en evacuación';
+    var mapa=(v==='rot')?estados().rot:estados().evac;
+    Array.prototype.forEach.call(t.querySelectorAll('tbody tr[data-code]'),function(tr){
+      var celdas=tr.children,ultTd=celdas[celdas.length-1];
+      if(!ultTd)return;
+      var n=cuantas(mapa,tr.dataset.code);
+      ultTd.innerHTML='<span class="v238Pill" title="En '+(v==='rot'?'rotación':'evacuación')+' en '+n+(n===1?' tienda':' tiendas')+'">'+fint(n)+'</span>';
+    });
+  }
+
+  /* ---------- 3. filtros de estado en el desglose ---------- */
+  function filtrosDesglose(){
+    if(!leader()||!multi())return;
+    var box=document.querySelector('.v227Box');if(!box||box.dataset.v238==='1')return;
+    var filas=Array.prototype.slice.call(box.querySelectorAll('tbody tr[data-v227-store]'));
+    if(!filas.length){box.dataset.v238='1';return}
+    box.dataset.v238='1';
+    function claseDe(tr){
+      var t=(tr.textContent||'').toUpperCase();
+      if(t.indexOf('ROTACI')>=0)return 'rot';
+      if(t.indexOf('EVACUACI')>=0)return 'evac';
+      return 'sano';
+    }
+    var conteo={todas:filas.length,rot:0,evac:0,sano:0};
+    filas.forEach(function(tr){var c=claseDe(tr);tr.dataset.v238Estado=c;conteo[c]++});
+    var defs=[['todas','Todas'],['rot','En rotación'],['evac','En evacuación'],['sano','Sanas']];
+    var html='<div class="v238Chips">'+defs.map(function(d){
+      var n=d[0]==='todas'?conteo.todas:conteo[d[0]];
+      if(!n&&d[0]!=='todas')return '';
+      return '<button type="button" class="v238Chip'+(d[0]==='todas'?' on':'')+'" data-v238-f="'+d[0]+'">'+d[1]+' <b>'+fint(n)+'</b></button>';
+    }).join('')+'</div>';
+    var wrap=box.querySelector('.v227Wrap');
+    if(wrap)wrap.insertAdjacentHTML('beforebegin',html);
+    box.querySelectorAll('[data-v238-f]').forEach(function(btn){
+      btn.onclick=function(){
+        var f=btn.dataset.v238F;
+        box.querySelectorAll('[data-v238-f]').forEach(function(x){x.classList.toggle('on',x===btn)});
+        filas.forEach(function(tr){tr.style.display=(f==='todas'||tr.dataset.v238Estado===f)?'':'none'});
+      };
+    });
+  }
+
+  function tick(){
+    envolverInventario();
+    try{arreglarPie()}catch(e){}
+    try{arreglarConteoEstado()}catch(e){}
+    try{filtrosDesglose()}catch(e){}
+  }
+  function install(){
+    tick();
+    if(!window.__v238Tick)window.__v238Tick=setInterval(tick,650);
+    console.info('LLAVERO V86.238 · Inventario por producto, conteos por estado y filtros del desglose');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,600)},{once:true});
+  else setTimeout(install,600);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,500)});
+})();
+
+/* ===== V86.239 · Ajustes de la vista del Líder =====
+
+   1. Resumen: con varias tiendas en el alcance, el módulo y su reporte hablaban
+      en singular ("Resumen tienda", "Reporte de la tienda") aunque estuvieran
+      mostrando 21. Se ajusta el texto al alcance real.
+
+   2. Se elimina del Dashboard el punto "Resultado diario por tienda": repetía
+      las mismas columnas del "Comparativo integral de tiendas".
+
+   3. "Comparativo integral de tiendas": la tabla mide 1.380 px dentro de un
+      contenedor de 850 y NINGÚN elemento por encima tenía overflow-x, así que
+      las últimas columnas quedaban cortadas sin forma de llegar a ellas. Se le
+      da su propio contenedor con scroll horizontal.
+
+   4. Filtro por tipo de ambiente en "Ambientes por completitud" (el filtro y el
+      scroll de las listas están en la propia tarjeta, V86.210). */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v)}
+  function nrm(v){var t=s(v);try{t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}catch(_){}return t.toUpperCase().replace(/\s+/g,' ').trim()}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function multi(){var x=SS();return cur()===ALL&&!!(x&&x[ALL]&&x[ALL].__scope)}
+  function nTiendas(){try{return window.LlaveroScope?window.LlaveroScope.codes().length:1}catch(_){return 1}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+
+  /* ---------- 1. plural cuando el alcance es de varias tiendas ---------- */
+  function textos(){
+    if(!leader())return;
+    var plural=multi()&&nTiendas()>1;
+    var nav=document.querySelector('[data-v="resumen"]');
+    if(nav){
+      var t=nav.childNodes;
+      for(var i=0;i<t.length;i++){
+        if(t[i].nodeType===3&&/Resumen tienda/.test(t[i].nodeValue)){
+          var nuevo=plural?' Resumen tiendas':' Resumen tienda';
+          if(t[i].nodeValue.replace(/\s+$/,'')!==nuevo.replace(/\s+$/,''))t[i].nodeValue=nuevo;
+        }
+      }
+    }
+    if(view()!=='resumen')return;
+    Array.prototype.forEach.call(document.querySelectorAll('#content .card .tt'),function(el){
+      var v=nrm(el.textContent);
+      if(v==='REPORTE DE LA TIENDA'&&plural)el.textContent='Reporte de las tiendas';
+      else if(v==='REPORTE DE LAS TIENDAS'&&!plural)el.textContent='Reporte de la tienda';
+    });
+    var sub=document.querySelector('#content .card .ds');
+    if(sub&&plural&&nrm(sub.textContent).indexOf('CORTE DIARIO')===0&&sub.dataset.v239!=='1'){
+      sub.dataset.v239='1';
+      sub.textContent=sub.textContent.replace(/\s*$/,'')+' · consolidado de '+nTiendas()+' tiendas del alcance';
+    }
+  }
+
+  /* V86.259: "Resultado diario por tienda" dejo de generarse en el propio
+     dashboard, asi que ya no hay que borrarlo despues de pintarlo. */
+  function quitarDiario(){}
+
+  /* ---------- 3. scroll horizontal en el comparativo ---------- */
+  function scrollComparativo(){
+    if(view()!=='dashboard')return;
+    var c=document.getElementById('content');if(!c)return;
+    var titulo=null;
+    Array.prototype.forEach.call(c.querySelectorAll('.tt,h3,b'),function(el){
+      if(titulo)return;
+      if(nrm(el.textContent).indexOf('COMPARATIVO INTEGRAL')>=0)titulo=el;
+    });
+    if(!titulo)return;
+    /* Se sube desde el TÍTULO hasta el primer ancestro que contenga una tabla.
+       Buscar con closest('.card') devolvía una tarjeta muy arriba y su primera
+       tabla era la de otro punto del dashboard: se ensanchaba la equivocada. */
+    var n=titulo,t=null,caja=null;
+    for(var i=0;i<7&&n;i++){
+      var cand=n.querySelector?n.querySelector('table'):null;
+      if(cand){t=cand;caja=n;break}
+      n=n.parentElement;
+    }
+    if(!t||!caja)return;
+    var padre=t.parentElement;
+    if(!padre||padre.dataset.v239==='1')return;
+    padre.dataset.v239='1';
+    padre.classList.add('v239ScrollX');
+    /* Los contenedores intermedios recortan el desbordamiento; se les quita el
+       recorte solo en esta rama, no globalmente. */
+    var q=padre.parentElement;
+    for(var j=0;j<4&&q&&q.id!=='content';j++){q.classList.add('v239NoClip');q=q.parentElement}
+  }
+
+  /* ---------- 4. chips de categoría en Ambientes ---------- */
+  function chipsAmbientes(){
+    var cont=document.getElementById('content');if(!cont)return;
+    cont.querySelectorAll('[data-v239-cat]').forEach(function(btn){
+      if(btn.dataset.v239Wired==='1')return;
+      btn.dataset.v239Wired='1';
+      btn.onclick=function(){
+        window.__v239AmbCat=btn.dataset.v239Cat;
+        try{
+          if(typeof window.setView==='function')window.setView('dashboard');
+        }catch(_){}
+      };
+    });
+  }
+
+  function tick(){
+    try{textos()}catch(e){}
+    try{quitarDiario()}catch(e){}
+    try{scrollComparativo()}catch(e){}
+    try{chipsAmbientes()}catch(e){}
+  }
+  function install(){
+    tick();
+    if(!window.__v239Tick)window.__v239Tick=setInterval(tick,650);
+    console.info('LLAVERO V86.239 · ajustes de la vista del Líder');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,600)},{once:true});
+  else setTimeout(install,600);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,500)});
+})();
+
+
+/* ===== V86.240 · Contadores del menú coherentes entre sí =====
+
+   En alcance multitienda los números del menú NO estaban en la misma unidad y
+   eso hacía imposible leerlos juntos. Medido con el corte del 28/08 nacional:
+
+       Módulo         decía    su tabla muestra   qué contaba en realidad
+       Inventario     2.422    2.422 productos    productos distintos  (correcto)
+       Rotación       5.043      897 productos    registros tienda×producto
+       Evacuación     3.206      982 productos    registros tienda×producto
+       Markdown       5.667    1.789 productos    registros
+       Ambientes      2.625      125 guías        125 guías × 21 tiendas
+       Traslados        148      465 órdenes      otro criterio
+
+   Con Inventario en productos (2.422) y Rotación en registros (5.043), el menú
+   decía que hay más productos en rotación que productos en total, que es
+   imposible. La causa la introduje yo al agrupar el Inventario por producto en
+   V86.238 sin alinear los demás contadores.
+
+   Arreglo: en alcance multitienda todos los contadores de producto cuentan
+   PRODUCTOS DISTINTOS, igual que sus tablas. Ambientes cuenta guías y Traslados
+   cuenta órdenes -- son otras unidades, y por eso cada número lleva un título
+   que dice qué está contando al pasar el cursor. Con una sola tienda no se
+   toca nada: ahí registro y producto ya coincidían.
+
+   CÓMO se aplica, que es lo que costó: el sidebar tiene un guardián en V86.140
+   con un MutationObserver que revierte cualquier valor escrito desde fuera --
+   existe para que los contadores no parpadeen en cero durante los redibujos.
+   El primer intento escribía el DOM directamente y el guardián lo deshacía en
+   milisegundos (el título sí quedaba, el número no: así se detectó). Por eso
+   V86.240 no toca el DOM: registra window.__v240Ajuste, que V86.140 consulta al
+   calcular sus valores esperados. Queda un solo escritor y ninguna pelea. */
+(function(){
+  var ALL='__ALL__';
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function codes(){var a=agg();return a?a.__codes:[]}
+  function distintos(lista,leer){
+    var m={},n=0;
+    if(!Array.isArray(lista))return 0;
+    for(var i=0;i<lista.length;i++){
+      var c=leer(lista[i]);if(c===''||c==null)continue;
+      c=String(c).trim();if(!c||m[c])continue;m[c]=1;n++;
+    }
+    return n;
+  }
+
+  var CACHE=null,CLAVE='';
+  function calcular(){
+    var a=agg();if(!a)return null;
+    var clave=codes().join(',');
+    if(CACHE&&CLAVE===clave)return CACHE;
+    var r={};
+    /* normalizeInventoryRows ya viene agrupado por producto desde V86.238. */
+    try{r.inv=(window.normalizeInventoryRows(a)||[]).filter(function(x){return Number(x.stock)>0}).length}catch(e){}
+    try{r.prox=(window.upcomingRotationRows(a)||[]).length}catch(e){}
+    /* aggregateModuleProducts71 agrupa por código: es exactamente lo que
+       muestran las tablas de Rotación y Evacuación. */
+    try{r.rot=(window.aggregateModuleProducts71('rot',a)||[]).length}catch(e){}
+    try{r.evac=(window.aggregateModuleProducts71('evac',a)||[]).length}catch(e){}
+    try{r.amb=distintos(a.guias,function(x){return x&&x[0]})}catch(e){}
+    try{r.tr=distintos(a.trDetalle,function(x){return x&&x.entrega})}catch(e){}
+    /* V86.242: el contador de Markdown cuenta los productos POR GESTIONAR, que
+       es lo que siempre significo ese numero y lo que muestra el modulo; antes
+       contaba todos los productos con fila de Markdown (1.748 contra 1.152). */
+    try{r.md=distintos((window.mdRows8664(ALL)||[]).filter(function(x){return x&&x.statusKey==='manage'}),
+                       function(x){return x&&x.code})}catch(e){}
+    CACHE=r;CLAVE=clave;return r;
+  }
+
+  var TITULOS={
+    'nc-inv':'productos distintos con existencia',
+    'nc-prox':'productos próximos a rotar',
+    'nc-rot':'productos distintos en rotación',
+    'nc-evac':'productos distintos en evacuación',
+    'nc-amb':'guías de exhibición',
+    'nc-tr':'órdenes de traslado',
+    'nc-md':'productos distintos por gestionar en Markdown'
+  };
+  var MAPA={'nc-inv':'inv','nc-prox':'prox','nc-rot':'rot','nc-evac':'evac','nc-amb':'amb','nc-tr':'tr','nc-md':'md'};
+
+  /* Lo consulta V86.140 al recalcular sus valores esperados. */
+  window.__v240Ajuste=function(sc,out){
+    if(!leader()||!multi()||String(sc)!==ALL)return out;
+    var r=calcular();if(!r)return out;
+    Object.keys(MAPA).forEach(function(id){
+      var v=r[MAPA[id]];
+      if(v!=null&&isFinite(v))out[id]=v;
+    });
+    return out;
+  };
+
+  /* El título explica en qué unidad está cada número; el guardián de V86.140 no
+     toca el atributo title, así que esto no compite con nadie. */
+  function titulos(){
+    var activo=leader()&&multi(),r=activo?calcular():null;
+    Object.keys(TITULOS).forEach(function(id){
+      var el=document.getElementById(id);if(!el)return;
+      var t='';
+      if(r){var v=r[MAPA[id]];if(v!=null&&isFinite(v))t=fint(v)+' '+TITULOS[id]+' en el alcance seleccionado'}
+      if(el.title!==t)el.title=t;
+      var li=el.closest?el.closest('a'):null;
+      if(li&&li.title!==t)li.title=t;
+    });
+  }
+
+  /* El cambio de alcance del líder no pasa por setView ni por el selector de
+     tienda, que son los dos disparadores de V86.140. Si el número mostrado no
+     coincide con el calculado, se le pide recalcular. */
+  function reafirmar(){
+    if(!leader()||!multi())return;
+    var r=calcular();if(!r)return;
+    var desfase=Object.keys(MAPA).some(function(id){
+      var el=document.getElementById(id);if(!el)return false;
+      var v=r[MAPA[id]];
+      return v!=null&&isFinite(v)&&String(el.textContent).trim()!==fint(v);
+    });
+    if(desfase&&typeof window.__v140Stabilize==='function')window.__v140Stabilize(ALL);
+  }
+
+  var ULTIMO='';
+  function tick(){
+    var clave=cur()+'|'+codes().join(',');
+    if(clave!==ULTIMO){ULTIMO=clave;CACHE=null;CLAVE=''}
+    titulos();
+    reafirmar();
+  }
+  function install(){
+    tick();
+    if(!window.__v240Tick)window.__v240Tick=setInterval(function(){try{tick()}catch(_){}},900);
+    console.info('LLAVERO V86.240 · contadores del menú alineados con lo que muestra cada módulo');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,700)},{once:true});
+  else setTimeout(install,700);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,600)});
+})();
+
+
+/* ===== V86.241 · "Cambios en descuento de muestra" en alcance multitienda =====
+
+   La tarjeta buscaba los cambios con cat.changes.bySrc[ map[CUR] ]. Con el
+   líder en "todas las tiendas" CUR vale __ALL__, que no existe en ese índice,
+   así que la tarjeta decía "0 cambios" aunque el corte del 31/08 trajera 117
+   repartidos en 18 tiendas. Se detectó al cargar ese corte: los totales del
+   archivo (25 subieron, 49 bajaron, 30 nuevos, 13 retirados) no aparecían por
+   ningún lado en la vista consolidada.
+
+   Arreglo en dos partes:
+
+   1. Se construye la entrada __ALL__ del propio índice, uniendo los cambios de
+      las tiendas del alcance. Así la tarjeta la encuentra sola, sin envolver
+      ninguna función y sin competir con quien la redibuja.
+
+   2. Un mismo producto puede cambiar en varias tiendas, y cada una tiene que
+      cambiar su cartón, así que las filas NO se agrupan: se agrega la columna
+      "Tienda" para saber a cuál pertenece cada cambio. Con una sola tienda
+      seleccionada la tarjeta queda exactamente como estaba. */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+  function cat(){return window.__LLAVERO_DISCOUNT_DATA__||null}
+  function nombre(code){
+    try{if(window.LlaveroScope&&LlaveroScope.storeName)return LlaveroScope.storeName(code)}catch(_){}
+    return code;
+  }
+
+  /* ---------- 1. entrada __ALL__ del índice de cambios ---------- */
+  var HECHO='';
+  function unir(){
+    var c=cat();if(!c||!c.changes||!c.changes.bySrc)return;
+    var cs=codes();if(!cs.length)return;
+    var clave=cs.join(',');
+    if(HECHO===clave&&c.changes.bySrc[ALL])return;
+    var mapa=c.map||{},out=[];
+    cs.forEach(function(sc){
+      var src=mapa[sc]||sc;
+      var lista=c.changes.bySrc[src];
+      if(!Array.isArray(lista))return;
+      lista.forEach(function(e){
+        var copia={};for(var k in e)if(Object.prototype.hasOwnProperty.call(e,k))copia[k]=e[k];
+        copia.__tienda=sc;copia.__tiendaNom=nombre(sc);
+        out.push(copia);
+      });
+    });
+    /* Mismo orden que usa la tarjeta dentro de cada bloque, y dentro de cada
+       tipo ordenadas por tienda para que se puedan recorrer de corrido. */
+    var ORD={up:0,down:1,'new':2,removed:3};
+    out.sort(function(a,b){
+      var d=(ORD[a.kind]||0)-(ORD[b.kind]||0);if(d)return d;
+      if(a.__tiendaNom!==b.__tiendaNom)return a.__tiendaNom<b.__tiendaNom?-1:1;
+      return s(a.code)<s(b.code)?-1:1;
+    });
+    c.changes.bySrc[ALL]=out;
+    if(c.map&&!c.map[ALL])c.map[ALL]=ALL;
+    HECHO=clave;
+  }
+
+  /* ---------- 2. columna Tienda en las listas de la tarjeta ---------- */
+  var ETIQUETAS=[['up','Subir el cartón'],['down','Bajar o quitar el cartón'],
+                 ['new','Entraron a la lista'],['removed','Quitar el cartón']];
+  function columna(){
+    if(!leader()||!multi())return;
+    var card=document.getElementById('v200DiscountChangesCard');if(!card)return;
+    var c=cat();if(!c||!c.changes)return;
+    var lista=c.changes.bySrc[ALL];if(!Array.isArray(lista)||!lista.length)return;
+    var porTipo={};
+    lista.forEach(function(e){(porTipo[e.kind]=porTipo[e.kind]||[]).push(e)});
+
+    Array.prototype.forEach.call(card.querySelectorAll('details'),function(det){
+      var sum=det.querySelector('summary');if(!sum)return;
+      var txt=(sum.textContent||'').trim();
+      var kind='';
+      ETIQUETAS.forEach(function(p){if(txt.indexOf(p[1])===0)kind=p[0]});
+      if(!kind)return;                      /* la leyenda no lleva columna */
+      var tabla=det.querySelector('table');if(!tabla)return;
+      if(tabla.dataset.v241==='1')return;
+      var filas=tabla.querySelectorAll('tbody tr');
+      var datos=porTipo[kind]||[];
+      /* Si el número de filas no cuadra con los datos, no se toca nada: es
+         preferible la tarjeta sin la columna que una columna desalineada. */
+      if(filas.length!==datos.length)return;
+      tabla.dataset.v241='1';
+      var th=tabla.querySelector('thead tr');
+      if(th)th.insertAdjacentHTML('afterbegin','<th class="v241Th">Tienda</th>');
+      Array.prototype.forEach.call(filas,function(tr,i){
+        var e=datos[i];
+        var nom=esc(e.__tiendaNom||e.__tienda||'—');
+        tr.insertAdjacentHTML('afterbegin','<td class="v241Td"><span class="v241Store" title="'+nom+'">'+nom+'</span></td>');
+      });
+    });
+  }
+
+  function tick(){
+    try{unir()}catch(e){console.error('V86.241 unir',e)}
+    try{columna()}catch(e){console.error('V86.241 columna',e)}
+  }
+  function install(){
+    tick();
+    if(!window.__v241Tick)window.__v241Tick=setInterval(function(){try{tick()}catch(_){}},800);
+    console.info('LLAVERO V86.241 · cambios de descuento visibles con todas las tiendas, con su columna Tienda');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,800)},{once:true});
+  else setTimeout(install,800);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,700)});
+})();
+
+
+/* ===== V86.242 · Todos los números en la misma unidad, y Markdown consolidado =====
+
+   El usuario reportó que con las 21 tiendas seleccionadas las cifras no cuadran
+   entre módulos. Al medirlo aparecieron DOS problemas distintos.
+
+   -------------------------------------------------------------------------
+   PROBLEMA 1: dos unidades mezcladas sin decirlo
+
+   Con varias tiendas un mismo producto está en varias tiendas a la vez, y en
+   cada una puede tener un estado distinto. Entonces hay dos formas legítimas
+   de contar, y el sistema estaba usando las dos sin distinguirlas:
+
+     · PRODUCTOS DISTINTOS -- cuántas referencias diferentes hay.
+     · CASOS (tienda × producto) -- cuántas situaciones hay que atender.
+
+   Medido en el corte 31/08, alcance nacional:
+
+     Módulo        productos   casos     qué mostraba
+     Inventario        2.393   13.821    productos (bien)
+     Rotación            883    4.935    la tarjeta decía "Productos: 4.935"
+     Evacuación          954    3.047    la tarjeta decía "Productos: 3.047"
+     Sanos               556    5.839    productos (bien)
+
+   La suma que cierra en CASOS es exacta y se cumple en las 21 tiendas, una
+   por una:  5.839 sanos + 4.935 rotación + 3.047 evacuación = 13.821.
+
+   En PRODUCTOS también cierra, porque ningún producto está a la vez en
+   rotación y en evacuación (se comprobó: la intersección es 0):
+       556 + 883 + 954 = 2.393.
+
+   Lo que NO cierra es mezclar las dos, y eso es justo lo que hacía la línea de
+   Cierre del Inventario: "556 Sanos + 4.935 Rotación + 3.047 Evacuación =
+   2.393 productos", que da 8.538, no 2.393. Sumaba productos con casos.
+
+   -------------------------------------------------------------------------
+   PROBLEMA 2: Markdown consolidado calculaba sobre la tienda agregada
+
+   Este es más grave porque no era de etiquetas sino de datos. El descuento
+   vive por bodega (D.rows[bodega][código]). La tienda agregada __ALL__ no
+   tiene bodega, así que al calcular el Markdown sobre ella no encontraba
+   ningún descuento y clasificaba TODO como "hay que gestionar":
+
+     mostraba   ->  Gestionar 1.703 · Oferta cubre 0 · Cumple 0 · Supera 0
+     realidad   ->  Gestionar 5.566 · Oferta cubre 1.773 · Cumple 68 · Supera 266
+
+   O sea, informaba que ni un solo producto de la cadena cumple la política.
+   Con una sola tienda seleccionada esto nunca pasó: ahí el cálculo es correcto
+   (se verificó en Santa Marta: 388/163/3/3/4, idéntico al dato).
+
+   La unión correcta ya existe: window.mdRows8664('__ALL__') concatena las filas
+   ya clasificadas de cada tienda. El módulo no la usaba porque su función
+   interna quedó capturada antes de que se instalara esa unión, y desde fuera no
+   hay forma de reemplazar una referencia léxica. Por eso este parche recalcula
+   los números visibles a partir de la unión, que es la misma técnica que usa el
+   resto del sistema y se puede comprobar número a número.
+
+   Con una sola tienda seleccionada este parche no toca absolutamente nada. */
+(function(){
+  var ALL='__ALL__';
+  var VALIDOS=['manage','comply','exceed','offer_covered'];
+  function s(v){return v==null?'':String(v).trim()}
+  function num(v){var n=Number(v);return isFinite(n)?n:0}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function norm(v){return s(v).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase()}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+
+  /* ---------------- datos, una sola vez por alcance ---------------- */
+  var CACHE=null,CLAVE='';
+  function datos(){
+    var cs=codes();if(!cs.length)return null;
+    var clave=cs.join(',');
+    if(CACHE&&CLAVE===clave)return CACHE;
+    var x=SS();
+    var invP={},rotP={},evacP={},sanoP={};
+    var invC=0,rotC=0,evacC=0,sanoC=0;
+    cs.forEach(function(sc){
+      var st=x&&x[sc];if(!st)return;
+      var rot={},ev={};
+      (Array.isArray(st.rot)?st.rot:[]).forEach(function(r){var c=s(r&&r[0]);if(c){rot[c]=1;rotP[c]=1}});
+      (Array.isArray(st.evac)?st.evac:[]).forEach(function(r){var c=s(r&&r[0]);if(c){ev[c]=1;evacP[c]=1}});
+      rotC+=(Array.isArray(st.rot)?st.rot:[]).length;
+      evacC+=(Array.isArray(st.evac)?st.evac:[]).length;
+      (Array.isArray(st.inventario)?st.inventario:[]).forEach(function(r){
+        if(!(num(r.stock)>0))return;
+        var c=s(r.codigo||r.c);if(!c)return;
+        invC++;invP[c]=1;
+        if(!rot[c]&&!ev[c]){sanoC++;sanoP[c]=1}
+      });
+    });
+    /* "Sanos" de la tarjeta son los productos que no están en rotación ni en
+       evacuación en NINGUNA tienda; por eso 556 y no 1.274 (los que están sanos
+       en alguna). Es la definición que hace que la suma cierre. */
+    var limpios=0;
+    Object.keys(invP).forEach(function(c){if(!rotP[c]&&!evacP[c])limpios++});
+
+    var d={
+      inv:{prod:Object.keys(invP).length,casos:invC},
+      rot:{prod:Object.keys(rotP).length,casos:rotC},
+      evac:{prod:Object.keys(evacP).length,casos:evacC},
+      sanos:{prod:limpios,casos:sanoC},
+      prox:0, md:null
+    };
+    try{d.prox=(window.upcomingRotationRows(agg())||[]).length}catch(_){}
+    try{d.md=markdown()}catch(e){console.error('V86.242 markdown',e)}
+    CACHE=d;CLAVE=clave;return d;
+  }
+
+  function markdown(){
+    var filas=[];
+    try{filas=window.mdRows8664(ALL)||[]}catch(_){return null}
+    if(!filas.length)return null;
+    var porEstado={},validas=[],manage=[],cods={},codsManage={},unidades=0;
+    filas.forEach(function(r){
+      var k=s(r&&r.statusKey)||'?';
+      porEstado[k]=(porEstado[k]||0)+1;
+      var c=s(r&&r.code);if(c)cods[c]=1;
+      if(VALIDOS.indexOf(k)>=0)validas.push(r);
+      if(k==='manage'){manage.push(r);if(c)codsManage[c]=1;unidades+=num(r.stock)}
+    });
+    function tasa(key,cc){
+      var a=validas.filter(function(r){return s(r.cc)===cc});
+      var d=a.length||1;
+      return a.filter(function(r){return r.statusKey===key}).length/d*100;
+    }
+    return {
+      filas:filas.length, porEstado:porEstado, validas:validas.length,
+      prod:Object.keys(cods).length,
+      manageCasos:manage.length, manageProd:Object.keys(codsManage).length, manageUnidades:unidades,
+      pct:function(k){return validas.length?(porEstado[k]||0)/validas.length*100:0},
+      cuenta:function(k){return porEstado[k]||0},
+      tasa:tasa, manage:manage
+    };
+  }
+
+  /* ---------------- nota reutilizable sobre las dos unidades ---------------- */
+  function nota(id,texto){
+    return '<div class="v242Nota" data-v242="'+id+'">'+texto+'</div>';
+  }
+  function ponerNota(cuerpo,id,texto){
+    if(!cuerpo)return;
+    var vieja=cuerpo.querySelector('[data-v242="'+id+'"]');
+    if(vieja){if(vieja.innerHTML!==texto)vieja.innerHTML=texto;return}
+    cuerpo.insertAdjacentHTML('afterbegin',nota(id,texto));
+  }
+
+  /* ---------------- A. Rotación y Evacuación ---------------- */
+  function tarjetaCuadrante(){
+    /* DESACTIVADO en V86.243. Esta funcion etiquetaba el KPI principal como
+       "Casos por gestionar". El usuario decidio que el titular sea el par
+       PRODUCTOS + UNIDADES y que la palabra "casos" no aparezca, asi que la
+       tarjeta la escribe ahora V86.243 y este cuerpo se deja inerte: dos
+       parches escribiendo el mismo elemento cada 800 ms se pisan y parpadean. */
+    return;
+    /* eslint-disable no-unreachable */
+    var v=view();if(v!=='rot'&&v!=='evac')return;
+    var d=datos();if(!d)return;
+    var info=(v==='rot')?d.rot:d.evac;
+    var nom=(v==='rot')?'rotación':'evacuación';
+    var titulo=(v==='rot')?'Rotación':'Evacuación';
+    var card=Array.prototype.slice.call(document.querySelectorAll('#content .card')).filter(function(c){
+      var t=c.querySelector('.chead .tt');return t&&s(t.textContent)===titulo;})[0];
+    if(!card)return;
+
+    /* 1. el KPI principal: el número es de casos, así que se etiqueta así y se
+          añade el de productos, que es lo que lista la tabla de abajo. */
+    var mks=card.querySelectorAll('.mk');
+    for(var i=0;i<mks.length;i++){
+      var l=mks[i].querySelector('.l');if(!l)continue;
+      var t=norm(l.textContent);
+      if(t==='PRODUCTOS'||t==='CASOS POR GESTIONAR'){
+        if(s(l.textContent)!=='Casos por gestionar')l.textContent='Casos por gestionar';
+        var meta=mks[i].querySelector('.v242Meta');
+        var txt=fint(info.prod)+' productos distintos · tienda × producto';
+        if(!meta){mks[i].insertAdjacentHTML('beforeend','<div class="meta v242Meta">'+txt+'</div>')}
+        else if(meta.textContent!==txt)meta.textContent=txt;
+        break;
+      }
+    }
+    /* 2. CENDIS y sin venta también son casos, no productos. */
+    Array.prototype.forEach.call(card.querySelectorAll('.mk .meta'),function(m){
+      if(m.classList.contains('v242Meta'))return;
+      var t=s(m.textContent);
+      if(t==='Productos con disponibilidad')m.textContent='Casos con disponibilidad en CENDIS';
+      else if(t==='Productos sin disponibilidad')m.textContent='Casos sin disponibilidad en CENDIS';
+    });
+    /* 3. la insignia del encabezado */
+    var bg=card.querySelector('.chead .badge');
+    if(bg){
+      var txtB=fint(info.prod)+' productos · '+fint(info.casos)+' casos';
+      if(s(bg.textContent)!==txtB)bg.textContent=txtB;
+    }
+    /* 4. la explicación, una sola vez */
+    ponerNota(card.querySelector('.cbody'),'cuadrante',
+      '<b>Dos formas de contar, las dos correctas.</b> Con '+fint(codes().length)+
+      ' tiendas un mismo producto está en varias a la vez. Hay <b>'+fint(info.prod)+
+      ' productos distintos</b> en '+nom+' -- los que lista la tabla de abajo y el número del menú -- '+
+      'y <b>'+fint(info.casos)+' casos</b> tienda × producto, que es el trabajo real a repartir. '+
+      'Las cifras de unidades, valor y CENDIS de esta tarjeta van en casos.');
+  }
+
+  /* ---------------- B. línea de cierre del Inventario ---------------- */
+  function cierreInventario(){
+    if(view()!=='inventario')return;
+    var d=datos();if(!d)return;
+    var n=document.querySelector('.v8662MixNote');if(!n)return;
+    var html='<b>Cierre en productos:</b> '+fint(d.sanos.prod)+' sanos + '+fint(d.rot.prod)+
+      ' en rotación + '+fint(d.evac.prod)+' en evacuación = <b>'+fint(d.inv.prod)+' productos</b>'+
+      ' · <b>Contando cada producto en cada tienda:</b> '+fint(d.sanos.casos)+' + '+fint(d.rot.casos)+
+      ' + '+fint(d.evac.casos)+' = <b>'+fint(d.inv.casos)+'</b>'+
+      ' · los '+fint(d.prox)+' próximos a rotar están incluidos dentro de los sanos';
+    if(n.innerHTML!==html)n.innerHTML=html;
+  }
+
+  /* ---------------- C. Markdown consolidado ---------------- */
+  var ETIQ_ESTADO={'manage':'GESTIONAR','offer_covered':'OFERTA CUBRE','comply':'CUMPLE',
+                   'exceed':'SUPERA POLITICA','review':'REVISAR DATO','no_policy':'SIN POLITICA'};
+  var TARJETAS=[
+    ['manage','GESTIONAR DESCUENTO'],
+    ['comply','DESCUENTO ACTUAL CUMPLE POLITICA'],
+    ['exceed','DESCUENTO ACTUAL SUPERA POLITICA'],
+    ['offer_covered','DESCUENTO DE OFERTA SUPERA SUGERIDO']
+  ];
+  function markdownVista(){
+    if(view()!=='markdown')return;
+    var d=datos();if(!d||!d.md)return;
+    var m=d.md;
+
+    /* 1. tarjetas del resumen */
+    var cards=document.querySelectorAll('#content .v8681MetricCard');
+    Array.prototype.forEach.call(cards,function(k){
+      var lab=k.querySelector('.lab'),val=k.querySelector('.val'),sub=k.querySelector('.sub');
+      if(!lab||!val)return;
+      var t=norm(lab.textContent);
+      if(t.indexOf('PRODUCTOS A GESTIONAR')>=0){
+        var txt=fint(m.manageProd)+' productos · '+fint(m.manageUnidades)+' unidades';
+        if(s(val.textContent)!==txt)val.textContent=txt;
+        var subTxt='hay que subirles el descuento, en '+fint(codes().length)+' tiendas';
+        if(sub&&s(sub.textContent)!==subTxt)sub.textContent=subTxt;
+        return;
+      }
+      for(var i=0;i<TARJETAS.length;i++){
+        if(t.indexOf(TARJETAS[i][1])<0)continue;
+        var key=TARJETAS[i][0];
+        var p=m.pct(key).toFixed(1)+'%';
+        if(s(val.textContent)!==p)val.textContent=p;
+        if(sub){
+          var st=fint(m.cuenta(key))+' de '+fint(m.validas)+' · CORE '+m.tasa(key,'CORE').toFixed(1)+
+                 '% · COMPLEMENTO '+m.tasa(key,'COMPLEMENTO').toFixed(1)+'%';
+          if(s(sub.textContent)!==st)sub.textContent=st;
+        }
+        return;
+      }
+    });
+
+    /* 2. barras de "Estado actual vs. política" */
+    Array.prototype.forEach.call(document.querySelectorAll('#content .v8664MdBar'),function(b){
+      var sp=b.querySelector('span'),bb=b.querySelector('b');
+      if(!sp||!bb)return;
+      var t=norm(sp.textContent),key='';
+      Object.keys(ETIQ_ESTADO).forEach(function(k){if(ETIQ_ESTADO[k]===t)key=k});
+      if(!key)return;
+      var txt=fint(m.cuenta(key));
+      if(s(bb.textContent)!==txt)bb.textContent=txt;
+      var track=b.querySelector('.v8664MdTrack i');
+      if(track){
+        var mx=1;Object.keys(ETIQ_ESTADO).forEach(function(k){mx=Math.max(mx,m.cuenta(k))});
+        var h=Math.max(m.cuenta(key)?4:0,m.cuenta(key)/mx*100);
+        track.style.height=h+'%';
+      }
+    });
+
+    /* 3. tarjetas de "Productos a gestionar por política" */
+    var pol=Array.prototype.slice.call(document.querySelectorAll('#content .v8681PolicyCard'));
+    if(pol.length&&m.manage.length){
+      var total=m.manage.length;
+      pol.forEach(function(c){
+        var cab=c.querySelector('.v8666PolicyHead b');if(!cab)return;
+        var t=norm(cab.textContent);
+        var cc=t.indexOf('COMPLEMENTO')>=0?'COMPLEMENTO':'CORE';
+        var kind=t.indexOf('EVACUACION')>=0?'EVAC':'ROT';
+        var lista=m.manage.filter(function(r){
+          if(s(r.cc)!==cc)return false;
+          return norm(r.policyApplied).indexOf(kind)>=0;
+        });
+        var uds=0;lista.forEach(function(r){uds+=num(r.stock)});
+        var pc=lista.length/total*100;
+        var nums=c.querySelectorAll('.v8666PolicyNumber');
+        Array.prototype.forEach.call(nums,function(n){
+          var lb=n.querySelector('label'),vb=n.querySelector('b');
+          if(!lb||!vb)return;
+          var q=norm(lb.textContent),nv=null;
+          if(q==='PRODUCTOS'){lb.textContent='Casos';nv=fint(lista.length)}
+          else if(q==='CASOS')nv=fint(lista.length);
+          else if(q==='UNIDADES')nv=fint(uds);
+          else if(q.indexOf('PARTICIPACION')>=0)nv=pc.toFixed(1)+'%';
+          if(nv!=null&&s(vb.textContent)!==nv)vb.textContent=nv;
+        });
+        var tr=c.querySelector('.v8666PolicyTrack i');
+        if(tr)tr.style.width=pc+'%';
+      });
+    }
+
+    /* 4. la insignia del detalle decia "N productos evaluados" con N unas veces
+          en casos (7.747) y otras en productos (1.748), segun quien la escribiera
+          de ultimo. Se deja fija y con las dos cifras nombradas. */
+    Array.prototype.forEach.call(document.querySelectorAll('#content .chead'),function(c){
+      var t=c.querySelector('.tt');if(!t)return;
+      if(norm(t.textContent).indexOf('DETALLE POR PRODUCTO')<0)return;
+      var bg=c.querySelector('.badge');if(!bg)return;
+      var txt=fint(m.prod)+' productos evaluados en '+fint(codes().length)+' tiendas';
+      if(s(bg.textContent)!==txt)bg.textContent=txt;
+    });
+
+    /* 5. la explicación */
+    var resumen=Array.prototype.slice.call(document.querySelectorAll('#content .card')).filter(function(c){
+      var t=c.querySelector('.chead .tt');return t&&s(t.textContent)==='Resumen de gestión';})[0];
+    if(resumen)ponerNota(resumen.querySelector('.cbody'),'md',
+      '<b>'+fint(m.manageProd)+' productos, '+fint(m.manageUnidades)+' unidades por gestionar</b> '+
+      'en las '+fint(codes().length)+' tiendas. El descuento se administra por tienda, así que un mismo '+
+      'producto puede estar bien en una y pendiente en otra. Los porcentajes van sobre los '+
+      fint(m.validas)+' productos-tienda con política aplicable.');
+  }
+
+  function tick(){
+    if(!leader()||!multi()){CACHE=null;CLAVE='';return}
+    try{tarjetaCuadrante()}catch(e){console.error('V86.242 cuadrante',e)}
+    try{cierreInventario()}catch(e){console.error('V86.242 cierre',e)}
+    try{markdownVista()}catch(e){console.error('V86.242 markdown',e)}
+  }
+  function install(){
+    tick();
+    /* Otros parches redibujan estas tarjetas de forma continua, por eso se
+       reafirma en vez de escribir una sola vez. Solo escribe cuando el valor
+       mostrado difiere del calculado, así no parpadea. */
+    if(!window.__v242Tick)window.__v242Tick=setInterval(function(){try{tick()}catch(_){}},800);
+    window.__v242Datos=datos;
+    console.info('LLAVERO V86.242 · unidades declaradas y Markdown consolidado calculado sobre las tiendas reales');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,900)},{once:true});
+  else setTimeout(install,900);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,800)});
+})();
+
+
+/* ===== V86.243 · Productos y unidades por gestionar, y el producto tienda por tienda =====
+
+   Decisión del usuario, y es mejor que la que yo había propuesto en V86.242: el
+   titular de cada módulo es el par PRODUCTOS + UNIDADES POR GESTIONAR, y la
+   palabra "casos" desaparece de la interfaz. Las razones son buenas:
+
+     · "Unidades por gestionar" es lo único que se puede mover, rebajar o
+       trasladar, y no hay que explicarle la palabra a nadie.
+     · Las unidades se suman entre zonas sin inflarse, porque cada unidad está
+       en una sola tienda. Los productos no: sumar los conteos de cada tienda da
+       4.935 cuando los productos distintos son 883.
+     · Dice el tamaño real. El NOCHERO HARRISON está en 21 tiendas con 100
+       unidades, pero solo 73 hay que atender: en 8 tiendas está sano y con
+       mercancía nueva. "1 producto" se queda corto y "21 tiendas" exagera.
+
+   La dimensión de tienda no se pierde: vive en la columna "Tiendas" de cada
+   fila y en el detalle del producto, que es lo que arma la segunda parte de
+   este parche.
+
+   ---------------------------------------------------------------------------
+   UNIDADES DE LOS KPI, MEDIDAS UNA POR UNA (corte 31/08, nacional)
+
+   Antes de convertir nada se comprobó qué contaba cada número, porque estaban
+   mezclados incluso entre módulos iguales:
+
+     Rotación   "Productos" 4.935          -> era producto×tienda
+                "Con/Sin respaldo CENDIS"  -> producto×tienda (4.161+774=4.935)
+                "Sin venta 3 meses" 873    -> productos (de 883)
+     Evacuación "Sin venta 3 meses" 2.107  -> producto×tienda (de 3.047)
+
+   O sea, el mismo indicador contaba productos en un módulo y producto×tienda en
+   el otro. Ahora los dos van en productos, y CENDIS pasa a unidades, que es lo
+   que suma con el titular:
+
+     Rotación   883 productos · 9.115 unidades  (7.837 con respaldo + 1.278 sin)
+     Evacuación 954 productos · 5.201 unidades  (1.160 con respaldo + 4.041 sin)
+
+   Con una sola tienda seleccionada este parche no cambia ningún número. */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function num(v){var n=Number(v);return isFinite(n)?n:0}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function money(n){try{return '$ '+Number(n||0).toLocaleString('es-CO',{maximumFractionDigits:0})}catch(_){return '$ '+(n||0)}}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function norm(v){return s(v).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase()}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+
+  /* ---------------- datos por módulo ---------------- */
+  var CACHE={},CLAVE='';
+  function reset(){CACHE={};CLAVE=''}
+  function datos(mod){
+    var cs=codes();if(!cs.length)return null;
+    var clave=cs.join(',');
+    if(CLAVE!==clave){CACHE={};CLAVE=clave}
+    if(CACHE[mod])return CACHE[mod];
+    var x=SS(),prod={},uds=0,val=0,casos=0;
+    var uCen=0,uSin=0,valPorProd={},pCen={},pSin={};
+    var IDXV=(mod==='rot')?3:2;
+    cs.forEach(function(sc){
+      var st=x&&x[sc];if(!st)return;
+      var inv={};
+      (Array.isArray(st.inventario)?st.inventario:[]).forEach(function(r){inv[s(r.codigo)]=r});
+      (Array.isArray(st[mod])?st[mod]:[]).forEach(function(r){
+        var c=s(r&&r[0]);if(!c)return;
+        var u=num(r&&r[1]);
+        prod[c]=1;uds+=u;casos++;
+        var vr=num(r&&r[IDXV]);val+=vr;valPorProd[c]=num(valPorProd[c])+vr;
+        /* El respaldo en CENDIS es un atributo CENTRAL del producto: se comprobó
+           que dispCendis es idéntico en las 21 tiendas para los 2.393 productos.
+           Por eso se cuenta en productos, no en unidades, y así suma exacto con
+           el total del módulo: 716 + 167 = 883 en rotación. */
+        if(num((inv[c]||{}).dispCendis)>0){uCen+=u;pCen[c]=1}else{uSin+=u;pSin[c]=1}
+      });
+    });
+    /* "Sin venta 3 meses" con la misma definición en los dos módulos: productos
+       distintos sin unidades vendidas, usando el agregado propio de la app. */
+    var sinVenta=null,sinVentaValor=null;
+    try{
+      var ventas={};
+      cs.forEach(function(sc){
+        var st2=x&&x[sc];if(!st2)return;
+        (window.normalizeProductSalesRows(st2)||[]).forEach(function(r){
+          var c=s(r&&r.c);if(c)ventas[c]=num(ventas[c])+num(r&&r.u);
+        });
+      });
+      var sv=0,svVal=0;
+      Object.keys(prod).forEach(function(c){if(!(ventas[c]>0)){sv++;svVal+=num(valPorProd[c])}});
+      sinVenta=sv;sinVentaValor=svVal;
+    }catch(_){}
+    var d={productos:Object.keys(prod).length,unidades:uds,valor:val,casos:casos,
+           cendisUds:uCen,sinCendisUds:uSin,
+           cendisProd:Object.keys(pCen).length,sinCendisProd:Object.keys(pSin).length,
+           sinVenta:sinVenta,sinVentaValor:sinVentaValor};
+    CACHE[mod]=d;return d;
+  }
+
+  /* ---------------- A. tarjeta de Rotación y Evacuación ---------------- */
+  function ponerMeta(mk,txt){
+    var m=mk.querySelector('.v243Meta');
+    if(!m){mk.insertAdjacentHTML('beforeend','<div class="meta v243Meta">'+txt+'</div>');return}
+    if(m.innerHTML!==txt)m.innerHTML=txt;
+  }
+  function tarjeta(){
+    var v=view();if(v!=='rot'&&v!=='evac')return;
+    var d=datos(v);if(!d)return;
+    var titulo=(v==='rot')?'Rotación':'Evacuación';
+    var nom=(v==='rot')?'rotación':'evacuación';
+    var card=Array.prototype.slice.call(document.querySelectorAll('#content .card')).filter(function(c){
+      var t=c.querySelector('.chead .tt');return t&&s(t.textContent)===titulo;})[0];
+    if(!card)return;
+
+    Array.prototype.forEach.call(card.querySelectorAll('.mk'),function(mk){
+      var l=mk.querySelector('.l'),val=mk.querySelector('.v');
+      if(!l||!val)return;
+      var t=norm(l.textContent);
+
+      /* 1. el KPI que traía producto×tienda pasa a productos, que es lo que
+            lista la tabla de abajo y lo que dice el menú. */
+      if(t==='PRODUCTOS'||t==='CASOS POR GESTIONAR'){
+        if(s(l.textContent)!=='Productos')l.textContent='Productos';
+        var p=fint(d.productos);
+        if(s(val.textContent)!==p)val.textContent=p;
+        ponerMeta(mk,'referencias distintas en '+nom);
+        return;
+      }
+      /* 2. CENDIS primero: tras el primer tick sus etiquetas tambien empiezan
+            por "Unidades", y si se evalua antes la rama generica se las come. */
+      if(t.indexOf('RESPALDO')>=0){
+        var conRespaldo=t.indexOf('SIN RESPALDO')<0;
+        var etq=conRespaldo?'Productos con respaldo en CENDIS':'Productos sin respaldo en CENDIS';
+        if(s(l.textContent)!==etq)l.textContent=etq;
+        var vv=fint(conRespaldo?d.cendisProd:d.sinCendisProd);
+        if(s(val.textContent)!==vv)val.textContent=vv;
+        var mv=mk.querySelector('.meta:not(.v243Meta)');if(mv)mv.remove();
+        ponerMeta(mk,conRespaldo
+          ? 'de los '+fint(d.productos)+' · hay reposición para cubrir la exhibición'
+          : 'de los '+fint(d.productos)+' · no hay reposición: sale primero');
+        return;
+      }
+      /* 3. unidades: es el número que manda. */
+      if(t.indexOf('UNIDADES')===0){
+        if(s(l.textContent)!=='Unidades por gestionar')l.textContent='Unidades por gestionar';
+        var u=fint(d.unidades);
+        if(s(val.textContent)!==u)val.textContent=u;
+        ponerMeta(mk,'en '+fint(codes().length)+' tiendas');
+        return;
+      }
+      /* 4. sin venta: misma definición en los dos módulos, en productos. */
+      if(t.indexOf('SIN VENTA')>=0&&d.sinVenta!=null){
+        var c=fint(d.sinVenta);
+        if(s(val.textContent)!==c)val.textContent=c;
+        /* el pie en pesos venia calculado sobre el conjunto anterior; se rehace
+           para que corresponda a estos mismos productos. */
+        var pie=mk.querySelector('.v8662NoSaleMeta');
+        if(pie&&d.sinVentaValor!=null){
+          var pt=money(d.sinVentaValor)+' en inventario';
+          if(s(pie.textContent)!==pt)pie.textContent=pt;
+        }
+        ponerMeta(mk,'productos sin una sola venta en 3 meses');
+        return;
+      }
+    });
+
+    var bg=card.querySelector('.chead .badge');
+    if(bg){
+      var txt=fint(d.productos)+' productos · '+fint(d.unidades)+' unidades por gestionar';
+      if(s(bg.textContent)!==txt)bg.textContent=txt;
+    }
+    /* V86.280: se retiro esta nota por pedido explicito. */
+  }
+
+  function nota(cuerpo,id,texto){
+    if(!cuerpo)return;
+    var vieja=cuerpo.querySelector('[data-v242="'+id+'"]');
+    if(vieja){if(vieja.innerHTML!==texto)vieja.innerHTML=texto;return}
+    cuerpo.insertAdjacentHTML('afterbegin','<div class="v242Nota" data-v242="'+id+'">'+texto+'</div>');
+  }
+
+  function tick(){
+    if(!leader()||!multi()){reset();return}
+    /* Solo la tarjeta de cuadrante. La linea de cierre del Inventario y todo
+       Markdown los escribe V86.242, ya con la redaccion final: un solo escritor
+       por elemento, para que no se pisen entre ticks. */
+    try{tarjeta()}catch(e){console.error('V86.243 tarjeta',e)}
+  }
+  function install(){
+    tick();
+    if(!window.__v243Tick)window.__v243Tick=setInterval(function(){try{tick()}catch(_){}},800);
+    window.__v243Datos=datos;
+    console.info('LLAVERO V86.243 · productos y unidades por gestionar');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,950)},{once:true});
+  else setTimeout(install,950);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,850)});
+})();
+
+
+/* ===== V86.244 · El producto, tienda por tienda =====
+
+   Esto es lo que el usuario planteó y no estaba resuelto: "un producto puede
+   estar en una tienda pero no con el mismo estado; en una puede estar sano, o
+   en rotación con unidades en edad distinta". El detalle por tienda existía
+   desde V86.227 pero le faltaban las dos cosas que contestan eso:
+
+     1. UNIDADES POR GESTIONAR por tienda. No es lo mismo el stock que lo que
+        hay que atender. El NOCHERO HARRISON (7033121) tiene 100 unidades en 21
+        tiendas y solo 73 por gestionar: en 8 tiendas está sano.
+
+     2. LA ANTIGÜEDAD COMO BARRA, no como una etiqueta de texto. Con la barra el
+        patrón se ve sin leer: las tiendas sanas salen claritas -- mercancía de
+        menos de 90 días -- y las que rotan salen oscuras. En ese producto las 8
+        tiendas sanas no tienen NI UNA unidad de más de 90 días. Eso dice que el
+        producto no está malo, está envejeciendo donde no rota, y se corrige
+        repartiendo en vez de rebajando. Ningún número suelto cuenta eso.
+
+   Además el detalle abre filtrado al estado del módulo desde el que se entró
+   (en Rotación, las tiendas en rotación), con los filtros de V86.238 ahí mismo
+   para ver el cuadro completo con un clic. */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function num(v){var n=Number(v);return isFinite(n)?n:0}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function money(n){try{return '$ '+Number(n||0).toLocaleString('es-CO',{maximumFractionDigits:0})}catch(_){return '$ '+(n||0)}}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function norm(v){return s(v).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase()}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+
+  /* Los rangos del dato son once; para la barra se agrupan en cuatro tramos,
+     que es lo que se distingue a simple vista. La rampa va de claro a oscuro
+     porque es una magnitud, no cuatro categorías sin relación. */
+  /* V86.248: la barra de colores se cambió por los números. En productos donde
+     todas las unidades caen en un mismo tramo -- que son muchos -- la barra salía
+     de un solo color macizo y no decía nada; el número sí. */
+  var TRAMOS=[
+    ['0 a 90 días',   ['000 - 030','031 - 060','061 - 090'],            'a1', '0-90'],
+    ['91 a 180 días', ['091 - 120','121 - 150','151 - 180'],            'a2', '91-180'],
+    ['181 a 360 días',['181 - 210','210 - 240','241 - 360'],            'a3', '181-360'],
+    ['+360 días',     ['360 - Más','360 - Mas'],                        'a4', '+360']
+  ];
+
+  /* ---------- índice de unidades por gestionar ---------- */
+  var IDX=null,IDXK='';
+  function idx(){
+    var cs=codes(),k=cs.join(',');
+    if(IDX&&IDXK===k)return IDX;
+    var x=SS(),rot={},evac={};
+    cs.forEach(function(sc){
+      var st=x&&x[sc];if(!st)return;
+      (Array.isArray(st.rot)?st.rot:[]).forEach(function(r){
+        var c=s(r&&r[0]);if(!c)return;(rot[c]=rot[c]||{})[sc]=num(r&&r[1]);});
+      (Array.isArray(st.evac)?st.evac:[]).forEach(function(r){
+        var c=s(r&&r[0]);if(!c)return;(evac[c]=evac[c]||{})[sc]=num(r&&r[1]);});
+    });
+    IDX={rot:rot,evac:evac};IDXK=k;return IDX;
+  }
+  function porGestionar(code,sc){
+    var i=idx(),c=s(code);
+    var a=(i.rot[c]||{})[sc], b=(i.evac[c]||{})[sc];
+    if(a!=null)return {u:a,tipo:'rot'};
+    if(b!=null)return {u:b,tipo:'evac'};
+    return {u:0,tipo:''};
+  }
+  function invRow(code,sc){
+    var x=SS(),st=x&&x[sc];if(!st||!Array.isArray(st.inventario))return null;
+    var c=s(code);
+    for(var i=0;i<st.inventario.length;i++)if(s(st.inventario[i].codigo)===c)return st.inventario[i];
+    return null;
+  }
+  function barra(rangos){
+    var vals=TRAMOS.map(function(t){
+      var n=0;t[1].forEach(function(k){n+=num((rangos||{})[k])});return n;});
+    var tot=vals.reduce(function(a,b){return a+b},0);
+    if(!tot)return {html:'<span class="v244Sin">sin dato</span>',texto:''};
+    /* Se listan solo los tramos con unidades, del más nuevo al más viejo, y el
+       de más de 360 días se marca porque es el que urge. */
+    var partes=[];
+    TRAMOS.forEach(function(t,i){
+      if(!vals[i])return;
+      partes.push('<span class="v248Tramo'+(i===3?' urge':'')+'">'+
+        esc(t[3])+' <b>'+fint(vals[i])+'</b></span>');
+    });
+    var texto=TRAMOS.map(function(t,i){return vals[i]?t[0]+': '+fint(vals[i])+' u':''})
+      .filter(Boolean).join(' · ');
+    return {html:'<span class="v248Edades">'+partes.join('')+'</span>',texto:texto};
+  }
+
+  /* ---------- código del producto abierto ----------
+     Leerlo del DOM no era fiable: la ficha la abren varias funciones distintas y
+     no todas escriben el código en el mismo sitio (la primera version se quedaba
+     con cadena vacia y el parche no hacia nada). Se recuerda envolviendo las
+     funciones que abren la ficha, igual que hace V86.227. */
+  var ULTIMO='';
+  function recordar(nombre){
+    var f=window[nombre];
+    if(typeof f!=='function'||f.__v244)return;
+    var w=function(c){try{if(c!=null)ULTIMO=s(c)}catch(_){}return f.apply(this,arguments)};
+    w.__v244=true;window[nombre]=w;
+    try{eval(nombre+'=w')}catch(_){}
+  }
+  function engancharAperturas(){
+    ['openInventoryProduct','openMarkdownProduct8618','openProductDetail','openProduct']
+      .forEach(recordar);
+  }
+  function codigoAbierto(box){
+    if(ULTIMO)return ULTIMO;
+    var el=document.querySelector('#inventoryProductCode,.v227Code,.productCode');
+    if(el&&s(el.textContent))return s(el.textContent).replace(/[^0-9A-Za-z_-]/g,'');
+    return '';
+  }
+
+  /* ---------- 1. columna "Por gestionar" y barra de antigüedad ---------- */
+  function tabla(box){
+    var t=box.querySelector('.v227Table');if(!t)return;
+    if(t.dataset.v244==='1')return;
+    var filas=Array.prototype.slice.call(t.querySelectorAll('tbody tr[data-v227-store]'));
+    if(!filas.length)return;
+    var code=codigoAbierto(box);if(!code)return;
+    var ths=t.querySelectorAll('thead th');
+    var iUds=-1,iAge=-1;
+    Array.prototype.forEach.call(ths,function(th,i){
+      var n=norm(th.textContent);
+      if(iUds<0&&(n==='UDS.'||n==='UDS'||n==='UNIDADES'))iUds=i;
+      if(iAge<0&&n.indexOf('ANTIGUEDAD')>=0)iAge=i;
+    });
+    if(iUds<0)return;
+    t.dataset.v244='1';
+
+    ths[iUds].insertAdjacentHTML('afterend','<th class="num v244Th">Por gestionar</th>');
+    var totG=0;
+    filas.forEach(function(tr){
+      var sc=tr.dataset.v227Store;
+      var g=porGestionar(code,sc);
+      totG+=g.u;
+      var celdas=tr.children;
+      var cel=celdas[iUds];if(!cel)return;
+      cel.insertAdjacentHTML('afterend','<td class="num v244Td'+(g.u?' g':' z')+'">'+
+        (g.u?'<b>'+fint(g.u)+'</b>':'<span class="v244Sin">—</span>')+'</td>');
+      if(iAge>=0){
+        var celA=tr.children[iAge+1];   /* +1: ya se insertó una columna antes */
+        if(celA){
+          var r=invRow(code,sc);
+          var b=barra(r&&r.rangos);
+          celA.innerHTML=b.html;
+          celA.title=b.texto||s(celA.textContent);
+          celA.classList.add('v244Age');
+        }
+      }
+    });
+    /* el pie tiene una celda por columna: hay que insertarle la suya */
+    var tf=t.querySelector('tfoot tr');
+    if(tf&&tf.children[iUds]){
+      tf.children[iUds].insertAdjacentHTML('afterend',
+        '<td class="num v244Td g"><b>'+fint(totG)+'</b></td>');
+    }
+    /* La leyenda de colores ya no aplica: la columna lleva los números. */
+    if(iAge>=0&&!box.querySelector('.v244Leg')){
+      var wrap=box.querySelector('.v227Wrap');
+      if(wrap)wrap.insertAdjacentHTML('afterend',
+        '<div class="v244Leg"><span class="v244LegNote">'+
+        'Antigüedad: unidades de cada tienda por tramo de días. '+
+        'Pase el cursor por la celda para ver el desglose completo.</span></div>');
+    }
+    return {code:code,filas:filas,totG:totG};
+  }
+
+  /* ---------- 2. resumen del producto arriba del detalle ---------- */
+  function resumen(box,info){
+    if(!info||box.querySelector('.v244Hero'))return;
+    var code=info.code,cs=codes();
+    var nT=info.filas.length,nRot=0,nEvac=0,uds=0,val=0,viejas=0;
+    info.filas.forEach(function(tr){
+      var sc=tr.dataset.v227Store;
+      var g=porGestionar(code,sc);
+      if(g.tipo==='rot')nRot++;else if(g.tipo==='evac')nEvac++;
+      var r=invRow(code,sc);
+      uds+=num(r&&r.stock);val+=num(r&&r.valorInventario);
+      if(g.u){
+        var rg=(r&&r.rangos)||{};
+        TRAMOS.slice(1).forEach(function(t){t[1].forEach(function(k){viejas+=num(rg[k])})});
+      }
+    });
+    var nSan=nT-nRot-nEvac;
+    var estados=[];
+    if(nRot)estados.push(fint(nRot)+' en rotación');
+    if(nEvac)estados.push(fint(nEvac)+' en evacuación');
+    if(nSan)estados.push(fint(nSan)+' sanas');
+    var html='<div class="v244Hero">'+
+      '<div class="v244H"><div class="k">Tiendas con el producto</div><div class="v">'+fint(nT)+'</div>'+
+        '<div class="m">de '+fint(cs.length)+' · '+esc(estados.join(' · '))+'</div></div>'+
+      '<div class="v244H"><div class="k">Unidades en total</div><div class="v">'+fint(uds)+'</div>'+
+        '<div class="m">en toda la cadena</div></div>'+
+      '<div class="v244H v244Main"><div class="k">Unidades por gestionar</div><div class="v">'+fint(info.totG)+'</div>'+
+        '<div class="m">'+(viejas?fint(viejas)+' llevan más de 90 días':'sin unidades sobre 90 días')+'</div></div>'+
+      '<div class="v244H"><div class="k">Valor del inventario</div><div class="v val">'+money(val)+'</div>'+
+        '<div class="m">las '+fint(uds)+' unidades</div></div>'+
+      '</div>';
+    var head=box.querySelector('.v227Head');
+    if(head)head.insertAdjacentHTML('afterend',html);
+    else box.insertAdjacentHTML('afterbegin',html);
+  }
+
+  /* ---------- 3. abrir filtrado al estado del módulo ---------- */
+  function filtroInicial(box){
+    if(box.dataset.v244f==='1')return;
+    var chips=box.querySelectorAll('[data-v238-f]');
+    if(!chips.length)return;              /* V86.238 todavía no los puso */
+    box.dataset.v244f='1';
+    var v=view(),quiere=(v==='rot')?'rot':(v==='evac')?'evac':'';
+    if(!quiere)return;
+    var btn=box.querySelector('[data-v238-f="'+quiere+'"]');
+    if(btn&&!btn.classList.contains('on'))btn.click();
+  }
+
+  var INFO=null,CODIGO='';
+  function tick(){
+    engancharAperturas();
+    if(!leader()||!multi()){INFO=null;return}
+    var box=document.querySelector('.v227Box');
+    if(!box){INFO=null;return}
+    /* al abrir otro producto V86.227 redibuja la caja; si el codigo cambio hay
+       que rehacerlo todo aunque el elemento sea el mismo. */
+    if(ULTIMO&&ULTIMO!==CODIGO){CODIGO=ULTIMO;INFO=null;
+      var tb=box.querySelector('.v227Table');if(tb&&tb.dataset.v244==='1')return;}
+    var r=tabla(box);
+    if(r)INFO=r;
+    try{if(INFO)resumen(box,INFO)}catch(e){console.error('V86.244 resumen',e)}
+    try{filtroInicial(box)}catch(e){console.error('V86.244 filtro',e)}
+  }
+  function install(){
+    tick();
+    if(!window.__v244Tick)window.__v244Tick=setInterval(function(){try{tick()}catch(_){}},600);
+    console.info('LLAVERO V86.244 · el producto tienda por tienda, con unidades por gestionar y antigüedad');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1000)},{once:true});
+  else setTimeout(install,1000);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,900)});
+})();
+
+
+/* ===== V86.246 · Días transcurridos entre cortes =====
+
+   Llavero solo se carga de lunes a viernes: sábados, domingos y festivos no hay
+   corte. Eso lo explicó el líder y se comprobó contra los 23 cortes del 28/07 al
+   31/08: todos son de lunes a viernes, y los dos únicos días hábiles sin corte
+   son el viernes 7 de agosto (Batalla de Boyacá) y el lunes 17 (Asunción,
+   trasladado del sábado 15).
+
+   El problema es de lectura: la interfaz comparaba dos cortes sin decir cuántos
+   días habían pasado. Un lunes contra viernes y un miércoles contra martes se
+   veían igual, así que los lunes siempre parecían malos. Normalizando por día
+   dejan de serlo:
+
+       03/08 lunes  3 días  -2,5%  ->  -0,8% por día
+       10/08 lunes  4 días  -0,9%  ->  -0,2% por día
+       18/08 martes 4 días  -2,6%  ->  -0,7% por día   (fin de semana + festivo)
+       24/08 lunes  3 días  -2,1%  ->  -0,7% por día
+       31/08 lunes  3 días  -3,7%  ->  -1,2% por día
+
+   Todos caen dentro del rango de un día normal.
+
+   El motivo del hueco NO se saca de una tabla de festivos, que habría que
+   mantener cada año: se deduce del propio historial. Si entre dos cortes hay un
+   sábado o un domingo, es fin de semana; si hay un día de lunes a viernes sin
+   corte, es festivo, porque Llavero carga todos los días hábiles. */
+(function(){
+  var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  function s(v){return v==null?'':String(v).trim()}
+  function fnum(n,d){try{return Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d||0,maximumFractionDigits:d||0})}catch(_){return String(n)}}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+  /* ---------- fechas ---------- */
+  function iso(v){
+    var t=s(v);
+    var m=t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m)return m[1]+'-'+m[2]+'-'+m[3];
+    m=t.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if(m)return m[3]+'-'+m[2]+'-'+m[1];
+    return '';
+  }
+  function aDate(v){var f=iso(v);if(!f)return null;var p=f.split('-');
+    return new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));}
+  function corto(v){var f=iso(v);if(!f)return s(v);var p=f.split('-');return p[2]+'/'+p[1];}
+  function dow(d){return d.getUTCDay()}
+
+  /* ---------- cortes que existen, del propio historial ---------- */
+  var CORTES=null;
+  function cortes(){
+    if(CORTES)return CORTES;
+    var out=[];
+    try{
+      var h=JSON.parse(document.getElementById('embeddedHistory').textContent);
+      (h.daily||[]).forEach(function(x){var f=iso(x&&x.date);if(f)out.push(f)});
+    }catch(_){}
+    if(!out.length){
+      /* respaldo: las opciones del propio selector de rango */
+      try{
+        var sel=document.querySelector('.v8656CutRange select');
+        if(sel)Array.prototype.forEach.call(sel.options,function(o){var f=iso(o.value);if(f)out.push(f)});
+      }catch(_){}
+    }
+    out.sort();
+    if(out.length)CORTES=out;
+    return out;
+  }
+
+  /* ---------- brecha entre dos cortes y por qué ---------- */
+  function brecha(desde,hasta){
+    var a=aDate(desde),b=aDate(hasta);
+    if(!a||!b)return null;
+    var dias=Math.round((b-a)/86400000);
+    if(dias<=0)return null;
+    var hay={}, set={};
+    cortes().forEach(function(f){set[f]=1});
+    var finde=false,festivo=false;
+    var d=new Date(a.getTime()+86400000);
+    while(d<b){
+      var w=dow(d);
+      if(w===0||w===6)finde=true;
+      else{
+        var k=d.toISOString().slice(0,10);
+        if(!set[k])festivo=true;      /* día hábil sin corte = festivo */
+      }
+      d=new Date(d.getTime()+86400000);
+    }
+    var motivo='';
+    if(finde&&festivo)motivo='fin de semana y festivo';
+    else if(finde)motivo='fin de semana';
+    else if(festivo)motivo='festivo';
+    return {dias:dias,finde:finde,festivo:festivo,motivo:motivo,
+            diaHasta:DIAS[dow(b)],diaDesde:DIAS[dow(a)]};
+  }
+  function etiqueta(desde,hasta){
+    var g=brecha(desde,hasta);
+    if(!g)return '';
+    if(g.dias===1)return '1 día';
+    return fnum(g.dias)+' días'+(g.motivo?' · '+g.motivo:'');
+  }
+
+  /* ---------- 1. tarjeta de cambios de descuento ---------- */
+  function tarjetaDescuentos(){
+    var card=document.getElementById('v200DiscountChangesCard');if(!card)return;
+    var ds=card.querySelector('.ds');if(!ds)return;
+    var txt=s(ds.textContent);
+    var m=txt.match(/Corte\s+(\d{2}\/\d{2}\/\d{4})\s*→\s*(\d{2}\/\d{2}\/\d{4})/);
+    if(!m)return;
+    var et=etiqueta(m[1],m[2]);
+    if(!et)return;
+    var marca=' · '+et;
+    if(txt.indexOf(marca)>=0)return;                 /* ya está */
+    var limpio=txt.replace(/\s·\s\d+\s+días?(\s·\s[^·]+)?$/,'');
+    ds.textContent=limpio+marca;
+  }
+
+  /* ---------- 2. rango de cortes del dashboard ---------- */
+  function rangoDashboard(){
+    var caja=document.querySelector('.v8656CutRange');if(!caja)return;
+    var sels=caja.querySelectorAll('select');if(sels.length<2)return;
+    var desde=iso(sels[0].value),hasta=iso(sels[1].value);
+    if(!desde||!hasta)return;
+    var lista=cortes().filter(function(f){return f>=desde&&f<=hasta});
+    var g=brecha(desde,hasta);
+    if(!g)return;
+
+    /* V86.280: se retiro el resumen de dias/cortes/interrupciones -- era
+       ruido de calculo (37 dias naturales, 5 interrupciones...) sin utilidad
+       para decidir nada. Se conserva solo el aviso de que Llavero no carga
+       fin de semana ni festivos, que es lo que de verdad explica por que
+       faltan fechas al elegir un rango; queda pegado a los selectores. */
+    var html='<span class="v246Sub">Llavero solo carga de lunes a viernes: no hay corte sábados, domingos ni festivos.</span>';
+
+    var nota=caja.parentElement&&caja.parentElement.querySelector('.v246Nota');
+    if(!nota){
+      caja.insertAdjacentHTML('afterend','<div class="v246Nota">'+html+'</div>');
+    }else if(nota.innerHTML!==html){
+      nota.innerHTML=html;
+    }
+  }
+
+  /* ---------- 3. las opciones del selector dicen su día ---------- */
+  function opcionesConDia(){
+    var caja=document.querySelector('.v8656CutRange');if(!caja)return;
+    Array.prototype.forEach.call(caja.querySelectorAll('select'),function(sel){
+      if(sel.dataset.v246==='1')return;
+      var listo=true;
+      Array.prototype.forEach.call(sel.options,function(o){
+        var f=iso(o.value);if(!f){listo=false;return}
+        var d=aDate(f);if(!d)return;
+        var base=s(o.textContent).replace(/\s+·.*$/,'');
+        var prev=null;
+        var cs=cortes();
+        for(var i=0;i<cs.length;i++){if(cs[i]===f){prev=cs[i-1]||null;break}}
+        var g=prev?brecha(prev,f):null;
+        var extra=DIAS[dow(d)].slice(0,3);
+        if(g&&g.dias>1)extra+=' · +'+g.dias+'d';
+        var txt=base+' · '+extra;
+        if(o.textContent!==txt)o.textContent=txt;
+      });
+      if(listo)sel.dataset.v246='1';
+    });
+  }
+
+  function tick(){
+    if(!cortes().length)return;
+    try{tarjetaDescuentos()}catch(e){console.error('V86.246 descuentos',e)}
+    try{rangoDashboard()}catch(e){console.error('V86.246 rango',e)}
+    try{opcionesConDia()}catch(e){console.error('V86.246 opciones',e)}
+  }
+  function install(){
+    tick();
+    if(!window.__v246Tick)window.__v246Tick=setInterval(function(){try{tick()}catch(_){}},900);
+    window.__v246Brecha=brecha;
+    console.info('LLAVERO V86.246 · días transcurridos entre cortes, con el motivo del hueco');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1100)},{once:true});
+  else setTimeout(install,1100);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,1000)});
+})();
+
+/* ===== V86.248 · Un solo botón Volver =====
+
+   La ficha del producto mostraba DOS botones "← Volver": uno en el encabezado,
+   arriba a la izquierda, y otro en el pie, abajo a la derecha. Hacen lo mismo.
+   El del pie lo ponen dos rutinas distintas del propio sistema
+   (v8610FooterBack y v8612FooterBack) cada vez que se abre una ficha desde un
+   listado, así que no basta con borrarlo una vez: se vuelve a poner. Por eso se
+   oculta de forma sostenida, y con él la barra del pie si no queda nada más
+   dentro.
+
+   Se conserva el del encabezado porque está junto al título, que es donde se
+   mira al querer retroceder, y porque el aspa de cerrar ya ocupa la esquina
+   derecha. */
+(function(){
+  function s(v){return v==null?'':String(v).trim()}
+  function visible(e){
+    if(!e)return false;
+    if(e.hidden)return false;
+    var st=window.getComputedStyle(e);
+    return st.display!=='none'&&st.visibility!=='hidden';
+  }
+  function tieneVolverArriba(modal){
+    var cab=modal.querySelector('.modalHead,.chead,header');
+    if(!cab)return false;
+    if(cab.querySelector('.hierBackV862'))return true;
+    var b=cab.querySelectorAll('button,a');
+    for(var i=0;i<b.length;i++)if(/volver/i.test(s(b[i].textContent)))return true;
+    return false;
+  }
+  function limpiar(){
+    var modales=document.querySelectorAll('.modal,[id$=Modal]');
+    Array.prototype.forEach.call(modales,function(m){
+      if(!visible(m))return;
+      if(!tieneVolverArriba(m))return;                 /* si no hay otro, no se toca */
+      var pie=m.querySelector('.modalFoot');if(!pie)return;
+      /* Por TEXTO, no por clase: el boton del pie lo ponen varias rutinas y no
+         todas le dejan la misma clase. Lo que lo identifica es que diga Volver
+         y este en el pie de un modal que ya trae uno arriba. */
+      var dup=[];
+      Array.prototype.forEach.call(pie.querySelectorAll('button,a'),function(b){
+        if(/volver/i.test(s(b.textContent)))dup.push(b);
+      });
+      var alguno=false;
+      dup.forEach(function(b){
+        if(b.style.display!=='none'){b.style.display='none';alguno=true}
+      });
+      /* si el pie se queda sin nada visible, se oculta la barra entera */
+      var quedan=Array.prototype.filter.call(pie.children,function(c){
+        return c.style.display!=='none'&&!c.hidden;});
+      if(!quedan.length&&!pie.hidden)pie.hidden=true;
+      else if(quedan.length&&pie.hidden&&alguno)pie.hidden=false;
+    });
+  }
+  function install(){
+    limpiar();
+    if(!window.__v248Tick)window.__v248Tick=setInterval(function(){try{limpiar()}catch(_){}},500);
+    console.info('LLAVERO V86.248 · un solo botón Volver en la ficha del producto');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1200)},{once:true});
+  else setTimeout(install,1200);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,1100)});
+})();
+
+
+/* ===== V86.249 · Resumen y Reporte de tiendas en alcance consolidado =====
+
+   Con "todas las tiendas" el Reporte de las tiendas salía entero en cero:
+   Gestionados 0, Persistentes 0, Nuevos críticos 0, Traslados resueltos 0.
+
+   La causa es la de siempre en este sistema: el historial guarda
+   details[i].stores con los 21 códigos de tienda y NO tiene entrada '__ALL__',
+   así que v170AggCard buscaba stores['__ALL__'], no encontraba nada y calculaba
+   sobre undefined.
+
+   -------------------------------------------------------------------------
+   QUÉ SE CUENTA, QUE AQUÍ SÍ IMPORTA
+
+   Hay dos lecturas posibles y dan números muy distintos (28/08 -> 31/08):
+
+       sumando tienda por tienda : 160 gestionados en rotación
+       productos distintos       :  15 gestionados
+
+   Los 15 son los productos que salieron de rotación en TODAS las tiendas a la
+   vez. Los 160 son las situaciones que el equipo realmente resolvió. Para un
+   reporte de gestión el número honesto es 160: es el trabajo hecho. Los 15
+   dirían que las tiendas no hicieron casi nada, y no es verdad.
+
+   Por eso el consolidado NO agrupa por código: mantiene una fila por tienda y
+   producto, y las cuentas se suman tienda por tienda.
+
+   -------------------------------------------------------------------------
+   CÓMO
+
+   1. Se inyecta la entrada '__ALL__' en cada corte del historial, con las filas
+      de las tiendas del alcance concatenadas y marcadas con su tienda en la
+      posición 4 (libre: compareStateRows solo usa 0,1,2 y 3).
+   2. buildStoreDailySummary y v170ProductDiff son funciones globales de
+      index.html, así que se pueden envolver: cuando reciben el agregado,
+      calculan tienda por tienda y suman, en vez de mezclar por código.
+   3. El índice de gestión del consolidado es el promedio ponderado por
+      inventario de los índices de cada tienda; se indica en la propia tarjeta.
+
+   Todo se rehace cuando cambia el alcance, así que el reporte sigue al filtro
+   de zona, departamento, ciudad o tienda. Con una sola tienda no se toca nada. */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function num(v){var n=Number(v);return isFinite(n)?n:0}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){var a=agg();return a?a.__codes:[]}
+
+  function historial(){
+    try{
+      var el=document.getElementById('embeddedHistory');
+      if(!el)return null;
+      var h=JSON.parse(el.textContent||'{}');
+      return (h&&Array.isArray(h.details))?h:null;
+    }catch(_){return null}
+  }
+
+  /* ---------- 1. inyectar __ALL__ en el historial ---------- */
+  var HECHO='';
+  function marcar(filas,sc){
+    var out=[];
+    for(var i=0;i<(filas||[]).length;i++){
+      var r=filas[i];if(!Array.isArray(r))continue;
+      var c=r.slice(0,4);c[4]=sc;out.push(c);
+    }
+    return out;
+  }
+  function construir(){
+    if(!leader())return false;
+    var cs=codes();if(!cs.length)return false;
+    var clave=cs.join(',');
+    var h=historial();if(!h)return false;
+    if(HECHO===clave&&h.details.length&&h.details[0].stores&&h.details[0].stores[ALL])return true;
+    var nom=(function(){try{return cs.length===1?LlaveroScope.storeName(cs[0])
+      :('Todas las tiendas · '+cs.length)}catch(_){return 'Alcance'}})();
+    h.details.forEach(function(d){
+      var st=d.stores||{},inv=0,uds=0,rot=[],evac=[],tr=[],acc=[];
+      cs.forEach(function(sc){
+        var x=st[sc];if(!x)return;
+        inv+=num(x.inventory);uds+=num(x.inventoryUnits);
+        rot=rot.concat(marcar(x.rot,sc));
+        evac=evac.concat(marcar(x.evac,sc));
+        if(Array.isArray(x.tr))tr=tr.concat(x.tr);
+        if(Array.isArray(x.actions))acc=acc.concat(x.actions);
+      });
+      st[ALL]={name:nom,inventory:inv,inventoryUnits:uds,rot:rot,evac:evac,tr:tr,actions:acc,
+               __scope:cs.slice(),__porTienda:st};
+      d.stores=st;
+    });
+    /* y el resumen diario, por si algo lo lee */
+    if(Array.isArray(h.daily)){
+      h.daily.forEach(function(d){
+        var st=d.stores||{};
+        var base=null;
+        cs.forEach(function(sc){
+          var x=st[sc];if(!x)return;
+          if(!base){base=JSON.parse(JSON.stringify(x));base.name=nom;return}
+          sumar(base,x);
+        });
+        if(base){
+          base.rotPct=base.inventory>0?base.rotVal/base.inventory*100:0;
+          base.evacPct=base.inventory>0?base.evacVal/base.inventory*100:0;
+          st[ALL]=base;
+        }
+        d.stores=st;
+      });
+    }
+    HECHO=clave;
+    return true;
+  }
+  /* suma recursiva de los campos numéricos, respetando la estructura */
+  function sumar(a,b){
+    Object.keys(b||{}).forEach(function(k){
+      if(k==='name'||k==='__scope'||k==='__porTienda')return;
+      var vb=b[k],va=a[k];
+      if(typeof vb==='number'){a[k]=num(va)+vb}
+      else if(vb&&typeof vb==='object'&&!Array.isArray(vb)){
+        if(!va||typeof va!=='object')a[k]=va={};
+        sumar(va,vb);
+      }
+      else if(Array.isArray(vb)){a[k]=(Array.isArray(va)?va:[]).concat(vb)}
+    });
+  }
+
+  /* ---------- 2. envolver el cálculo del resumen ---------- */
+  function envolverResumen(){
+    var f=window.buildStoreDailySummary;
+    if(typeof f!=='function'||f.__v249)return;
+    var w=function(actual,previo){
+      if(!actual||!actual.__scope)return f.apply(this,arguments);
+      var cs=actual.__scope,ap=actual.__porTienda||{},pp=(previo&&previo.__porTienda)||{};
+      var total=null,pesos=0,puntos=0;
+      cs.forEach(function(sc){
+        var a=ap[sc];if(!a)return;
+        var r=f(a,pp[sc]||null);
+        if(r&&r.score!=null){puntos+=r.score*num(a.inventory);pesos+=num(a.inventory)}
+        if(!total){total=JSON.parse(JSON.stringify(r));total.name=actual.name;return}
+        sumar(total,r);
+      });
+      if(!total)return f.apply(this,arguments);
+      total.inventory=num(actual.inventory);
+      total.inventoryUnits=num(actual.inventoryUnits);
+      total.rotPct=total.inventory>0?total.rotVal/total.inventory*100:0;
+      total.evacPct=total.inventory>0?total.evacVal/total.inventory*100:0;
+      total.newCriticalPct=total.inventory>0&&total.critical?num(total.critical.newVal)/total.inventory*100:0;
+      /* el índice no se suma: es un promedio ponderado por inventario */
+      total.score=pesos>0?Math.round(puntos/pesos):null;
+      total.__consolidado=cs.length;
+      return total;
+    };
+    w.__v249=true;
+    window.buildStoreDailySummary=w;
+    try{buildStoreDailySummary=w}catch(_){}
+  }
+
+  /* ---------- 3. envolver el diff de productos ---------- */
+  function envolverDiff(){
+    var f=window.v170ProductDiff;
+    if(typeof f!=='function'||f.__v249)return;
+    function conTienda(filas){return (filas||[]).some(function(r){return Array.isArray(r)&&r[4]})}
+    function porTienda(filas){
+      var m={};
+      (filas||[]).forEach(function(r){
+        if(!Array.isArray(r))return;
+        var sc=s(r[4])||'?';(m[sc]=m[sc]||[]).push(r);
+      });
+      return m;
+    }
+    var w=function(actual,base){
+      if(!conTienda(actual)&&!conTienda(base))return f.apply(this,arguments);
+      var ma=porTienda(actual),mb=porTienda(base);
+      var tiendas={};Object.keys(ma).forEach(function(k){tiendas[k]=1});
+      Object.keys(mb).forEach(function(k){tiendas[k]=1});
+      var gest=[],nuev=[];
+      Object.keys(tiendas).forEach(function(sc){
+        var r=f(ma[sc]||[],mb[sc]||[]);
+        var nom=(function(){try{return LlaveroScope.storeName(sc)}catch(_){return sc}})();
+        (r.gestionados||[]).forEach(function(it){gest.push(conNombre(it,nom))});
+        (r.nuevos||[]).forEach(function(it){nuev.push(conNombre(it,nom))});
+      });
+      gest.sort(function(a,b){return b.v-a.v});
+      nuev.sort(function(a,b){return b.v-a.v});
+      return {gestionados:gest,nuevos:nuev};
+    };
+    function conNombre(it,nom){
+      var c={};for(var k in it)if(Object.prototype.hasOwnProperty.call(it,k))c[k]=it[k];
+      var inf={};for(var j in (it.info||{}))inf[j]=it.info[j];
+      inf.n=s(inf.n)+' · '+nom;
+      c.info=inf;c.__tienda=nom;
+      return c;
+    }
+    w.__v249=true;
+    window.v170ProductDiff=w;
+    try{v170ProductDiff=w}catch(_){}
+  }
+
+  /* ---------- nota en la tarjeta ---------- */
+  function nota(){
+    if(!leader()||!multi())return;
+    var card=Array.prototype.slice.call(document.querySelectorAll('#content .card')).filter(function(c){
+      var t=c.querySelector('.chead .tt');
+      return t&&/Reporte de las tiendas/i.test(t.textContent);})[0];
+    if(!card)return;
+    var cuerpo=card.querySelector('.cbody');if(!cuerpo)return;
+    var n=cuerpo.querySelector('.v249Nota');
+    var txt='<b>Consolidado de '+codes().length+' tiendas.</b> Las cuentas se suman tienda por tienda: '+
+      'si un producto salió de rotación en seis tiendas, cuentan las seis. '+
+      'El índice de gestión es el promedio de las tiendas ponderado por su inventario.';
+    if(!n)cuerpo.insertAdjacentHTML('afterbegin','<div class="v242Nota v249Nota">'+txt+'</div>');
+    else if(n.innerHTML!==txt)n.innerHTML=txt;
+  }
+
+  var ULT='';
+  function tick(){
+    envolverResumen();envolverDiff();
+    if(!leader()){HECHO='';return}
+    var clave=cur()+'|'+codes().join(',');
+    if(clave!==ULT){ULT=clave;HECHO=''}
+    if(multi()){
+      /* Solo se repinta cuando el agregado se ACABA de construir. Antes se
+         comprobaba una bandera que se soltaba a los 60 ms, asi que en la vista
+         de resumen se disparaba un refresh en cada tick: la pantalla no paraba
+         de redibujarse y el arnes se quedaba colgado midiendola. */
+      var recien=(HECHO!==codes().join(','));
+      if(construir()&&recien&&(typeof VIEW!=='undefined')&&VIEW==='resumen'){
+        setTimeout(function(){try{if(typeof refresh==='function')refresh()}catch(_){}},60);
+      }
+      try{nota()}catch(_){}
+    }
+  }
+  function install(){
+    tick();
+    if(!window.__v249Tick)window.__v249Tick=setInterval(function(){try{tick()}catch(_){}},800);
+    console.info('LLAVERO V86.249 · Resumen y Reporte de tiendas consolidados');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,900)},{once:true});
+  else setTimeout(install,900);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,800)});
+})();
+
+
+/* ===== V86.250 · Módulo de desarrollador =====
+
+   Una vista exclusiva para quien administra el sistema. Hace tres cosas:
+
+     1. CREAR USUARIOS. Genera la sal y el hash PBKDF2-SHA256 con los mismos
+        120.000 ciclos que usa el login, y devuelve la línea completa de la
+        tabla lista para pegar en assets/app.js. También lo deja activo en
+        memoria para poder probar el ingreso ahí mismo, sin desplegar.
+
+        Por qué no lo guarda solo: las credenciales viven dentro del JavaScript
+        del sitio, que es un archivo estático en GitHub Pages. Un navegador no
+        puede escribir en él. Guardarlo en el navegador serviría en ese equipo y
+        en ninguno más, que para 21 tiendas no sirve. Así que se genera el texto
+        y se pega. Queda escrito en la pantalla para que no haya sorpresas.
+
+     2. VER TODAS LAS FUNCIONES. El inventario de lo que expone el sistema y de
+        qué hace cada cosa, con su estado en vivo.
+
+     3. ESTADO DEL SISTEMA. Corte, alcance, tiendas, cifras, registro de uso,
+        temporizadores y parches cargados.
+
+   El acceso: el usuario DEV entra con rol de líder -- así ve todos los módulos
+   sin tocar la lógica de permisos -- y este parche añade la entrada del menú
+   solo cuando el usuario que inició sesión es él. */
+(function(){
+  var DEV='DEV';
+  function s(v){return v==null?'':String(v).trim()}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function auth(){try{return (typeof AUTH!=='undefined'&&AUTH)?AUTH:null}catch(_){return null}}
+  /* V86.253: ahora manda el rol, no el nombre. Se conserva la comprobación por
+     nombre para no dejar fuera una sesión guardada antes del cambio. */
+  function esDev(){var a=auth();return !!(a&&(s(a.role)==='dev'||s(a.user).toUpperCase()===DEV))}
+  function hayHoja(){try{return !!(window.LlaveroUsuarios&&window.LlaveroUsuarios.hayHoja())}catch(_){return false}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+
+  /* ---------------- entrada en el menú ---------------- */
+  function nav(){
+    if(!esDev()){
+      var v=document.getElementById('navDev');if(v)v.remove();
+      return;
+    }
+    if(document.getElementById('navDev'))return;
+    var nav=document.querySelector('.nav');if(!nav)return;
+    var sep=document.createElement('div');
+    sep.className='navSep';sep.id='navDevSep';sep.textContent='DESARROLLO';
+    var a=document.createElement('a');
+    a.id='navDev';a.href='#';a.innerHTML='<span class="ic">⚙</span> Desarrollador';
+    a.onclick=function(e){e.preventDefault();abrir()};
+    nav.appendChild(sep);nav.appendChild(a);
+  }
+
+  /* ---------------- panel ----------------
+
+     Ojo con esto: al abrir el panel se escribe #content entero, pero VIEW sigue
+     valiendo lo que valiera antes. Tres parches del Dashboard (V210 Ambientes,
+     V218 Rankings y Comparativo, V219 el ordenador) vigilan #content con un
+     MutationObserver y, al ver que sus tarjetas ya no están, las vuelven a
+     insertar arriba del todo. El resultado eran tres tarjetas de líder encima
+     del panel de desarrollador.
+
+     No leen VIEW: leen document.body.dataset.v8620View. Así que se marca la
+     vista como 'dev' -- valor que ningún parche reconoce, con lo que todos se
+     abstienen -- y además queda un portero en el tick que retira cualquier cosa
+     que se cuele en #content mientras el panel esté abierto. Dos capas porque
+     hay 25 parches y no todos avisan de lo que hacen. */
+  var ABIERTO=false, VISTA_PREVIA='';
+  function abrir(){
+    var c=document.getElementById('content');if(!c)return;
+    document.querySelectorAll('.nav a').forEach(function(x){x.classList.remove('on')});
+    var a=document.getElementById('navDev');if(a)a.classList.add('on');
+    try{
+      if(!ABIERTO)VISTA_PREVIA=s(document.body.dataset.v8620View);
+      document.body.dataset.v8620View='dev';
+    }catch(_){}
+    ABIERTO=true;
+    c.innerHTML=panel();
+    enganchar();
+  }
+  function cerrar(){
+    if(!ABIERTO)return;
+    ABIERTO=false;
+    /* se devuelve la marca para que el Dashboard vuelva a comportarse solo */
+    try{if(s(document.body.dataset.v8620View)==='dev')document.body.dataset.v8620View=VISTA_PREVIA;}catch(_){}
+  }
+  /* El portero. Deja pasar la barra de alcance geográfico (.v224Bar): no es
+     contenido de líder colándose, es parte del armazón de la página, y aquí
+     sirve -- el estado del sistema muestra el alcance y los permisos de
+     administrador dependen de si hay una tienda elegida. Además V86.224 la
+     vuelve a insertar en su propio ciclo, así que quitarla solo produciría un
+     parpadeo cada 900 ms. Todo lo demás sí se retira. */
+  var PERMITIDO=/(^|\s)v224Bar(\s|$)/;
+  function vigilar(){
+    if(!ABIERTO)return;
+    var c=document.getElementById('content');if(!c)return;
+    var wrap=c.querySelector('.v250Wrap');
+    if(!wrap){cerrar();return;}          /* alguien repintó de verdad: se cede */
+    try{if(s(document.body.dataset.v8620View)!=='dev')document.body.dataset.v8620View='dev';}catch(_){}
+    Array.prototype.slice.call(c.children).forEach(function(el){
+      if(el===wrap||wrap.contains(el))return;
+      if(PERMITIDO.test(el.className||''))return;
+      el.remove();
+    });
+    /* el encabezado saluda al líder aunque quien esté sea el desarrollador */
+    var t=document.getElementById('heroTitle');
+    if(t&&t.textContent.indexOf('Desarrollador')<0)t.textContent='Vista de desarrollador ⚙';
+    var sub=document.getElementById('heroSub');
+    if(sub&&sub.textContent.indexOf('Todos los permisos')<0)
+      sub.innerHTML='Todos los permisos · alcance <b>'+esc(cur()==='__ALL__'?'todas las tiendas':cur())+'</b>';
+  }
+
+  function panel(){
+    return '<div class="v250Wrap">'+
+      '<h2 class="v250H1">Desarrollador</h2>'+
+      '<p class="v250Sub">Vista exclusiva. Crear usuarios, ver el estado del sistema y lo que expone.</p>'+
+      tarjetaUsuarios()+tarjetaCrear()+tarjetaEstado()+tarjetaFunciones()+
+      '</div>';
+  }
+
+  /* --- usuarios actuales --- */
+  function tarjetaUsuarios(){
+    var us=[];
+    try{us=window.LlaveroAuth.usuarios()}catch(_){}
+    us.sort(function(a,b){return a.rol===b.rol?a.usuario.localeCompare(b.usuario):(a.rol<b.rol?-1:1)});
+    var ROLES={admin:'Administrador de tienda',leader:'Líder de área',dev:'Desarrollador'};
+    var enHoja=0;
+    var filas=us.map(function(u){
+      if(u.origen==='hoja')enHoja++;
+      return '<tr><td><b>'+esc(u.usuario)+'</b></td><td>'+esc(ROLES[u.rol]||u.rol)+'</td>'+
+             '<td>'+(u.tienda?esc(u.tienda)+' · '+esc(u.nombre||nombreTienda(u.tienda)):'—')+'</td>'+
+             '<td class="'+(u.origen==='hoja'?'v250Si':'v250Mut')+'">'+
+               (u.origen==='hoja'?'hoja':'archivo')+'</td></tr>';
+    }).join('');
+    var est={};try{est=window.LlaveroUsuarios.estado()}catch(_){}
+    var linea;
+    if(!est.hoja){
+      linea='<p class="v250Nota v250Aviso"><b>Sin hoja configurada.</b> Los usuarios salen del propio '+
+        '<code>assets/app.js</code>, así que crear uno obliga a editar el archivo y publicar. '+
+        'Configurando la hoja de Google (la misma del registro de uso) eso desaparece.</p>';
+    }else if(est.cargado){
+      linea='<p class="v250Nota"><b>'+fint(enHoja)+' vienen de la hoja</b> y '+fint(us.length-enHoja)+
+        ' del archivo, leídos a las '+esc(est.ultimo)+'. Cuando un usuario está en los dos sitios manda '+
+        'la hoja, que es la que se puede cambiar sin publicar.</p>';
+    }else{
+      linea='<p class="v250Nota v250Aviso"><b>La hoja no respondió</b>'+(est.error?' ('+esc(est.error)+')':'')+
+        '. Se está trabajando con los usuarios del archivo, que es justo para lo que están: si Google '+
+        'falla, las 21 tiendas siguen entrando. No verás aquí a los creados después.</p>';
+    }
+    return card('Usuarios registrados',fint(us.length)+' usuarios',
+      '<div class="twrap"><table class="v250Tabla"><thead><tr><th>Usuario</th><th>Rol</th><th>Tienda</th><th>Dónde vive</th></tr></thead>'+
+      '<tbody>'+filas+'</tbody></table></div>'+
+      linea+
+      '<p class="v250Nota">Los PIN no se muestran ni se pueden recuperar: solo se guarda su hash. '+
+      'Si alguien lo olvida, hay que generarle uno nuevo aquí abajo.</p>'+
+      '<div class="v250Acciones">'+
+        (est.hoja?'<button id="v250Recargar" class="v250Btn sec" type="button">Releer la hoja</button>':'')+
+        '<button id="v250Semilla" class="v250Btn sec" type="button">Copiar para el Apps Script</button>'+
+        (est.hoja?'<button id="v250Testigo" class="v250Btn sec" type="button">Ver testigo de escritura</button>':'')+
+      '</div><div id="v250SemillaOut" hidden></div>');
+  }
+  function nombreTienda(c){
+    try{var x=SS();if(x&&x[c]&&x[c].name)return x[c].name}catch(_){}
+    return c;
+  }
+
+  /* --- crear usuario --- */
+  function tarjetaCrear(){
+    var ops='';
+    try{
+      var x=SS();
+      Object.keys(x||{}).filter(function(k){return !/^__/.test(k)}).sort().forEach(function(k){
+        ops+='<option value="'+esc(k)+'">'+esc(k)+' · '+esc((x[k]&&x[k].name)||k)+'</option>';
+      });
+    }catch(_){}
+    var hoja=hayHoja();
+    var aviso=hoja
+      ? '<p class="v250Nota"><b>Se guarda en la hoja de Google</b>, no en el archivo del sitio. '+
+        'No hay que tocar <code>assets/app.js</code> ni publicar: las tiendas lo verán al recargar. '+
+        'Por eso se te pide tu propio PIN al final, que es lo que autoriza la escritura.</p>'
+      : '<p class="v250Nota v250Aviso"><b>No hay hoja configurada</b> (<code>window.LLAVERO_LOG_URL</code> '+
+        'está vacío), así que el usuario no se puede guardar solo. Se generará el texto para pegar en '+
+        '<code>assets/app.js</code>, como antes. Con la hoja configurada, esto deja de hacer falta.</p>';
+    return card('Crear usuario','PBKDF2-SHA256 · 120.000 ciclos',
+      aviso+
+      '<div class="v250Form">'+
+        '<label>Usuario<input id="v250User" placeholder="ADM99" autocomplete="off"></label>'+
+        '<label>Rol<select id="v250Rol">'+
+          '<option value="admin">Administrador de tienda</option>'+
+          '<option value="leader">Líder de área</option>'+
+          '<option value="dev">Desarrollador (todos los permisos)</option>'+
+        '</select></label>'+
+        '<label>Tienda<select id="v250Tienda"><option value="">(sin tienda · líder o desarrollador)</option>'+ops+'</select></label>'+
+        '<label>PIN del nuevo usuario<input id="v250Pin" placeholder="mínimo 8 caracteres" autocomplete="off"></label>'+
+        (hoja?'<label>Tu PIN de DEV <small>para autorizar</small><input id="v250PinDev" type="password" placeholder="tu PIN" autocomplete="off"></label>':'')+
+        '<button id="v250Gen" class="v250Btn">'+(hoja?'Crear y guardar':'Generar')+'</button>'+
+        '<button id="v250Sug" class="v250Btn sec" type="button">Sugerir PIN</button>'+
+      '</div>'+
+      '<div id="v250Salida" class="v250Salida" hidden></div>');
+  }
+
+  function enganchar(){
+    var g=document.getElementById('v250Gen');if(g)g.onclick=generar;
+    var sg=document.getElementById('v250Sug');if(sg)sg.onclick=function(){
+      var p=document.getElementById('v250Pin');if(p)p.value=sugerirPin();
+    };
+    var rol=document.getElementById('v250Rol');
+    if(rol)rol.onchange=function(){
+      var t=document.getElementById('v250Tienda');
+      if(t)t.disabled=(rol.value!=='admin');   /* líder y desarrollador no llevan tienda */
+    };
+    var sem=document.getElementById('v250Semilla');
+    if(sem)sem.onclick=sembrar;
+    var tg=document.getElementById('v250Testigo');
+    if(tg)tg.onclick=testigo;
+    var rec=document.getElementById('v250Recargar');
+    if(rec)rec.onclick=function(){
+      rec.textContent='Leyendo…';rec.disabled=true;
+      Promise.resolve(window.LlaveroUsuarios?window.LlaveroUsuarios.cargar(true):false)
+        .then(function(){abrir()});
+    };
+  }
+
+  /* El testigo que autoriza a escribir en la hoja. Hace falta enseñarlo una
+     sola vez: al montar la hoja, y cada vez que se cambie el PIN de DEV. Se
+     calcula aquí a partir del PIN, así que hay que teclearlo; en ningún sitio
+     queda guardado. */
+  function testigo(){
+    var salida=document.getElementById('v250SemillaOut');if(!salida)return;
+    salida.hidden=false;
+    salida.innerHTML='<div class="v250Campo"><label>Escribe tu PIN de DEV para calcular el testigo</label>'+
+      '<div class="v250Acciones"><input id="v250TgPin" type="password" placeholder="tu PIN" autocomplete="off">'+
+      '<button class="v250Btn" id="v250TgOk" type="button">Calcular</button></div></div>';
+    document.getElementById('v250TgOk').onclick=function(){
+      var pin=s((document.getElementById('v250TgPin')||{}).value);
+      if(!pin)return;
+      var b=document.getElementById('v250TgOk');b.textContent='Calculando…';b.disabled=true;
+      window.LlaveroUsuarios.testigo(pin).then(function(tk){
+        salida.innerHTML='<div class="v250Campo"><label>Pega esto en <code>CLAVE_USUARIOS</code> '+
+          'dentro del Apps Script y vuelve a implementar</label>'+
+          '<textarea readonly rows="2" id="v250TxtTg">'+esc(tk)+'</textarea>'+
+          '<button class="v250Btn sec" data-copia="v250TxtTg">Copiar</button></div>'+
+          '<p class="v250Nota">Si el PIN que escribiste no es el correcto, esto te dará un testigo '+
+          'que tampoco lo es y las escrituras seguirán fallando. Compruébalo creando un usuario de '+
+          'prueba y borrando después su fila en la hoja.</p>';
+        enganchar2(salida);
+      }).catch(function(e){
+        salida.innerHTML='<p class="v250Nota v250Aviso">No se pudo calcular: '+esc(String(e&&e.message||e))+'</p>';
+      });
+    };
+  }
+
+  /* Vuelca los usuarios que hoy trae el archivo con el formato que espera
+     sembrarUsuarios() del Apps Script, para arrancar la hoja sin perder a
+     nadie. Se hace una vez y no vuelve a hacer falta. */
+  function sembrar(){
+    var salida=document.getElementById('v250SemillaOut');if(!salida)return;
+    var filas=[];
+    try{
+      window.LlaveroAuth.usuarios().forEach(function(x){
+        var r=window.LlaveroAuth.registro(x.usuario);if(!r)return;
+        filas.push('    ["'+x.usuario+'","'+r.role+'","'+(r.store||'')+'","'+
+          s(r.name||(r.store?nombreTienda(r.store):'')).replace(/"/g,'')+'","'+r.salt+'","'+r.hash+'"],');
+      });
+    }catch(_){}
+    salida.hidden=false;
+    salida.innerHTML='<div class="v250Campo"><label>Pega esto dentro de los corchetes de '+
+      '<code>SEMILLA</code> en el Apps Script y ejecuta <code>sembrarUsuarios</code> una vez</label>'+
+      '<textarea readonly rows="8" id="v250TxtSemilla">'+esc(filas.join('\n'))+'</textarea>'+
+      '<button class="v250Btn sec" data-copia="v250TxtSemilla">Copiar</button></div>';
+    enganchar2(salida);
+  }
+
+  /* PIN aleatorio de verdad: 12 caracteres de un alfabeto sin ambigüedades
+     (nada de O/0, l/1/I), tomados de crypto.getRandomValues. */
+  function sugerirPin(){
+    var abc='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    var out='';
+    try{
+      var b=new Uint8Array(12);crypto.getRandomValues(b);
+      for(var i=0;i<b.length;i++)out+=abc[b[i]%abc.length];
+    }catch(_){
+      for(var j=0;j<12;j++)out+=abc[Math.floor(Math.random()*abc.length)];
+    }
+    return out;
+  }
+
+  function enganchar2(cont){
+    (cont||document).querySelectorAll('[data-copia]').forEach(function(b2){
+      if(b2.__lis)return;b2.__lis=true;
+      var etq=b2.textContent;
+      b2.onclick=function(){
+        var ta=document.getElementById(b2.dataset.copia);if(!ta)return;
+        ta.select();
+        try{document.execCommand('copy');b2.textContent='Copiado ✓';
+            setTimeout(function(){b2.textContent=etq},1600);}catch(_){}
+      };
+    });
+  }
+
+  function generar(){
+    var salida=document.getElementById('v250Salida');
+    var u=s((document.getElementById('v250User')||{}).value).toUpperCase().replace(/\s+/g,'');
+    var rol=s((document.getElementById('v250Rol')||{}).value)||'admin';
+    var tienda=s((document.getElementById('v250Tienda')||{}).value);
+    var pin=s((document.getElementById('v250Pin')||{}).value);
+    var pinDev=s((document.getElementById('v250PinDev')||{}).value);
+    var hoja=hayHoja();
+    function error(m){salida.hidden=false;salida.className='v250Salida mal';salida.innerHTML='<b>'+esc(m)+'</b>'}
+
+    if(!u)return error('Falta el usuario.');
+    if(!/^[A-Z0-9_-]{3,20}$/.test(u))return error('El usuario solo admite letras, números, guion y guion bajo, de 3 a 20 caracteres.');
+    if(pin.length<8)return error('El PIN debe tener al menos 8 caracteres. Usa "Sugerir PIN" si quieres uno aleatorio.');
+    if(rol==='admin'&&!tienda)return error('Un administrador necesita una tienda.');
+    if(hoja&&!pinDev)return error('Falta tu PIN de DEV. Es lo que autoriza escribir en la hoja; sin él cualquiera con la dirección podría darse de alta.');
+    var ya=false;
+    try{ya=window.LlaveroAuth.usuarios().some(function(x){return x.usuario===u})}catch(_){}
+
+    salida.hidden=false;salida.className='v250Salida';
+    salida.innerHTML='<b>Generando…</b> son 120.000 ciclos, tarda un momento.';
+
+    var salt;
+    try{
+      var b=new Uint8Array(16);crypto.getRandomValues(b);
+      salt=btoa(String.fromCharCode.apply(null,b));
+    }catch(_){salida.className='v250Salida mal';salida.innerHTML='<b>Este navegador no permite generar la sal.</b>';return}
+
+    var tiendaFinal=(rol==='admin')?tienda:'';
+    var cabecera=function(estado){
+      return '<div class="v250Ok">Usuario <b>'+esc(u)+'</b> '+estado+(ya?' <i>(reemplaza a uno que ya existía)</i>':'')+'.</div>'+
+        '<div class="v250Campo"><label>PIN — anótalo ahora, no se puede recuperar</label>'+
+          '<div class="v250Pin">'+esc(pin)+'</div></div>';
+    };
+    var textoParaPegar=function(hash){
+      var entrada='"'+u+'": {"salt": "'+salt+'", "hash": "'+hash+'", "role": "'+rol+'"'+
+                  (tiendaFinal?', "store": "'+tiendaFinal+'"':'')+'}';
+      var tabla='';
+      try{tabla='var TABLA = '+window.LlaveroAuth.tablaJSON()+';'}catch(_){}
+      return '<div class="v250Campo"><label>Entrada para la tabla</label>'+
+          '<textarea readonly rows="3" id="v250TxtEntrada">'+esc(entrada)+'</textarea>'+
+          '<button class="v250Btn sec" data-copia="v250TxtEntrada">Copiar</button></div>'+
+        '<div class="v250Campo"><label>O reemplaza la línea completa en <code>assets/app.js</code> '+
+          '(busca <code>var TABLA = </code>)</label>'+
+          '<textarea readonly rows="4" id="v250TxtTabla">'+esc(tabla)+'</textarea>'+
+          '<button class="v250Btn sec" data-copia="v250TxtTabla">Copiar la tabla completa</button></div>';
+    };
+
+    window.LlaveroAuth.derivar(pin,salt).then(function(hash){
+      var nombreT='';
+      try{var x=SS();nombreT=(x&&x[tiendaFinal]&&x[tiendaFinal].name)||''}catch(_){}
+      /* Se deja activo en memoria en cualquier caso: así puedes cerrar sesión y
+         probar el ingreso aquí mismo, guarde o no en la hoja. */
+      try{window.LlaveroAuth.agregar(u,salt,hash,rol,tiendaFinal,nombreT)}catch(_){}
+
+      if(!hoja){
+        salida.className='v250Salida bien';
+        salida.innerHTML=cabecera('generado')+textoParaPegar(hash)+
+          '<p class="v250Nota"><b>Solo en este navegador.</b> Sin hoja configurada hay que pegar el '+
+          'texto de arriba en <code>assets/app.js</code> y publicar para que funcione en las tiendas. '+
+          'Configurando la hoja (ver <code>INSTRUCTIVO_LOGS.md</code>) esto deja de hacer falta.</p>';
+        enganchar2(salida);
+        return;
+      }
+
+      salida.innerHTML='<b>Guardando en la hoja…</b> se escribe y luego se vuelve a leer para comprobarlo.';
+      return window.LlaveroUsuarios.guardar({
+        usuario:u,rol:rol,tienda:tiendaFinal,nombreTienda:nombreT,
+        salt:salt,hash:hash,iter:window.LlaveroAuth.iteraciones
+      },pinDev).then(function(r){
+        var pd=document.getElementById('v250PinDev');if(pd)pd.value='';
+        if(r.ok){
+          salida.className='v250Salida bien';
+          salida.innerHTML=cabecera('creado y guardado')+
+            '<p class="v250Nota"><b>'+esc(r.mensaje)+'</b> No hay que tocar <code>assets/app.js</code> '+
+            'ni publicar nada. Puedes cerrar sesión y entrar con él ahora mismo para comprobar el PIN.</p>';
+        }else{
+          salida.className='v250Salida mal';
+          salida.innerHTML=cabecera('generado, pero NO guardado en la hoja')+
+            '<p class="v250Nota"><b>'+esc(r.mensaje)+'</b></p>'+
+            '<p class="v250Nota">Mientras lo resuelves, el usuario funciona en este navegador y '+
+            'tienes el texto de siempre para pegarlo a mano:</p>'+
+            textoParaPegar(hash);
+        }
+        enganchar2(salida);
+      });
+    }).catch(function(err){
+      salida.className='v250Salida mal';
+      salida.innerHTML='<b>No se pudo generar el hash.</b> '+esc(String(err&&err.message||err));
+    });
+  }
+
+  /* --- estado del sistema --- */
+  function tarjetaEstado(){
+    var x=SS(),tiendas=0,corte='',ver='';
+    try{tiendas=Object.keys(x||{}).filter(function(k){return !/^__/.test(k)}).length}catch(_){}
+    try{corte=DB.meta.fecha}catch(_){}
+    try{ver=window.LLAVERO_BUILD||''}catch(_){}
+    var alcance=cur()==='__ALL__'?'todas las tiendas':cur();
+    var log='sin configurar';
+    try{
+      if(window.LLAVERO_LOG_URL)log='conectado · '+fint(LlaveroLog.pendientes())+' en cola';
+      else if(window.LlaveroLog)log='solo local · '+fint(LlaveroLog.pendientes())+' en cola';
+    }catch(_){}
+    var timers=Object.keys(window).filter(function(k){return /Tick$/.test(k)}).length;
+    var parches=Object.keys(window).filter(function(k){return /^__v\d+/.test(k)}).length;
+    var memo='';
+    try{var st=LlaveroParseo.stats();memo=fint(st.aciertos)+' aciertos · '+fint(st.msAhorrados)+' ms ahorrados'}catch(_){}
+    var filas=[
+      ['Versión',ver||'—'],['Corte de datos',corte||'—'],['Tiendas cargadas',fint(tiendas)],
+      ['Alcance actual',alcance],['Registro de uso',log],
+      ['Temporizadores activos',fint(timers)],['Parches cargados',fint(parches)],
+      ['Caché de parseo',memo||'—'],
+      ['Usuarios',(function(){
+        var e={};try{e=window.LlaveroUsuarios.estado()}catch(_){}
+        if(!e.hoja)return 'solo del archivo · sin hoja configurada';
+        if(e.cargado)return fint(e.total)+' desde la hoja · '+s(e.ultimo);
+        return 'la hoja no respondió'+(e.error?' ('+e.error+')':'')+' · se usa el archivo';
+      })()],
+      ['Usuario',s((auth()||{}).user)+' · '+s((auth()||{}).role)+
+        ((typeof IS_LEADER!=='undefined'&&IS_LEADER)?' · líder':'')+
+        ((typeof IS_ADMIN!=='undefined'&&IS_ADMIN)?' · administrador':'')]
+    ].map(function(f){return '<tr><td>'+esc(f[0])+'</td><td><b>'+esc(f[1])+'</b></td></tr>'}).join('');
+    return card('Estado del sistema','en vivo',
+      '<div class="twrap"><table class="v250Tabla"><tbody>'+filas+'</tbody></table></div>');
+  }
+
+  /* --- funciones expuestas --- */
+  var API=[
+    ['LlaveroScope','Alcance geográfico: get, set, reset, codes, storeName.'],
+    ['LlaveroLog','Registro de uso: ver, pendientes, enviarYa, exportar, configurar.'],
+    ['LlaveroAuth','Usuarios y credenciales: usuarios, registro, derivar, agregar, fusionar.'],
+    ['LlaveroUsuarios','Usuarios en la hoja de Google: cargar, guardar, estado.'],
+    ['LlaveroParseo','Caché del parseo de datos: stats, limpiar.'],
+    ['__v242Datos','Cifras consolidadas de inventario, rotación, evacuación y markdown.'],
+    ['__v243Datos','Cifras por módulo: productos, unidades, CENDIS, sin venta.'],
+    ['__v246Brecha','Días y motivo del hueco entre dos cortes.'],
+    ['__v140Stabilize','Recalcula los contadores del menú.'],
+    ['setView','Cambia de módulo.'],
+    ['refresh','Redibuja la vista actual.'],
+    ['openInventoryProduct','Abre la ficha de un producto por código.'],
+    ['aggregateModuleProducts71','Agrega rotación o evacuación por producto.'],
+    ['mdRows8664','Filas de Markdown de una tienda o del consolidado.']
+  ];
+  function tarjetaFunciones(){
+    var filas=API.map(function(f){
+      var hay=false;
+      try{hay=typeof window[f[0]]!=='undefined'}catch(_){}
+      return '<tr><td><code>'+esc(f[0])+'</code></td><td>'+esc(f[1])+'</td>'+
+             '<td class="'+(hay?'v250Si':'v250No')+'">'+(hay?'disponible':'no cargada')+'</td></tr>';
+    }).join('');
+    return card('Funciones disponibles','desde la consola del navegador',
+      '<div class="twrap"><table class="v250Tabla"><thead><tr><th>Función</th><th>Qué hace</th><th>Estado</th></tr></thead>'+
+      '<tbody>'+filas+'</tbody></table></div>'+
+      '<p class="v250Nota">Se invocan desde la consola (F12). Por ejemplo: '+
+      '<code>LlaveroScope.set(\'store\',\'55\')</code> para saltar a Montería, '+
+      'o <code>LlaveroLog.exportar()</code> para bajar el registro en CSV.</p>');
+  }
+
+  function card(titulo,badge,cuerpo){
+    return '<div class="card"><div class="chead"><div><div class="tt">'+esc(titulo)+'</div></div>'+
+      (badge?'<div class="rt"><span class="badge">'+esc(badge)+'</span></div>':'')+'</div>'+
+      '<div class="cbody">'+cuerpo+'</div></div>';
+  }
+
+  function tick(){try{nav()}catch(_){}try{vigilar()}catch(_){}}
+  function install(){
+    tick();
+    if(!window.__v250Tick)window.__v250Tick=setInterval(tick,900);
+    if(!window.__v250Nav){
+      window.__v250Nav=true;
+      /* salir del panel por el menú: se cede el control antes de que el sitio
+         repinte, para no borrarle lo que acaba de dibujar */
+      document.addEventListener('click',function(e){
+        var a=e.target&&e.target.closest?e.target.closest('.nav a'):null;
+        if(a&&a.id!=='navDev')cerrar();
+      },true);
+      /* y al cambiar de tienda o de alcance, que también repinta */
+      document.addEventListener('change',function(e){
+        if(e.target&&e.target.tagName==='SELECT')cerrar();
+      },true);
+    }
+    window.LlaveroDev={abrir:abrir,esDev:esDev};
+    console.info('LLAVERO V86.250 · módulo de desarrollador');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1300)},{once:true});
+  else setTimeout(install,1300);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,1200)});
+})();
+
+/* ===== V86.252 · Los usuarios viven en la hoja, no en el archivo =====
+
+   EL PROBLEMA. Crear un usuario obligaba a editar assets/app.js y publicar.
+   Para dar de alta a alguien un domingo eso es absurdo: hay que abrir el
+   repositorio, pegar una línea y esperar a que GitHub Pages sirva el archivo
+   nuevo. Y el módulo de Desarrollador solo podía darte el texto para pegar.
+
+   POR QUÉ ERA ASÍ. Llavero es un sitio estático. Un navegador no puede
+   escribir en el archivo que le sirvieron. Guardar en localStorage sirve en
+   ese equipo y en ninguno más, que para 21 tiendas no es guardar nada.
+
+   LA SALIDA. Ya teníamos un sitio donde escribir: la hoja de Google del
+   registro de uso, con su Apps Script publicado. Se le añadió una pestaña
+   "Usuarios". Llavero la lee al arrancar y el módulo de Desarrollador escribe
+   en ella. Nada de tocar el JavaScript.
+
+   ORDEN DE PREFERENCIA: gana la hoja, y los usuarios del archivo quedan de red
+   de seguridad. Si un día Google no responde, las 21 tiendas siguen entrando
+   con lo que ya traen dentro; solo no verán a los creados después.
+
+   POR QUÉ JSONP PARA LEER. Llavero está en GitHub Pages y el script en
+   script.google.com: dos dominios. Apps Script no manda las cabeceras que el
+   navegador exige para un fetch entre dominios, así que un fetch normal se
+   bloquea sin decir nada útil. Devolviendo JavaScript y cargándolo con una
+   etiqueta <script>, el navegador lo acepta. Es el camino de siempre para un
+   sitio estático contra Apps Script.
+
+   POR QUÉ FETCH no-cors PARA ESCRIBIR. Es lo mismo que ya hace el registro de
+   uso desde V86.234 y funciona. La respuesta viene opaca -- el navegador no
+   nos deja leerla -- así que después de escribir se vuelve a LEER la hoja para
+   confirmar de verdad que el usuario quedó. Nada de dar por bueno un envío que
+   no se puede comprobar.
+
+   QUÉ SE GUARDA Y QUÉ NO. El PIN nunca sale del navegador: se deriva aquí y a
+   la hoja solo viaja la sal y el hash. Es exactamente lo que hasta ahora
+   viajaba dentro de assets/app.js a la vista de cualquiera, así que no se
+   expone nada que no estuviera ya expuesto.
+
+   QUIÉN PUEDE ESCRIBIR. El Apps Script exige un testigo que es el PIN de DEV
+   derivado con una sal fija. Por eso el módulo pide confirmar el PIN al
+   guardar: no se queda en memoria después del ingreso, y mejor así. Sin ese
+   testigo, cualquiera que viera la URL en el código del sitio podría darse de
+   alta como administrador. */
+(function(){
+  if(window.LlaveroUsuarios)return;
+  /* Sal fija para el testigo de escritura. Es pública a propósito: una sal no
+     es un secreto, solo evita que el testigo coincida con el hash de ingreso
+     de DEV, que sí es público. El secreto sigue siendo el PIN. */
+  var SAL_ESCRITURA='e8ULM7Vo9Do2SiooSPkDVg==';
+  /* remotos guarda lo que devolvió la hoja SIN mezclar con lo que ya había en
+     memoria. Es lo único que sirve para confirmar una escritura: la tabla
+     fusionada ya contiene al usuario recién creado aunque la hoja lo haya
+     rechazado, y confirmarlo contra ella daría un "guardado" falso. Pasó en la
+     primera versión y lo cazó la prueba del testigo equivocado. */
+  var ESTADO={cargado:false,cargando:null,total:0,ultimo:'',error:'',ts:0,remotos:null};
+
+  function s(v){return v==null?'':String(v).trim()}
+  function url(){try{return s(window.LLAVERO_LOG_URL)}catch(_){return ''}}
+  function clave(){try{return s(window.LLAVERO_LOG_KEY)}catch(_){return ''}}
+
+  /* ---------- leer ---------- */
+  var seq=0;
+  function pedir(){
+    return new Promise(function(res){
+      var u=url();
+      if(!u){ESTADO.error='sin endpoint';return res(null)}
+      var nombre='__llvUsuarios'+(++seq);
+      var sc=document.createElement('script');
+      var listo=false;
+      var fin=function(datos){
+        if(listo)return;listo=true;
+        try{delete window[nombre]}catch(_){window[nombre]=undefined}
+        try{sc.remove()}catch(_){}
+        res(datos);
+      };
+      window[nombre]=function(d){fin(d)};
+      sc.src=u+(u.indexOf('?')<0?'?':'&')+'tipo=usuarios&callback='+nombre+'&_='+Date.now();
+      sc.onerror=function(){ESTADO.error='no respondió';fin(null)};
+      /* 12 s: Apps Script en frío tarda lo suyo, pero tampoco vamos a dejar
+         al usuario esperando indefinidamente delante del formulario. */
+      setTimeout(function(){if(!listo){ESTADO.error='tardó demasiado';fin(null)}},12000);
+      document.head.appendChild(sc);
+    });
+  }
+
+  function cargar(forzar){
+    if(!url())return Promise.resolve(false);
+    if(ESTADO.cargando)return ESTADO.cargando;
+    if(ESTADO.cargado&&!forzar)return Promise.resolve(true);
+    ESTADO.cargando=pedir().then(function(d){
+      ESTADO.cargando=null;ESTADO.ts=Date.now();
+      if(!d||!d.users){if(!ESTADO.error)ESTADO.error='respuesta vacía';return false}
+      ESTADO.remotos=d.users;
+      var n=0;
+      try{n=window.LlaveroAuth.fusionar(d.users)}catch(e){ESTADO.error=String(e&&e.message||e);return false}
+      ESTADO.cargado=true;ESTADO.total=n;ESTADO.error='';
+      ESTADO.ultimo=new Date().toLocaleTimeString('es-CO');
+      console.info('LLAVERO V86.252 · '+n+' usuarios leídos de la hoja');
+      return true;
+    }).catch(function(e){
+      ESTADO.cargando=null;ESTADO.error=String(e&&e.message||e);return false;
+    });
+    return ESTADO.cargando;
+  }
+
+  /* ---------- escribir ---------- */
+  function testigo(pinDev){
+    try{return window.LlaveroAuth.derivar(pinDev,SAL_ESCRITURA)}
+    catch(e){return Promise.reject(e)}
+  }
+
+  /* Devuelve {ok, mensaje}. Escribe, espera un momento y RELEE la hoja para
+     comprobar que el usuario está de verdad: la respuesta del envío llega
+     opaca y no sirve de confirmación. */
+  function guardar(datos,pinDev){
+    var u=url();
+    if(!u)return Promise.resolve({ok:false,mensaje:'No hay hoja configurada (window.LLAVERO_LOG_URL está vacío).'});
+    return testigo(pinDev).then(function(tk){
+      var cuerpo=JSON.stringify({
+        k:clave(), app:'LLAVERO', accion:'guardarUsuario', token:tk,
+        usuario:datos.usuario, rol:datos.rol, tienda:datos.tienda||'',
+        nombreTienda:datos.nombreTienda||'', salt:datos.salt, hash:datos.hash,
+        iter:datos.iter||120000, activo:datos.activo!==false,
+        creadoPor:(function(){try{return s((AUTH||{}).user)||'DEV'}catch(_){return 'DEV'}})()
+      });
+      return fetch(u,{method:'POST',mode:'no-cors',keepalive:true,
+        headers:{'Content-Type':'text/plain;charset=utf-8'},body:cuerpo});
+    }).then(function(){
+      return new Promise(function(r){setTimeout(r,1800)});   /* que la hoja acabe de escribir */
+    }).then(function(){
+      ESTADO.remotos=null;
+      return cargar(true);
+    }).then(function(){
+      /* Se confirma contra lo que devolvió la hoja, no contra la tabla en
+         memoria: esa ya tiene al usuario porque se añadió antes para poder
+         probarlo, y daría un "guardado" que no es verdad. */
+      var reg=(ESTADO.remotos||{})[s(datos.usuario).toUpperCase()];
+      if(reg&&reg.hash===datos.hash)
+        return {ok:true,mensaje:'Guardado en la hoja y confirmado. Las tiendas lo verán al recargar.'};
+      if(!ESTADO.remotos)
+        return {ok:false,mensaje:'Se envió, pero la hoja no respondió al releerla, así que no puedo '+
+          'confirmar que quedó guardado. Vuelve a abrir el módulo en un minuto y mira si aparece en la lista.'};
+      return {ok:false,mensaje:'El envío salió, pero al releer la hoja el usuario no aparece. '+
+        'Lo más probable es el testigo: revisa que tu PIN de DEV sea el correcto y que CLAVE_USUARIOS '+
+        'en el Apps Script esté al día. También puede ser que la implementación no esté publicada con '+
+        'la versión nueva del código.'};
+    }).catch(function(e){
+      return {ok:false,mensaje:'No se pudo guardar: '+s(e&&e.message||e)};
+    });
+  }
+
+  window.LlaveroUsuarios={
+    cargar:cargar,
+    guardar:guardar,
+    testigo:testigo,
+    salEscritura:SAL_ESCRITURA,
+    hayHoja:function(){return !!url()},
+    estado:function(){return {cargado:ESTADO.cargado,total:ESTADO.total,
+      ultimo:ESTADO.ultimo,error:ESTADO.error,hoja:!!url()}}
+  };
+
+  /* Al arrancar se pide la hoja una vez. No se bloquea el formulario de
+     ingreso: si alguien escribe antes de que llegue, V86.236 vuelve a pedirla
+     en ese momento y reintenta. */
+  function arrancar(){setTimeout(function(){cargar(false)},1200)}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',arrancar,{once:true});
+  else arrancar();
+})();
+
+/* ===== V86.253 · Rol de desarrollador con todos los permisos =====
+
+   DEV entraba prestado, con rol de líder. Servía para ver, pero no era un rol:
+   las funciones exclusivas del administrador de tienda (los dos Excel de
+   Markdown) le decían que no, y en pantalla ponía "Líder de área".
+
+   Ahora es un rol propio, 'dev', y tiene todo:
+
+     - Lo del líder, siempre: las 21 tiendas, el Dashboard general, el filtro
+       geográfico, los consolidados.
+     - Lo del administrador, cuando está mirando UNA tienda: con "todas las
+       tiendas" no tiene sentido un Excel "de administrador", porque no hay una
+       tienda a la que pertenezca. Al elegir una, se activa.
+
+   CÓMO, que aquí está el detalle que cuesta. IS_LEADER e IS_ADMIN se declaran
+   con `let` en index.html. Un `let` en el nivel superior NO crea propiedad en
+   window, así que `window.IS_LEADER=true` no haría nada; hay que asignar la
+   variable a pelo, que sí funciona porque app.js comparte el mismo ámbito
+   global. Por eso aquí se ve `IS_LEADER=true` y no `window.IS_LEADER=true`.
+
+   Y se ajusta DESPUÉS de applyRoleUI, nunca antes: esa función, al no
+   reconocer el rol 'dev', deja IS_ADMIN en false, y gracias a eso llama a
+   populateStoreSelect(CUR) con el alcance actual en vez de con la tienda del
+   usuario, que es justo lo que queremos. Se aprovecha su comportamiento en vez
+   de pelearse con él, y luego se corrige lo que falta. */
+(function(){
+  var TODAS='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function auth(){try{return (typeof AUTH!=='undefined'&&AUTH)?AUTH:null}catch(_){return null}}
+  function esDev(){var a=auth();return !!(a&&s(a.role)==='dev')}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function unaTienda(){var c=cur();return !!c&&c!==TODAS}
+
+  function ajustar(){
+    if(!esDev())return;
+    try{
+      IS_LEADER=true;
+      IS_ADMIN=unaTienda();
+      var b=document.body;
+      b.classList.remove('auth-pending','not-authenticated');
+      b.classList.add('leader-mode','dev-mode');
+      b.classList.toggle('admin-mode',IS_ADMIN);
+      var btn=document.getElementById('roleBtn');
+      if(btn){
+        btn.classList.add('leader');
+        var txt=btn.querySelector('.topActionText');
+        if(txt&&txt.textContent!=='Desarrollador')txt.textContent='Desarrollador';
+        var ic=btn.querySelector('.topActionIcon');
+        if(ic&&ic.textContent!=='⚙')ic.textContent='⚙';
+        btn.title='Desarrollador · todos los permisos';
+      }
+      var side=document.getElementById('sideRoleText');
+      var etq='Perfil: Desarrollador'+(IS_ADMIN?' · administrando '+cur():' · todas las tiendas');
+      if(side&&side.textContent!==etq)side.textContent=etq;
+    }catch(e){console.error('V86.253 rol dev',e)}
+  }
+
+  function envolver(){
+    var f=window.applyRoleUI;
+    if(typeof f!=='function'||f.__v253)return;
+    var w=function(){
+      var r=f.apply(this,arguments);
+      try{ajustar()}catch(_){}
+      return r;
+    };
+    w.__v253=true;
+    window.applyRoleUI=w;
+    try{applyRoleUI=w}catch(_){}
+  }
+
+  function tick(){
+    envolver();
+    /* IS_ADMIN depende del alcance, y el alcance cambia sin pasar por
+       applyRoleUI (el selector de tienda, el filtro geográfico, V86.225). */
+    if(esDev()&&(IS_ADMIN!==unaTienda()||!IS_LEADER))ajustar();
+  }
+  function install(){
+    envolver();
+    /* Al recargar la página, AUTH viene de sessionStorage y las banderas se
+       calculan antes de que exista este parche: hay que rehacerlas una vez. */
+    if(esDev()){
+      try{if(typeof applyRoleUI==='function')applyRoleUI();}catch(_){}
+      ajustar();
+    }
+    if(!window.__v253Tick)window.__v253Tick=setInterval(function(){try{tick()}catch(_){}},700);
+    console.info('LLAVERO V86.253 · rol de desarrollador');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,700)},{once:true});
+  else setTimeout(install,700);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,600)});
+})();
+
+/* ===== V86.254 · Los contadores del menú siguen al filtro geográfico =====
+
+   ENCONTRADO VERIFICANDO OTRA COSA, y es un número mal puesto en pantalla, así
+   que se arregla. Como líder, al filtrar a una sola tienda los siete
+   contadores del menú se quedaban con las cifras NACIONALES hasta que abrías
+   un módulo. Con la tienda 95 elegida se leía Rotación 883 y Markdown 1.152
+   cuando lo suyo es 305 y 358.
+
+   POR QUÉ. V86.140, que es quien manda en esos contadores, recalcula al llamar
+   a setView o refresh, al cambiar el <select> de tienda, al pulsar el menú y
+   al volver a la pestaña. El filtro geográfico (V86.224/225) no hace ninguna
+   de esas cosas: cambia CUR y repinta. V86.240 previó el hueco y expuso
+   __v140Stabilize, pero solo lo llama para el consolidado. Con una sola tienda
+   no lo llamaba nadie.
+
+   Y HAY UN SEGUNDO MOTIVO, solo para Markdown. V86.140 calcula lo que espera
+   de cada contador con window.correctedRows / window.markdownCount8670, y
+   NINGUNA de las dos existe en window: son declaraciones dentro de un IIFE de
+   index.html. Así que su valor esperado para nc-md es null y su guardián lo
+   deja en paz siempre: nc-md solo cambiaba cuando el refresh de index.html lo
+   escribía. Por eso Rotación se corregía sola al pedir el recálculo y Markdown
+   no. Aquí se calcula aparte, contando productos distintos por gestionar, que
+   es la misma definición que usa V86.240 para el consolidado.
+
+   Escribir nc-md a mano es seguro justamente por eso: al no tener valor
+   esperado, el MutationObserver de V86.140 no lo revierte. Los otros seis no
+   se tocan; para esos basta con pedir el recálculo y dejar que los ponga quien
+   ya sabe. Un solo dueño por elemento, como debe ser. */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function fint(n){try{return Number(n||0).toLocaleString('es-CO')}catch(_){return String(n||0)}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function unaTienda(){var c=cur();return !!c&&c!==ALL}
+
+  function porGestionar(sc){
+    try{
+      var rows=window.mdRows8664(sc)||[];
+      var vistos=Object.create(null),n=0;
+      rows.forEach(function(r){
+        if(!r||r.statusKey!=='manage')return;
+        var c=s(r.code);if(!c||vistos[c])return;
+        vistos[c]=1;n++;
+      });
+      return n;
+    }catch(_){return null}
+  }
+
+  var ULTIMO=null;
+  function tick(){
+    var sc=cur();
+    if(!sc)return;
+    if(sc!==ULTIMO){
+      ULTIMO=sc;
+      /* del consolidado ya se ocupa V86.240; aquí solo el hueco que quedaba */
+      if(unaTienda()){
+        try{if(typeof window.__v140Stabilize==='function')window.__v140Stabilize(sc)}catch(_){}
+      }
+    }
+    if(!unaTienda())return;
+    var el=document.getElementById('nc-md');if(!el)return;
+    var n=porGestionar(sc);
+    if(n==null)return;
+    var txt=fint(n);
+    if(s(el.textContent)!==txt)el.textContent=txt;
+    var t=fint(n)+' productos distintos por gestionar en Markdown';
+    if(el.title!==t)el.title=t;
+    var a=el.closest?el.closest('a'):null;
+    if(a&&a.title!==t)a.title=t;
+  }
+  function install(){
+    tick();
+    if(!window.__v254Tick)window.__v254Tick=setInterval(function(){try{tick()}catch(_){}},900);
+    console.info('LLAVERO V86.254 · contadores del menú al cambiar de alcance');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1000)},{once:true});
+  else setTimeout(install,1000);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,900)});
+})();
+
+/* ===== V86.255 · Ambientes que puedo montar desde cero =====
+
+   LA PREGUNTA, y no es la que yo había entendido al principio. No se trata de
+   listar productos sueltos que faltan. Se trata de encontrar AMBIENTES
+   COMPLETOS que hoy no existen en la tienda -- ni un solo producto suyo, ni en
+   presencia ni en existencia -- y cuyos productos están TODOS disponibles en
+   CENDIS. Esos se pueden pedir y montar enteros. Un ambiente a medias no sirve
+   de nada: la guía se exhibe completa o no se exhibe.
+
+   QUÉ ES CADA COSA, que aquí estaba el enredo original. El archivo
+   "Presencia Seus" trae por tienda y producto:
+
+       CAN SUM       lo que HAY en la tienda      -> existencia
+       CAN MIN SUM   lo que se va a pedir         -> presencia
+
+   Guardadas en DB.GP[tienda][codigo] = [CAN SUM, CAN MIN SUM]. Conviene
+   dejarlo escrito porque pipeline/compare_ambientes.py las leía al revés: daba
+   por "disponible en CENDIS" lo que era la presencia. El respaldo de CENDIS no
+   está ahí, está en el inventario, en dispCendis, y es un dato CENTRAL --
+   comprobado, idéntico en las 21 tiendas para todos los productos del corte.
+
+   LA REGLA:
+     1. Para CADA producto de la guía: CAN MIN SUM = 0, CAN SUM = 0 y sin stock.
+        Basta que UNO tenga algo para que el ambiente ya no cuente: si tienes
+        parte, no lo estás montando desde cero.
+     2. Todos sus productos con dispCendis > 0.
+
+   TAMBIÉN SE MUESTRAN LOS QUE SE QUEDAN CERCA. Un ambiente vacío con 3 de 4
+   productos disponibles no cumple la regla, pero es exactamente la clase de
+   cosa que alguien quiere ver: falta uno para poder montarlo. Van debajo,
+   ordenados por cobertura, y separados de los completos para que no se
+   confundan con ellos.
+
+   DOS COSAS QUE NO SON FALLOS DEL CÓDIGO y se dicen en pantalla:
+
+   1. Tres tiendas no vienen en el archivo de presencias -- Cuatro Vientos,
+      Mayorca y Trinitarias. Para ellas no se puede aplicar la regla. Mejor
+      decirlo que mostrar un cero que parece "no hay nada que montar".
+
+   2. De los 843 productos que aparecen en las guías, 385 no tienen fila de
+      inventario en NINGUNA tienda, así que no hay dato de CENDIS para ellos. Un
+      ambiente con alguno de esos NO se da por completo: no se sabe, y darlo por
+      bueno sería inventar. Se marca como "sin dato" en su fila. */
+(function(){
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function n(v){var x=Number(v);return isFinite(x)?x:0}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fint(v){try{return Number(v||0).toLocaleString('es-CO')}catch(_){return String(v||0)}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function db(){try{return (typeof DB!=='undefined'&&DB)?DB:null}catch(_){return null}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  /* Ojo: la tienda agregada sigue existiendo en S aunque haya UNA seleccionada,
+     así que preguntar solo por agg() devolvía las 21 con el alcance en una sola
+     y se calculaba la primera de la lista en vez de la elegida. Manda cur(). */
+  function codes(){
+    if(multi()){var a=agg();return a?a.__codes.slice():[]}
+    var c=cur();return (c&&c!==ALL)?[c]:[];
+  }
+  function nombre(sc){
+    try{if(window.LlaveroScope&&window.LlaveroScope.storeName)return window.LlaveroScope.storeName(sc)}catch(_){}
+    var x=SS();return (x&&x[sc]&&x[sc].name)||sc;
+  }
+  function pnombre(c){
+    try{var P=(db()||{}).P||{};var p=P[c];if(p&&p.n)return p.n}catch(_){}
+    return c;
+  }
+
+  /* ---------- respaldo de CENDIS, central ---------- */
+  var CEN=null,CENK='';
+  function cendis(){
+    var d=db();if(!d)return {};
+    var k=s(d.meta&&d.meta.fecha);
+    if(CEN&&CENK===k)return CEN;
+    var m=Object.create(null),x=SS();
+    Object.keys(x||{}).forEach(function(sc){
+      if(/^__/.test(sc))return;
+      var inv=(x[sc]||{}).inventario;
+      if(!Array.isArray(inv))return;
+      inv.forEach(function(r){
+        var c=s(r&&r.codigo);if(!c)return;
+        if(m[c]==null&&r.dispCendis!=null)m[c]=n(r.dispCendis);
+      });
+    });
+    CEN=m;CENK=k;return m;
+  }
+
+  /* ---------- la regla, por tienda ---------- */
+  var CACHE={},CLAVE='';
+  function analizar(sc){
+    var d=db();if(!d||!Array.isArray(d.G))return null;
+    var k=s(d.meta&&d.meta.fecha);
+    if(CLAVE!==k){CACHE={};CLAVE=k}
+    if(CACHE[sc])return CACHE[sc];
+    var pres=(d.GP||{})[sc];
+    if(!pres){var v={sinArchivo:true,completos:[],parciales:[],conAlgo:0,total:0};CACHE[sc]=v;return v}
+    var x=SS(),st=(x&&x[sc])||{},inv=Object.create(null);
+    (Array.isArray(st.inventario)?st.inventario:[]).forEach(function(r){
+      var c=s(r&&r.codigo);if(c)inv[c]=r;
+    });
+    var cn=cendis(),completos=[],parciales=[],conAlgo=0,total=0;
+    d.G.forEach(function(g){
+      var items=[];
+      ((g&&g[3])||[]).forEach(function(it){
+        var c=s(it&&it[2]);if(c&&items.indexOf(c)<0)items.push(c);
+      });
+      if(!items.length)return;
+      total++;
+      /* ¿tengo algo de este ambiente? basta uno */
+      var tengo=false;
+      for(var i=0;i<items.length;i++){
+        var c=items[i],par=pres[c]||[0,0];
+        if(n(par[0])>0||n(par[1])>0||n((inv[c]||{}).stock)>0){tengo=true;break}
+      }
+      if(tengo){conAlgo++;return}
+      var disp=0,sinDato=0,faltan=[];
+      items.forEach(function(c){
+        var v=cn[c];
+        if(v==null){sinDato++;faltan.push({c:c,cendis:null});return}
+        if(v>0)disp++; else faltan.push({c:c,cendis:0});
+      });
+      var reg={g:s(g[0]),nom:s(g[1])||s(g[0]),cat:s(g[2]),items:items,
+               n:items.length,disp:disp,sinDato:sinDato,faltan:faltan,
+               cendis:items.map(function(c){return {c:c,u:cn[c]}})};
+      if(disp===items.length)completos.push(reg); else parciales.push(reg);
+    });
+    completos.sort(function(a,b){return b.n-a.n||a.nom.localeCompare(b.nom)});
+    parciales.sort(function(a,b){return (b.disp/b.n)-(a.disp/a.n)||b.n-a.n});
+    var out={sinArchivo:false,completos:completos,parciales:parciales,
+             conAlgo:conAlgo,total:total};
+    CACHE[sc]=out;return out;
+  }
+
+  /* ---------- pintado ---------- */
+  function tarjeta(html,badge){
+    return '<div class="card v255Card" id="v255Card"><div class="chead"><div class="cnum n2">⌂</div>'+
+      '<div><div class="tt">Ambientes que puedo montar desde cero</div>'+
+      '<div class="ds">Guías de las que no tengo ni un solo producto — ni presencia ni existencia — y que CENDIS puede surtir.</div></div>'+
+      (badge?'<div class="rt"><span class="badge warm">'+esc(badge)+'</span></div>':'')+
+      '</div><div class="cbody">'+html+'</div></div>';
+  }
+
+  function chips(reg){
+    return reg.cendis.map(function(x){
+      var hay=x.u!=null&&x.u>0;
+      return '<span class="v255Prod'+(hay?'':' no')+'" data-v255-cod="'+esc(x.c)+'" title="'+esc(pnombre(x.c))+'">'+
+        esc(pnombre(x.c))+' '+(x.u==null?'<i>sin dato</i>':'<b>'+fint(x.u)+' u</b>')+'</span>';
+    }).join('');
+  }
+
+  function unaTienda(sc){
+    var r=analizar(sc);
+    if(!r)return '';
+    if(r.sinArchivo)
+      return tarjeta('<div class="v255Aviso"><b>'+esc(nombre(sc))+' no viene en el archivo de presencias</b> '+
+        '("Presencia Seus"), así que no se puede saber de qué ambientes no tiene nada. No es que no haya '+
+        'ninguno: es que ese dato no llega para esta tienda.</div>','sin dato');
+    var vacios=r.completos.length+r.parciales.length;
+    if(!vacios)
+      return tarjeta('<div class="v255Vacio">'+esc(nombre(sc))+' tiene al menos un producto de cada uno de los '+
+        fint(r.total)+' ambientes. No hay ninguno para montar desde cero.</div>','0 ambientes');
+
+    var completos=r.completos.map(function(a){
+      return '<tr class="v255Completo"><td><b>'+esc(a.nom)+'</b><div class="v255Mut">'+esc(a.g)+' · '+esc(a.cat||'—')+'</div></td>'+
+        '<td class="num"><b>'+fint(a.n)+'</b></td>'+
+        '<td><span class="v255Ok">Completo en CENDIS</span></td>'+
+        '<td><div class="v255Lista">'+chips(a)+'</div></td></tr>';
+    }).join('');
+
+    var parciales=r.parciales.slice(0,25).map(function(a){
+      var pct=Math.round(a.disp/a.n*100);
+      return '<tr><td><b>'+esc(a.nom)+'</b><div class="v255Mut">'+esc(a.g)+' · '+esc(a.cat||'—')+'</div></td>'+
+        '<td class="num">'+fint(a.n)+'</td>'+
+        '<td><span class="v255Parcial">'+fint(a.disp)+' de '+fint(a.n)+' · '+pct+'%'+
+          (a.sinDato?' <i>('+fint(a.sinDato)+' sin dato)</i>':'')+'</span></td>'+
+        '<td><div class="v255Lista">'+chips(a)+'</div></td></tr>';
+    }).join('');
+
+    return tarjeta(
+      '<div class="v255Kpis">'+
+        '<div class="v255Kpi"><label>Se pueden montar completos</label><b>'+fint(r.completos.length)+'</b>'+
+          '<small>todos sus productos en CENDIS</small></div>'+
+        '<div class="v255Kpi mut"><label>Vacíos pero incompletos</label><b>'+fint(r.parciales.length)+'</b>'+
+          '<small>falta algo en CENDIS</small></div>'+
+        '<div class="v255Kpi mut"><label>Ambientes con algo</label><b>'+fint(r.conAlgo)+'</b>'+
+          '<small>de '+fint(r.total)+' guías</small></div>'+
+      '</div>'+
+      (r.completos.length
+        ? '<div class="twrap"><table class="v255Tabla"><thead><tr><th>Ambiente</th><th class="num">Productos</th>'+
+          '<th>CENDIS</th><th>Disponibilidad por producto</th></tr></thead><tbody>'+completos+'</tbody></table></div>'
+        : '<div class="v255Vacio">Ninguno de los '+fint(vacios)+' ambientes vacíos tiene todos sus productos en CENDIS. '+
+          'Abajo van los que más se acercan.</div>')+
+      (r.parciales.length
+        ? '<div class="v255Sub2">Vacíos, pero les falta algo en CENDIS'+
+            (r.parciales.length>25?' <span class="v255Mut">(los 25 más cercanos de '+fint(r.parciales.length)+')</span>':'')+'</div>'+
+          '<div class="twrap"><table class="v255Tabla"><thead><tr><th>Ambiente</th><th class="num">Productos</th>'+
+          '<th>CENDIS</th><th>Disponibilidad por producto</th></tr></thead><tbody>'+parciales+'</tbody></table></div>'
+        : '')+
+      '<p class="v255Nota">Un ambiente cuenta como vacío cuando <b>ningún</b> producto suyo tiene presencia '+
+      '(CAN MIN SUM), existencia (CAN SUM) ni stock. Basta que tengas uno para que no aparezca aquí: '+
+      'ya no lo estarías montando desde cero. Pulsa un producto para abrir su ficha.</p>',
+      fint(r.completos.length)+' completos');
+  }
+
+  function variasTiendas(){
+    var cs=codes(),filas=[],tot=0,sin=[];
+    cs.forEach(function(sc){
+      var r=analizar(sc);if(!r)return;
+      if(r.sinArchivo){sin.push(nombre(sc));return}
+      tot+=r.completos.length;
+      filas.push({sc:sc,nom:nombre(sc),comp:r.completos.length,parc:r.parciales.length,conAlgo:r.conAlgo,total:r.total});
+    });
+    filas.sort(function(a,b){return b.comp-a.comp||b.parc-a.parc});
+    if(!filas.length&&!sin.length)return '';
+    var cuerpo=filas.map(function(f){
+      return '<tr class="v255Fila" data-v255-tienda="'+esc(f.sc)+'"><td><b>'+esc(f.nom)+'</b><div class="v255Mut">'+esc(f.sc)+'</div></td>'+
+        '<td class="num"><b>'+fint(f.comp)+'</b></td><td class="num">'+fint(f.parc)+'</td>'+
+        '<td class="num">'+fint(f.total-f.conAlgo)+'</td></tr>';
+    }).join('');
+    return tarjeta(
+      '<div class="v255Kpis">'+
+        '<div class="v255Kpi"><label>Ambientes montables</label><b>'+fint(tot)+'</b><small>sumando las tiendas del alcance</small></div>'+
+        '<div class="v255Kpi mut"><label>Tiendas con dato</label><b>'+fint(filas.length)+'</b><small>de '+fint(cs.length)+' en el alcance</small></div>'+
+      '</div>'+
+      (sin.length?'<div class="v255Aviso"><b>Sin dato: '+esc(sin.join(', '))+'.</b> No vienen en el archivo de presencias '+
+        'del día, así que de esas tiendas no se puede saber nada. No están contadas arriba.</div>':'')+
+      '<div class="twrap"><table class="v255Tabla"><thead><tr><th>Tienda</th><th class="num">Montables completos</th>'+
+      '<th class="num">Vacíos incompletos</th><th class="num">Vacíos en total</th></tr></thead>'+
+      '<tbody>'+cuerpo+'</tbody></table></div>'+
+      '<p class="v255Nota">Se cuenta tienda por tienda: el mismo ambiente puede estar montable en varias. '+
+      'Pulsa una tienda para ver cuáles son y qué productos lleva cada uno.</p>',
+      fint(tot)+' montables');
+  }
+
+  function pintar(){
+    /* V86.264: retirada del modulo de Ambientes por decision de negocio. El
+       calculo se conserva (window.LlaveroMontables sigue publicado y el cuadro
+       de guias de V86.263 cubre la lectura de "que puede surtir CENDIS"), pero
+       la tarjeta ya no se dibuja. Si alguna quedo pintada de una carga
+       anterior, se retira. */
+    var vieja=document.getElementById('v255Card');
+    if(vieja)vieja.remove();
+    return;
+  }
+
+  function pintarDesactivado(){
+    if(view()!=='amb')return;
+    var root=document.getElementById('content');if(!root)return;
+    var cs=codes();if(!cs.length)return;
+    if(!db()||!Array.isArray((db()||{}).G))return;
+    var firma=cur()+'|'+cs.join(',')+'|'+s((db().meta||{}).fecha);
+    var ya=document.getElementById('v255Card');
+    if(ya&&ya.dataset.firma===firma)return;
+    var html=multi()?variasTiendas():unaTienda(cs[0]);
+    if(!html){if(ya)ya.remove();return}
+    if(ya)ya.outerHTML=html; else root.insertAdjacentHTML('beforeend',html);
+    var card=document.getElementById('v255Card');
+    if(card)card.dataset.firma=firma;
+  }
+
+  function clics(e){
+    var t=e.target&&e.target.closest?e.target.closest('[data-v255-tienda],[data-v255-cod]'):null;
+    if(!t)return;
+    e.preventDefault();e.stopPropagation();
+    var sc=t.getAttribute('data-v255-tienda');
+    if(sc){try{if(window.LlaveroScope)window.LlaveroScope.set('store',sc)}catch(_){}return}
+    var c=t.getAttribute('data-v255-cod');
+    if(c){try{if(typeof window.openInventoryProduct==='function')window.openInventoryProduct(c);
+             else if(typeof window.openBestProductDetail==='function')window.openBestProductDetail(c)}catch(_){}}
+  }
+
+  function install(){
+    try{pintar()}catch(e){console.error('V86.255',e)}
+    if(!window.__v255Tick)window.__v255Tick=setInterval(function(){try{pintar()}catch(e){}},900);
+    if(!window.__v255Clic){window.__v255Clic=true;document.addEventListener('click',clics,true)}
+    window.LlaveroMontables={porTienda:analizar,cendis:cendis};
+    console.info('LLAVERO V86.255 · Ambientes que puedo montar desde cero');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1500)},{once:true});
+  else setTimeout(install,1500);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,1400)});
+})();
+
+/* ===== V86.257 · Inventario de presencias =====
+
+   PARA QUÉ. Decidir a qué productos quitarles la presencia, y de paso ver el
+   universo completo de una tienda con las cuatro cosas que normalmente hay que
+   ir a buscar por separado:
+
+       CAN MIN   la presencia: lo que se va a pedir
+       CAN SUM   la existencia: lo que hay hoy en la tienda
+       Estado    si pega a un ambiente, a rotación o a evacuación
+       Venta 3m  lo que se ha vendido, que es el argumento para quitarla
+
+   SALE TODO: con presencia y sin presencia, con existencia y sin existencia.
+   Los filtros están para recortar, pero la lista de partida es el universo
+   entero -- lo que hay en el archivo de presencias más cualquier producto con
+   stock que no aparezca en él. Empezar recortando escondía justo los casos
+   raros: presencia sin existencia (pedido que no llegó) y existencia sin
+   presencia (llegó algo que nadie pidió).
+
+   EL ESTADO es lo que le da sentido a la decisión:
+
+       Ambiente     sostiene una guía de exhibición -> no se toca
+       Rotación     tiene unidades de más de 90 días
+       Evacuación   fuera de surtido, estado N
+       Sano         ninguna de las tres
+
+   Un producto con presencia, sin ambiente y sin venta en tres meses es un
+   candidato claro. Uno con presencia y ambiente no se toca aunque no venda:
+   sostiene la exhibición. Esa es toda la lógica de la vista.
+
+   EL CHECKLIST vive en memoria, no en la hoja de Google: es una decisión de
+   trabajo, no un dato del corte, y cambia cada vez que se revisa. Se marca, se
+   baja el Excel y ese Excel es el que se manda. Si recargas la página se
+   pierde -- por eso el Excel es el paso final y no un adorno.
+
+   EL EXCEL trae DOS pestañas: los marcados para quitar y los que se conservan.
+   Se pidieron las dos, y tiene sentido: la segunda es el soporte de lo que se
+   decidió NO tocar, que en una revisión de 900 productos es la mitad del
+   trabajo. */
+(function(){
+  var ALL='__ALL__', TOPE=300;
+  function s(v){return v==null?'':String(v).trim()}
+  function n(v){var x=Number(v);return isFinite(x)?x:0}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fint(v){try{return Number(v||0).toLocaleString('es-CO')}catch(_){return String(v||0)}}
+  function money(v){try{return '$'+Number(v||0).toLocaleString('es-CO',{maximumFractionDigits:0})}catch(_){return '$'+(v||0)}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function db(){try{return (typeof DB!=='undefined'&&DB)?DB:null}catch(_){return null}}
+  function agg(){var x=SS();return (x&&x[ALL]&&x[ALL].__scope)?x[ALL]:null}
+  function multi(){return cur()===ALL&&!!agg()}
+  function codes(){
+    if(multi()){var a=agg();return a?a.__codes.slice():[]}
+    var c=cur();return (c&&c!==ALL)?[c]:[];
+  }
+  function nombreT(sc){
+    try{if(window.LlaveroScope&&window.LlaveroScope.storeName)return window.LlaveroScope.storeName(sc)}catch(_){}
+    var x=SS();return (x&&x[sc]&&x[sc].name)||sc;
+  }
+
+  /* ---------- producto -> ambientes ---------- */
+  var AMB=null,AMBK='';
+  function ambientes(){
+    var d=db();if(!d||!Array.isArray(d.G))return {};
+    var k=s(d.meta&&d.meta.fecha);
+    if(AMB&&AMBK===k)return AMB;
+    var m=Object.create(null);
+    d.G.forEach(function(g){
+      var nom=s(g[1])||s(g[0]);
+      ((g&&g[3])||[]).forEach(function(it){
+        var c=s(it&&it[2]);if(!c)return;
+        (m[c]=m[c]||[]);
+        if(m[c].indexOf(nom)<0)m[c].push(nom);
+      });
+    });
+    AMB=m;AMBK=k;return m;
+  }
+
+  /* ---------- filas: el universo completo ---------- */
+  var FILAS=null,FILK='';
+  function filas(){
+    var d=db();if(!d)return [];
+    var cs=codes(),k=cur()+'|'+cs.join(',')+'|'+s(d.meta&&d.meta.fecha);
+    if(FILAS&&FILK===k)return FILAS;
+    var P=d.P||{},am=ambientes(),x=SS(),out=[];
+    cs.forEach(function(sc){
+      var st=(x&&x[sc])||{};
+      var pres=(d.GP||{})[sc]||null;
+      var inv=Object.create(null);
+      (Array.isArray(st.inventario)?st.inventario:[]).forEach(function(r){
+        var c=s(r&&r.codigo);if(c)inv[c]=r;
+      });
+      var rot=Object.create(null),ev=Object.create(null);
+      (Array.isArray(st.rot)?st.rot:[]).forEach(function(a){var c=s(a&&a[0]);if(c)rot[c]=1});
+      (Array.isArray(st.evac)?st.evac:[]).forEach(function(a){var c=s(a&&a[0]);if(c)ev[c]=1});
+
+      /* el universo: todo lo del archivo de presencias + cualquier producto con
+         stock que no venga en él (existe y nadie le asignó presencia) */
+      var codigos=Object.create(null);
+      if(pres)Object.keys(pres).forEach(function(c){codigos[c]=1});
+      Object.keys(inv).forEach(function(c){if(n(inv[c].stock)>0)codigos[c]=1});
+
+      Object.keys(codigos).forEach(function(c){
+        var par=(pres&&pres[c])||null;
+        var r=inv[c]||{},p=P[c]||{};
+        var ambs=am[c]||[];
+        var estados=[];
+        if(ambs.length)estados.push('Ambiente');
+        if(rot[c])estados.push('Rotación');
+        if(ev[c])estados.push('Evacuación');
+        out.push({
+          sc:sc, tienda:nombreT(sc), c:c,
+          nom:s(p.n)||s(r.producto)||c,
+          cat:s(p.cat)||s(r.categoria)||'—',
+          lin:s(p.lin)||s(r.linea)||'—',
+          /* V86.259: columna I del archivo de presencias (categoria). El corte
+             actual no la trae -- GP guarda solo [CAN SUM, CAN MIN] -- asi que
+             queda vacia hasta que el pipeline la incorpore. */
+          catPres:(par&&par.length>2)?s(par[2]):'',
+          /* con ficha = existe en el catalogo de productos o en el inventario de
+             la tienda. Sin ficha son codigos que solo viven en el archivo de
+             presencias: es lo que descuadraba la tabla contra el inventario. */
+          ficha:!!(P[c]||inv[c]),
+          min:par?n(par[1]):0,          /* presencia  */
+          sum:par?n(par[0]):0,          /* existencia */
+          enArchivo:!!par,
+          stock:n(r.stock),
+          ventaU:n(r.unidadesFacUlt3Meses),
+          ventaV:n(r.facturacionUlt3Meses),
+          amb:ambs, rot:!!rot[c], evac:!!ev[c],
+          estados:estados,
+          cendis:r.dispCendis==null?null:n(r.dispCendis)
+        });
+      });
+    });
+    out.sort(function(a,b){
+      /* arriba lo que más pesa decidir: con presencia, sin ambiente y sin venta */
+      var pa=(a.min>0?0:1)+(a.amb.length?2:0)+(a.ventaU>0?4:0);
+      var pb=(b.min>0?0:1)+(b.amb.length?2:0)+(b.ventaU>0?4:0);
+      return pa-pb || b.min-a.min || a.nom.localeCompare(b.nom);
+    });
+    FILAS=out;FILK=k;return out;
+  }
+
+  /* ---------- exclusion de Decoracion ----------
+     Pedido: excluir de la tabla la categoria Decoracion (columna I del archivo
+     de presencias). Medido en Principal con el corte del 01/09: el inventario
+     reporta 900 productos con existencia y esta tabla mostraba 2.401. La
+     diferencia son 1.464 codigos que SOLO existen en el archivo de presencias:
+     sin ficha en el catalogo de productos y sin fila de inventario en ninguna
+     tienda -- la decoracion, que no entra por abastecimiento SAP. Excluyendolos
+     la tabla baja a 937, que ya cuadra con el inventario.
+     Cuando el pipeline suba la columna I a GP (tercer elemento del par), la
+     primera regla toma el relevo sola y deja de hacer falta la heuristica. */
+  var CAT_FUERA=['DECORACION','DECORACIONES'];
+  function sinAcentos(v){var t=s(v);try{t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}catch(_){}return t.toUpperCase()}
+  function excluida(r){
+    if(r.catPres)return CAT_FUERA.indexOf(sinAcentos(r.catPres))>=0;
+    return !r.ficha;
+  }
+  var VER_FUERA=false;
+
+  /* ---------- estado de la vista ---------- */
+  var F={q:'',cat:'',pres:'',exis:'',estado:'',venta:''}, SEL=Object.create(null), tope=TOPE;
+  function clave(r){return r.sc+'|'+r.c}
+  function filtradas(){
+    var q=F.q.toUpperCase();
+    return filas().filter(function(r){
+      if(!VER_FUERA&&excluida(r))return false;
+      if(F.pres==='con'&&!(r.min>0))return false;
+      if(F.pres==='sin'&&r.min>0)return false;
+      /* V86.260: la existencia la manda el inventario de Llavero (stock), no el
+         CAN SUM del archivo de presencias. Con el criterio anterior Norte daba
+         986 y el modulo de Inventario 952: los 34 de diferencia son codigos con
+         CAN SUM>0 que el inventario no reconoce con existencia. Ahora los dos
+         datos cuentan lo mismo. */
+      if(F.exis==='con'&&!(r.stock>0))return false;
+      if(F.exis==='sin'&&r.stock>0)return false;
+      if(F.cat&&r.cat!==F.cat)return false;
+      if(F.estado==='amb'&&!r.amb.length)return false;
+      if(F.estado==='sinamb'&&r.amb.length)return false;
+      if(F.estado==='rot'&&!r.rot)return false;
+      if(F.estado==='evac'&&!r.evac)return false;
+      if(F.estado==='sano'&&r.estados.length)return false;
+      if(F.venta==='sin'&&r.ventaU>0)return false;
+      if(F.venta==='con'&&!(r.ventaU>0))return false;
+      if(q){
+        var t=(r.c+' '+r.nom+' '+r.cat+' '+r.lin+' '+r.amb.join(' ')+' '+r.tienda).toUpperCase();
+        if(t.indexOf(q)<0)return false;
+      }
+      return true;
+    });
+  }
+  function opciones(){
+    /* las categorias del desplegable salen de lo que la tabla muestra: si la
+       decoracion esta excluida, su categoria no debe ofrecerse */
+    var cats={};filas().forEach(function(r){if(r.cat&&(VER_FUERA||!excluida(r)))cats[r.cat]=1});
+    return Object.keys(cats).sort();
+  }
+  function sel(id,val,ops){
+    return '<select id="'+id+'">'+ops.map(function(o){
+      return '<option value="'+esc(o[0])+'"'+(val===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';
+    }).join('')+'</select>';
+  }
+
+  function badges(r){
+    if(!r.estados.length)return '<span class="v257Sano">Sano</span>';
+    return r.estados.map(function(e){
+      var cl=e==='Ambiente'?'amb':e==='Rotación'?'rot':'evac';
+      var tit=e==='Ambiente'?r.amb.join(' · '):e;
+      return '<span class="v257Est '+cl+'" title="'+esc(tit)+'">'+esc(e)+'</span>';
+    }).join(' ');
+  }
+
+  function html(){
+    var fs=filtradas(),marcados=fs.filter(function(r){return SEL[clave(r)]}).length;
+    var vis=fs.slice(0,tope),todas=filas().length;
+    var fuera=filas().filter(excluida).length;
+    /* el archivo dice que hay existencia y el inventario no la registra */
+    var descuadre=filas().filter(function(r){return !excluida(r)&&r.sum>0&&!(r.stock>0)}).length;
+    var cats=[['','Todas']].concat(opciones().map(function(c){return [c,c]}));
+    var cuerpo=vis.map(function(r){
+      var k=clave(r);
+      return '<tr class="v257Fila'+(SEL[k]?' marcada':'')+'" data-k="'+esc(k)+'">'+
+        '<td class="v257Chk"><input type="checkbox" data-v257-chk="'+esc(k)+'"'+(SEL[k]?' checked':'')+'></td>'+
+        (multi()?'<td><b>'+esc(r.tienda)+'</b><div class="v255Mut">'+esc(r.sc)+'</div></td>':'')+
+        '<td><span class="code">'+esc(r.c)+'</span></td>'+
+        '<td><b class="v257Nom" data-v257-cod="'+esc(r.c)+'">'+esc(r.nom)+'</b>'+
+          '<div class="v255Mut">'+esc(r.cat)+' · '+esc(r.lin)+'</div></td>'+
+        '<td><div class="v257Ests">'+badges(r)+'</div>'+
+          (r.amb.length?'<div class="v255Mut v257AmbNom">'+esc(r.amb[0])+(r.amb.length>1?' +'+(r.amb.length-1):'')+'</div>':'')+'</td>'+
+        '<td class="num'+(r.min>0?'':' v257Cero')+'">'+fint(r.min)+'</td>'+
+        '<td class="num'+(r.sum>0?'':' v257Cero')+(r.sum>0&&!(r.stock>0)?' v257Descuadre':'')+'"'+
+          (r.sum>0&&!(r.stock>0)?' title="El archivo de presencias reporta '+fint(r.sum)+' pero el inventario de Llavero no le registra existencia"':'')+
+          '>'+fint(r.sum)+'</td>'+
+        '<td class="num">'+(r.ventaU>0
+            ? '<b>'+fint(r.ventaU)+' u</b><div class="v255Mut">'+money(r.ventaV)+'</div>'
+            : '<span class="v257Sin">Sin venta</span>')+'</td></tr>';
+    }).join('');
+    return '<div class="card v257Card" id="v257Card"><div class="chead"><div class="cnum n6">▤</div>'+
+      '<div><div class="tt">Inventario de presencias</div>'+
+      '<div class="ds">Todo el universo de la tienda: con presencia y sin ella, con existencia y sin ella, y a qué le pega cada producto.</div></div>'+
+      '<div class="rt"><span class="badge">'+fint(fs.length)+(fs.length!==todas?' de '+fint(todas):'')+' productos</span></div>'+
+      '</div><div class="cbody">'+
+      '<div class="v257Filtros">'+
+        '<label>Buscar<input id="v257Q" value="'+esc(F.q)+'" placeholder="Código, producto, ambiente…"></label>'+
+        '<label>Presencia'+sel('v257Pres',F.pres,[['','Todas'],['con','Con presencia'],['sin','Sin presencia']])+'</label>'+
+        '<label>Existencia'+sel('v257Exis',F.exis,[['','Todas'],['con','Con existencia'],['sin','Sin existencia']])+'</label>'+
+        '<label>Le pega a'+sel('v257Estado',F.estado,[['','Todo'],['amb','Ambiente'],['sinamb','Sin ambiente'],['rot','Rotación'],['evac','Evacuación'],['sano','Sano']])+'</label>'+
+        '<label>Categoría'+sel('v257Cat',F.cat,cats)+'</label>'+
+        '<label>Venta 3 meses'+sel('v257Venta',F.venta,[['','Toda'],['sin','Sin venta'],['con','Con venta']])+'</label>'+
+        '<button class="v250Btn sec" id="v257Limpiar" type="button">Limpiar</button>'+
+        (fuera||VER_FUERA?'<button class="v250Btn sec" id="v257VerFuera" type="button">'+
+          (VER_FUERA?'Ocultar decoración':'Ver los '+fint(fuera)+' excluidos')+'</button>':'')+
+      '</div>'+
+      '<div class="v257Barra">'+
+        '<span class="v257Cuenta"><b id="v257Marcados">'+fint(marcados)+'</b> marcados para quitar presencia · '+
+          fint(fs.length-marcados)+' se conservan</span>'+
+        '<button class="v250Btn sec" id="v257Todos" type="button">Marcar los visibles</button>'+
+        '<button class="v250Btn sec" id="v257Ninguno" type="button">Quitar selección</button>'+
+        '<button class="v250Btn" id="v257Excel" type="button">Generar Excel</button>'+
+      '</div>'+
+      '<div class="twrap"><table class="v255Tabla v257Tabla"><thead><tr>'+
+        '<th class="v257Chk"></th>'+(multi()?'<th>Tienda</th>':'')+
+        '<th>Código</th><th>Producto</th><th>Le pega a</th>'+
+        '<th class="num">CAN MIN<div class="v257Sub">presencia</div></th>'+
+        '<th class="num">CAN SUM<div class="v257Sub">existencia</div></th>'+
+        '<th class="num">Venta 3 meses</th></tr></thead><tbody>'+cuerpo+'</tbody></table></div>'+
+      (fs.length>vis.length
+        ? '<div class="v257Mas"><button class="v250Btn sec" id="v257Mas" type="button">Mostrar 300 más</button>'+
+          '<span class="v255Mut">'+fint(vis.length)+' de '+fint(fs.length)+'</span></div>'
+        : '')+
+      /* V86.265: se retiran los dos avisos (decoración excluida y descuadre de
+         CAN SUM) y la nota de CAN MIN/CAN SUM. La información no se pierde: el
+         botón sigue permitiendo auditar los excluidos y las celdas de CAN SUM
+         sin respaldo del inventario siguen marcadas en la tabla. */
+      '</div></div>';
+  }
+
+  /* ---------- Excel ---------- */
+  function excel(){
+    var fs=filtradas(),quitar=[],conservar=[];
+    fs.forEach(function(r){
+      var fila={
+        TIENDA:r.tienda, AGENCIA:r.sc, COD:r.c, PRODUCTO:r.nom,
+        CATEGORIA:r.cat, LINEA:r.lin,
+        LE_PEGA_A:r.estados.length?r.estados.join(' | '):'SANO',
+        AMBIENTE:r.amb.length?r.amb.join(' | '):'SIN AMBIENTE',
+        CAN_MIN_PRESENCIA:r.min, CAN_SUM_EXISTENCIA:r.sum,
+        STOCK_INVENTARIO:r.stock, CENDIS:r.cendis==null?'':r.cendis,
+        VENTA_3M_UNIDADES:r.ventaU, VENTA_3M_VALOR:r.ventaV,
+        DECISION:SEL[clave(r)]?'QUITAR PRESENCIA':'CONSERVAR'
+      };
+      (SEL[clave(r)]?quitar:conservar).push(fila);
+    });
+    if(!quitar.length&&!conservar.length){
+      try{toast('No hay filas para exportar con estos filtros.','err')}catch(_){}
+      return;
+    }
+    var fecha='';try{fecha=s((db().meta||{}).fecha)}catch(_){}
+    var nom='Presencias_'+(multi()?'Consolidado':s(cur()))+'_'+(fecha||'corte');
+    try{
+      if(window.XLSX&&XLSX.utils&&XLSX.writeFile){
+        var wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(quitar.length?quitar:[{SIN_MARCAR:'ninguno'}]),'Quitar presencia');
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(conservar.length?conservar:[{SIN_FILAS:'ninguno'}]),'Conservar');
+        XLSX.writeFile(wb,nom+'.xlsx');
+        try{toast(fint(quitar.length)+' para quitar y '+fint(conservar.length)+' para conservar.','ok')}catch(_){}
+        return;
+      }
+    }catch(e){console.error('V86.257 excel',e)}
+    var base=quitar[0]||conservar[0],cols=Object.keys(base);
+    var esc2=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'};
+    var csv=cols.join(';')+'\n'+quitar.concat(conservar).map(function(r){
+      return cols.map(function(c){return esc2(r[c])}).join(';')}).join('\n');
+    try{
+      var bl=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+      var a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download=nom+'.csv';
+      document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},120);
+    }catch(e){console.error('V86.257 csv',e)}
+  }
+
+  /* ---------- enganche ---------- */
+  function enganchar(){
+    var c=document.getElementById('v257Card');if(!c)return;
+    var q=document.getElementById('v257Q');
+    if(q&&!q.__l){q.__l=true;var t=null;
+      q.oninput=function(){clearTimeout(t);t=setTimeout(function(){F.q=q.value;tope=TOPE;repintar(true)},180)};}
+    [['v257Pres','pres'],['v257Exis','exis'],['v257Estado','estado'],['v257Cat','cat'],['v257Venta','venta']]
+      .forEach(function(par){
+        var el=document.getElementById(par[0]);
+        if(el)el.onchange=function(){F[par[1]]=el.value;tope=TOPE;repintar(true)};
+      });
+    var lim=document.getElementById('v257Limpiar');
+    if(lim)lim.onclick=function(){F={q:'',cat:'',pres:'',exis:'',estado:'',venta:''};tope=TOPE;repintar(true)};
+    var vf=document.getElementById('v257VerFuera');
+    if(vf)vf.onclick=function(){VER_FUERA=!VER_FUERA;tope=TOPE;repintar(true)};
+    var mas=document.getElementById('v257Mas');if(mas)mas.onclick=function(){tope+=TOPE;repintar(true)};
+    var ex=document.getElementById('v257Excel');if(ex)ex.onclick=excel;
+    var td=document.getElementById('v257Todos');
+    if(td)td.onclick=function(){filtradas().slice(0,tope).forEach(function(r){SEL[clave(r)]=true});repintar(true)};
+    var nn=document.getElementById('v257Ninguno');
+    if(nn)nn.onclick=function(){SEL=Object.create(null);repintar(true)};
+    c.querySelectorAll('[data-v257-chk]').forEach(function(ch){
+      if(ch.__l)return;ch.__l=true;
+      ch.onchange=function(){
+        var k=ch.getAttribute('data-v257-chk');
+        if(ch.checked)SEL[k]=true;else delete SEL[k];
+        var tr=ch.closest('tr');if(tr)tr.classList.toggle('marcada',ch.checked);
+        var m=document.getElementById('v257Marcados');
+        if(m)m.textContent=fint(filtradas().filter(function(r){return SEL[clave(r)]}).length);
+      };
+    });
+    c.querySelectorAll('[data-v257-cod]').forEach(function(el){
+      if(el.__l)return;el.__l=true;
+      el.onclick=function(){
+        var cod=el.getAttribute('data-v257-cod');
+        try{if(typeof window.openInventoryProduct==='function')window.openInventoryProduct(cod);
+            else if(typeof window.openBestProductDetail==='function')window.openBestProductDetail(cod)}catch(_){}
+      };
+    });
+  }
+
+  function repintar(forzar){
+    if(view()!=='inventario')return;
+    var root=document.getElementById('content');if(!root)return;
+    if(!db())return;
+    if(!codes().length)return;
+    var firma=cur()+'|'+codes().join(',')+'|'+s((db().meta||{}).fecha);
+    var ya=document.getElementById('v257Card');
+    if(ya&&!forzar&&ya.dataset.firma===firma)return;
+    if(ya&&ya.dataset.firma!==firma){FILAS=null;SEL=Object.create(null);tope=TOPE}
+    var h=html();
+    if(ya)ya.outerHTML=h; else root.insertAdjacentHTML('beforeend',h);
+    var c=document.getElementById('v257Card');
+    if(c)c.dataset.firma=firma;
+    enganchar();
+  }
+
+  function install(){
+    try{repintar(false)}catch(e){console.error('V86.257',e)}
+    if(!window.__v257Tick)window.__v257Tick=setInterval(function(){try{repintar(false)}catch(e){}},900);
+    window.LlaveroPresencias={filas:filas,filtradas:filtradas,excel:excel,seleccion:function(){return SEL}};
+    console.info('LLAVERO V86.257 · Inventario de presencias');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1600)},{once:true});
+  else setTimeout(install,1600);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,1500)});
+})();
+
+/* ===== V86.258 · "Ambientes por completitud" también en el módulo de Ambientes =====
+
+   QUÉ SE PIDIÓ. En la vista de Líder de área, el punto 4 del Dashboard es la
+   tarjeta "Ambientes por completitud · <alcance>" (V86.210 + los chips de tipo
+   de ambiente de V86.239). Ese mismo punto tiene que estar en el módulo de
+   Ambientes, tal cual está: los cuatro KPI, los chips de categoría, las dos
+   listas (mayor y menor cobertura), el detalle por guía al pulsar una fila y la
+   nota del promedio de guías completas por tienda.
+
+   POR QUÉ NO SE COPIÓ EL HTML. La tarjeta se genera con cardAmbientes210, que a
+   su vez lee guides210 (S[tienda].guias). Duplicar ese HTML aquí garantizaba que
+   en el próximo ajuste del Dashboard las dos versiones dejaran de coincidir. En
+   vez de eso V86.210 publica su propia función en window.LlaveroAmbCard210 y
+   este bloque la invoca: si mañana cambia la tarjeta del Dashboard, cambia sola
+   aquí también.
+
+   LAS TRES DIFERENCIAS DE CONTEXTO, que son las que había que resolver:
+
+   1. ALCANCE. En el Dashboard scope210() lee los selectores de zona /
+      departamento / ciudad / tienda, que en el módulo de Ambientes no existen.
+      Aquí el alcance sale de LlaveroScope (la barra del Líder, V86.224) y se
+      declara a V86.210 con __V210_SCOPE_OVERRIDE, activo solo mientras VIEW es
+      'amb'. Así el modal "en qué tiendas está incompleta" abre exactamente las
+      tiendas del alcance que el líder está viendo, no las 21 siempre.
+
+   2. LOS CHIPS DE CATEGORÍA. El handler de V86.239 hace setView('dashboard')
+      al filtrar, lo que desde Ambientes sacaría al usuario del módulo. En la
+      copia el atributo pasa a data-v258-cat y el filtro se repinta en sitio,
+      con su propio estado (__v258AmbCat): filtrar aquí no mueve el filtro del
+      Dashboard ni al contrario.
+
+   3. EL id. La tarjeta del Dashboard es #v210Ambientes y V86.218 / V86.223 la
+      usan como ancla de orden. La copia se llama #v258Ambientes para que esos
+      parches sigan hablando solo del Dashboard. Las clases (.v210Card, .v210Kpi,
+      .v239Cats, .v239Scroll...) se conservan, así que el aspecto es idéntico.
+
+   DÓNDE QUEDA. Al final del módulo, debajo de la tabla de ambientes (V86.260).
+   No se pone primera a propósito: V86.223 localiza la card de guías con
+   querySelector('.card') para reordenar sus bloques, y ponerse delante le
+   rompería ese orden. */
+(function(){
+  'use strict';
+  var ALL='__ALL__',HOST='v258AmbHost';
+  function t(v){return v==null?'':String(v)}
+  function leader(){try{return typeof IS_LEADER!=='undefined'&&!!IS_LEADER}catch(_){return false}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function api(){return window.LlaveroAmbCard210||null}
+  function fecha(){try{return t((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){return ''}}
+
+  /* ---------- alcance del módulo (no del Dashboard) ---------- */
+  function codes(){
+    try{
+      if(window.LlaveroScope&&typeof window.LlaveroScope.codes==='function'){
+        var c=window.LlaveroScope.codes()||[];
+        if(c.length)return c.slice();
+      }
+    }catch(_){}
+    var s=SS();if(!s)return [];
+    if(cur()===ALL&&s[ALL]&&s[ALL].__codes&&s[ALL].__codes.length)return s[ALL].__codes.slice();
+    var c1=cur();
+    if(c1&&c1!==ALL&&s[c1])return [c1];
+    return Object.keys(s);
+  }
+  function label(list){
+    var s=SS();
+    if(list.length===1){
+      var st=s&&s[list[0]];
+      return (st&&t(st.name))||t(list[0]);
+    }
+    try{
+      var g=window.LlaveroScope&&window.LlaveroScope.get?window.LlaveroScope.get():null;
+      if(g){
+        if(g.city&&g.city!=='all')return t(g.city);
+        if(g.dep&&g.dep!=='all')return t(g.dep);
+        if(g.zone&&g.zone!=='all')return t(g.zone);
+      }
+    }catch(_){}
+    return 'Nacional';
+  }
+  function scope(){
+    var list=codes();
+    return {codes:list,label:label(list),isNational:list.length>1&&label(list)==='Nacional'};
+  }
+
+  /* ---------- la tarjeta, pedida a V86.210 ---------- */
+  function cardHtml(sc){
+    var A=api();if(!A)return '';
+    var rs=[];
+    try{rs=A.rows(sc.codes)||[]}catch(_){rs=[]}
+    if(!rs.length)return '';
+    /* cardAmbientes210 lee la categoría activa de __v239AmbCat (y la normaliza
+       si la que venía ya no existe). Se le presta el valor de este módulo y se
+       devuelve el del Dashboard: los dos filtros quedan independientes. */
+    var prev=window.__v239AmbCat,html='';
+    window.__v239AmbCat=window.__v258AmbCat||'todas';
+    try{html=A.card(sc,rs)||''}catch(e){console.error('V86.258 tarjeta',e);html=''}
+    window.__v258AmbCat=window.__v239AmbCat||'todas';
+    window.__v239AmbCat=prev;
+    if(!html)return '';
+    html=html.replace('id="v210Ambientes"','id="v258Ambientes"')
+             .replace(/data-v239-cat=/g,'data-v258-cat=');
+    return '<div id="'+HOST+'" class="v210Host v258Host">'+html+'</div>';
+  }
+
+  function wireChips(host){
+    if(!host)return;
+    host.querySelectorAll('[data-v258-cat]').forEach(function(b){
+      b.onclick=function(e){
+        e.preventDefault();e.stopPropagation();
+        window.__v258AmbCat=b.getAttribute('data-v258-cat')||'todas';
+        paint();
+      };
+    });
+  }
+
+  /* ---------- pintado ---------- */
+  function paint(){
+    if(!leader()||view()!=='amb')return;
+    if(!api())return;
+    var root=document.getElementById('content');if(!root)return;
+    var sc=scope();if(!sc.codes.length)return;
+    /* La vista de Ambientes se redibuja sola (V86.223 reordena, V86.225 rehace
+       el consolidado). La firma evita reconstruir la tarjeta en cada tick, que
+       perdería el scroll de las listas y el chip seleccionado. */
+    var firma=sc.codes.join(',')+'|'+(window.__v258AmbCat||'todas')+'|'+fecha();
+    var host=document.getElementById(HOST);
+    if(host&&host.dataset.firma===firma)return;
+    var html=cardHtml(sc);
+    if(!html){if(host)host.remove();return}
+    if(host)host.outerHTML=html;
+    else root.insertAdjacentHTML('beforeend',html);
+    host=document.getElementById(HOST);
+    if(host){host.dataset.firma=firma;wireChips(host)}
+    /* V86.260: la tarjeta va al final del modulo, debajo de la tabla de
+       ambientes. Otras capas (V86.255) tambien añaden al final y pueden quedar
+       despues, asi que si dejo de ser el ultimo hijo me vuelvo a mover. No se
+       reconstruye el HTML: se mueve el nodo, con lo que no se pierde el chip
+       seleccionado ni el scroll de las listas. */
+    /* V86.264: esta tarjeta va al final, con una sola excepcion: el cuadro de
+       guias (V86.263) va justo debajo de ella. Asi que solo me muevo al final
+       si lo que hay despues no es ese cuadro. */
+    if(host&&host.parentElement===root){
+      var sig=host.nextElementSibling;
+      var ultimo=root.lastElementChild;
+      var okAlFinal=(ultimo===host)||(sig&&sig.id==='v263Card'&&ultimo===sig);
+      if(!okAlFinal){
+        var cuadro=document.getElementById('v263Card');
+        root.appendChild(host);
+        if(cuadro&&cuadro.parentElement===root)root.appendChild(cuadro);
+      }
+    }
+  }
+  function clear(){
+    var host=document.getElementById(HOST);
+    if(host&&view()!=='amb')host.remove();
+  }
+
+  function install(){
+    /* El override solo responde dentro del módulo de Ambientes; el Dashboard
+       sigue leyendo sus propios selectores. */
+    window.__V210_SCOPE_OVERRIDE=function(){
+      if(!leader()||view()!=='amb')return null;
+      var sc=scope();
+      return sc.codes.length?sc:null;
+    };
+    try{paint()}catch(e){console.error('V86.258',e)}
+    if(!window.__v258Tick)window.__v258Tick=setInterval(function(){
+      try{clear();paint()}catch(e){}
+    },900);
+    console.info('LLAVERO V86.258 · Ambientes por completitud replicado en el módulo de Ambientes');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1700)},{once:true});
+  else setTimeout(install,1700);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,1600)});
+})();
+
+
+/* ===== V86.263 · Cuadro de guías: avance y respaldo CENDIS =====
+
+   LA TABLA PEDIDA (la del tablero):
+
+       Guías          Total     CENDIS tiene abastecimiento
+       Completa         22                  —
+       Con avance       93                  7
+       Sin avance       10                  6
+       Total guías     125
+
+   DEFINICIONES. Se usan las que ya calcula el módulo (guideEffective, V86.148)
+   con sus equivalencias de Piso 1 y Piso 2, para que estos números no puedan
+   discrepar de la tarjeta de completitud:
+
+       Completa     todas sus posiciones cubiertas
+       Con avance   incompleta, con al menos una posición cubierta
+       Sin avance   incompleta y sin ninguna posición cubierta
+
+   LA COLUMNA DE CENDIS cuenta la guía solo si CENDIS tiene TODAS las posiciones
+   que le faltan: es todo o nada, porque con 2 de 3 el ambiente no se monta.
+
+   TODO NÚMERO ES CLICKEABLE (V86.264) y abre el detalle: qué guías son, cuántas
+   posiciones les faltan y, por cada faltante, el producto y en qué estado está
+   (CENDIS lo tiene / ya solicitado / en camino / sin dato). El estado "sin dato"
+   es el del código que no aparece en el inventario de ninguna tienda: son los
+   que hay que validar en la herramienta de abastecimiento, y por eso no pueden
+   sumar a la columna de CENDIS. Antes eso se explicaba en tres notas debajo de
+   la tabla; ahora vive dentro del detalle, que es donde se puede accionar.
+
+   ALCANCE. Con una tienda, el cuadro es de esa tienda. Con varias, suma las del
+   alcance: las guías son por tienda (el inventario de una no cubre la guía de
+   otra), así que se agregan, no se fusionan.
+
+   POSICIÓN. Debajo de "Ambientes por completitud" (V86.258), que le cede el
+   último lugar del módulo. */
+(function(){
+  'use strict';
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function n(v){var x=Number(v);return isFinite(x)?x:0}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fint(v){try{return Number(v||0).toLocaleString('es-CO')}catch(_){return String(v||0)}}
+  function SS(){try{return (typeof S!=='undefined'&&S)?S:null}catch(_){return null}}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function fecha(){try{return s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){return ''}}
+  function api(){return window.LlaveroGuias148||null}
+  function nombreT(sc){
+    try{if(window.LlaveroScope&&window.LlaveroScope.storeName)return window.LlaveroScope.storeName(sc)}catch(_){}
+    var x=SS();return (x&&x[sc]&&x[sc].name)||sc;
+  }
+  function nombreP(code,p){
+    var nm=s(p&&p[6]);
+    if(nm)return nm;
+    try{if(typeof window.nombreProducto==='function'){var r=window.nombreProducto(code);if(r)return r}}catch(_){}
+    return '';
+  }
+  function codes(){
+    try{
+      if(window.LlaveroScope&&typeof window.LlaveroScope.codes==='function'){
+        var c=window.LlaveroScope.codes()||[];if(c.length)return c.slice();
+      }
+    }catch(_){}
+    var x=SS();if(!x)return [];
+    if(cur()===ALL&&x[ALL]&&x[ALL].__codes)return x[ALL].__codes.slice();
+    var c1=cur();return (c1&&c1!==ALL&&x[c1])?[c1]:[];
+  }
+
+  /* estados de una posición que falta, en el orden en que importan */
+  var ESTADO={
+    available:{et:'CENDIS lo tiene',cls:'ok'},
+    requested:{et:'Ya solicitado',cls:'via'},
+    camino:{et:'En camino',cls:'via'},
+    nd:{et:'Sin dato',cls:'nd'},
+    sin:{et:'CENDIS sin stock',cls:'no'}
+  };
+  function etiqueta(e){return (ESTADO[e]||{et:s(e)||'—'}).et}
+  function clase(e){return (ESTADO[e]||{cls:'no'}).cls}
+
+  /* ---------- una tienda ---------- */
+  function deTienda(sc){
+    var A=api(),x=SS(),st=x&&x[sc];
+    if(!A||!st||!Array.isArray(st.guias)||!st.guias.length)return null;
+    var r={sc:sc,tienda:nombreT(sc),completas:0,completasCendis:0,avance:0,sinAvance:0,sinEval:0,
+           avanceCendis:0,sinAvanceCendis:0,
+           G:{completas:[],avance:[],sinAvance:[],cendisAvance:[],cendisSinAvance:[]}};
+    st.guias.forEach(function(g){
+      var e=g&&g.__v148;
+      if(!e){try{e=A.efectiva(g)}catch(_){e=null}}
+      if(!e||!e.total){r.sinEval++;return}
+      var faltan=(e.requirements||[]).filter(function(q){return !q.covered});
+      var det=faltan.map(function(q){
+        var p=(q.members||[])[0]||[];
+        var code=s(p[0]);
+        return {code:code,name:nombreP(code,p),estado:q.state,piso:s(q.floor)};
+      });
+      var resumen={};
+      det.forEach(function(dd){resumen[dd.estado]=(resumen[dd.estado]||0)+1});
+      var ficha={sc:sc,tienda:r.tienda,code:s(e.code),name:s(e.name)||s(e.code),
+                 cat:s(e.cat),total:e.total,cubiertas:e.current,faltan:det.length,
+                 det:det,resumen:resumen};
+      if(e.current>=e.total){
+        r.completas++;
+        /* V86.283: de las completas, cuantas tiene CENDIS con TODOS los
+           productos disponibles tambien (no solo cubiertos en tienda). Se
+           evalua cada posicion de la guia, no solo las que faltan -- una guia
+           completa no tiene faltantes, asi que hay que mirar todo el
+           requerimiento. */
+        var reqs=(e.requirements||[]);
+        var todoCendisTambien=reqs.length&&reqs.every(function(q){
+          return A.cendisTiene?A.cendisTiene(q.members||[]):false;
+        });
+        ficha.cendis=!!todoCendisTambien;
+        if(todoCendisTambien)r.completasCendis=(r.completasCendis||0)+1;
+        r.G.completas.push(ficha);
+        return;
+      }
+      var conAvance=e.current>0;
+      if(conAvance){r.avance++;r.G.avance.push(ficha)}else{r.sinAvance++;r.G.sinAvance.push(ficha)}
+      if(det.length&&det.every(function(dd){return dd.estado==='available'})){
+        if(conAvance){r.avanceCendis++;r.G.cendisAvance.push(ficha)}
+        else{r.sinAvanceCendis++;r.G.cendisSinAvance.push(ficha)}
+      }
+    });
+    return r;
+  }
+
+  var CACHE=null,CLAVE='';
+  function datos(){
+    var cs=codes(),k=cs.join(',')+'|'+fecha();
+    if(CACHE&&CLAVE===k)return CACHE;
+    var filas=cs.map(deTienda).filter(Boolean);
+    if(!filas.length)return null;
+    var T={completas:0,completasCendis:0,avance:0,sinAvance:0,sinEval:0,avanceCendis:0,sinAvanceCendis:0,
+           tiendas:filas.length,G:{completas:[],avance:[],sinAvance:[],cendisAvance:[],cendisSinAvance:[]}};
+    filas.forEach(function(f){
+      ['completas','completasCendis','avance','sinAvance','sinEval','avanceCendis','sinAvanceCendis'].forEach(function(k2){T[k2]+=f[k2]});
+      Object.keys(T.G).forEach(function(k2){T.G[k2]=T.G[k2].concat(f.G[k2])});
+    });
+    T.total=T.completas+T.avance+T.sinAvance+T.sinEval;
+    T.filas=filas;
+    CACHE=T;CLAVE=k;return T;
+  }
+
+  /* ---------- detalle ---------- */
+  var GRUPOS={
+    completas:{t:'Guías completas',d:'Todas sus posiciones están cubiertas.'},
+    avance:{t:'Guías con avance',d:'Incompletas, con al menos una posición cubierta.'},
+    sinAvance:{t:'Guías sin avance',d:'Incompletas y sin ninguna posición cubierta.'},
+    cendisAvance:{t:'Con avance · CENDIS puede completarlas',d:'CENDIS tiene disponibilidad de TODAS las posiciones que faltan.'},
+    cendisSinAvance:{t:'Sin avance · CENDIS puede completarlas',d:'CENDIS tiene disponibilidad de TODAS las posiciones que faltan.'},
+    /* V86.279: dos grupos combinados, para las tarjetas del consolidado
+       (V86.225) que hablan de "posiciones faltantes" y "puedes solicitar" en
+       conjunto, sin separar avance/sin avance. Mismos datos, sin recalcular
+       nada: solo juntan las dos listas que ya existen. */
+    incompletas:{t:'Guías incompletas',d:'Con avance o sin avance: todavía les falta al menos una posición.',_c:['avance','sinAvance']},
+    cendisTodas:{t:'Guías que CENDIS puede completar',d:'CENDIS tiene disponibilidad de TODAS las posiciones que le faltan a la guía, tenga avance o no.',_c:['cendisAvance','cendisSinAvance']},
+    /* V86.283: de las YA completas, cuantas tiene CENDIS con TODOS sus
+       productos disponibles tambien -- no que le falte nada, que ademas
+       CENDIS respalde el ambiente completo por si hay que reponer. */
+    completasCendis:{t:'Completas · CENDIS también tiene todo',d:'Ya están completas en tienda, y CENDIS tiene disponibilidad de TODOS sus productos.'}
+  };
+  window.abrirCuadro263=function(grupo){
+    var d=datos();if(!d)return;
+    var meta0=GRUPOS[grupo];
+    var lista;
+    if(grupo==='completasCendis')lista=(d.G.completas||[]).filter(function(g){return g.cendis}).slice();
+    else lista=(meta0&&meta0._c?meta0._c.reduce(function(a,g){return a.concat(d.G[g]||[])},[]):(d.G[grupo]||[])).slice();
+    var meta=GRUPOS[grupo]||{t:'Guías',d:''};
+    lista.sort(function(a,b){
+      return (b.faltan-a.faltan)||a.name.localeCompare(b.name,'es');
+    });
+    var multi=d.tiendas>1;
+    var cuerpo=lista.map(function(g){
+      var chips=Object.keys(g.resumen).map(function(k){
+        return '<span class="v263Chip '+clase(k)+'">'+fint(g.resumen[k])+' '+esc(etiqueta(k))+'</span>';
+      }).join('');
+      var faltantes=g.det.map(function(dd){
+        return '<div class="v263Falta"><span class="v263Punto '+clase(dd.estado)+'"></span>'+
+          '<button type="button" class="v263Prod" data-v263-cod="'+esc(dd.code)+'">'+
+            esc(dd.name||dd.code)+'</button>'+
+          '<span class="v263Cod">'+esc(dd.code)+'</span>'+
+          '<span class="v263Est '+clase(dd.estado)+'">'+esc(etiqueta(dd.estado))+'</span>'+
+          '<span class="v263Piso">Piso '+esc(dd.piso||'?')+'</span></div>';
+      }).join('');
+      return '<tr class="v263Fila"><td><b>'+esc(g.name)+'</b>'+
+          '<div class="v263Sub">'+esc(g.code)+(g.cat?' · '+esc(g.cat):'')+'</div></td>'+
+        (multi?'<td>'+esc(g.tienda)+'</td>':'')+
+        '<td class="num">'+fint(g.cubiertas)+' / '+fint(g.total)+'</td>'+
+        '<td class="num"><b>'+fint(g.faltan)+'</b></td>'+
+        '<td>'+(chips||'<span class="v263Chip ok">nada pendiente</span>')+
+          (faltantes?'<div class="v263Faltas">'+faltantes+'</div>':'')+'</td></tr>';
+    }).join('');
+    var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),
+        tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');
+    if(!modal||!body)return;
+    if(tt)tt.textContent=meta.t;
+    if(ss)ss.textContent=fint(lista.length)+' guías · '+meta.d;
+    body.innerHTML='<div class="twrap"><table class="v8618Table v263Detalle"><thead><tr>'+
+      '<th>Guía</th>'+(multi?'<th>Tienda</th>':'')+
+      '<th class="num">Cubiertas</th><th class="num">Faltan</th><th>Qué falta y en qué estado</th>'+
+      '</tr></thead><tbody>'+
+      (cuerpo||'<tr><td colspan="5"><div class="empty">Ninguna guía en este grupo.</div></td></tr>')+
+      '</tbody></table></div>';
+    modal.classList.add('on');
+  };
+
+  /* ---------- tarjeta ---------- */
+  function num(valor,grupo,pie){
+    if(valor==null)return '<td class="num v263Na">—</td>';
+    var cuerpo=valor?'<button type="button" class="v263Num" data-v263="'+grupo+'">'+fint(valor)+'</button>'
+                    :'<span class="v263Num cero">0</span>';
+    return '<td class="num">'+cuerpo+(pie?'<div class="v263Pie">'+pie+'</div>':'')+'</td>';
+  }
+  function html(){
+    var d=datos();if(!d)return '';
+    var multi=d.tiendas>1,inc=d.avance+d.sinAvance,cend=d.avanceCendis+d.sinAvanceCendis;
+    function pct(a,b){return b?Math.round(a/b*100)+'%':'0%'}
+    return '<div class="card v263Card" id="v263Card"><div class="chead"><div class="cnum n2">▦</div>'+
+      '<div><div class="tt">Cuadro de guías · avance y respaldo CENDIS</div>'+
+      '<div class="ds">De las guías incompletas, en cuántas CENDIS tiene todas las posiciones que faltan. Pulsa cualquier número para ver el detalle.</div></div>'+
+      '<div class="rt"><span class="badge">'+fint(d.total)+' guías'+(multi?' · '+fint(d.tiendas)+' tiendas':'')+'</span></div>'+
+      '</div><div class="cbody">'+
+      '<div class="twrap"><table class="v263Tabla"><thead><tr>'+
+        '<th>Guías</th><th class="num">Total</th>'+
+        '<th class="num">CENDIS tiene abastecimiento</th>'+
+      '</tr></thead><tbody>'+
+        '<tr class="v263R ok"><td><span class="v263Dot ok"></span><b>Completa</b>'+
+          '<div class="v263Sub">todas sus posiciones cubiertas · '+pct(d.completas,d.total)+' del total</div></td>'+
+          num(d.completas,'completas')+num(d.completasCendis,'completasCendis',d.completas?'de '+fint(d.completas):'')+'</tr>'+
+        '<tr class="v263R via"><td><span class="v263Dot via"></span><b>Con avance</b>'+
+          '<div class="v263Sub">incompleta, con al menos una posición cubierta</div></td>'+
+          num(d.avance,'avance')+num(d.avanceCendis,'cendisAvance',d.avance?'de '+fint(d.avance):'')+'</tr>'+
+        '<tr class="v263R no"><td><span class="v263Dot no"></span><b>Sin avance</b>'+
+          '<div class="v263Sub">incompleta y sin ninguna posición cubierta</div></td>'+
+          num(d.sinAvance,'sinAvance')+num(d.sinAvanceCendis,'cendisSinAvance',d.sinAvance?'de '+fint(d.sinAvance):'')+'</tr>'+
+        (d.sinEval?'<tr class="v263R"><td><span class="v263Dot"></span><b>Sin evaluar</b>'+
+          '<div class="v263Sub">la guía no tiene posiciones que medir</div></td>'+
+          '<td class="num"><span class="v263Num cero">'+fint(d.sinEval)+'</span></td>'+num(null)+'</tr>':'')+
+        '<tr class="v263Total"><td><b>Total guías</b><div class="v263Sub">'+fint(inc)+' incompletas</div></td>'+
+          '<td class="num"><b>'+fint(d.total)+'</b></td>'+
+          '<td class="num"><b>'+fint(cend)+'</b><div class="v263Pie">'+pct(cend,inc)+' de las incompletas</div></td></tr>'+
+      '</tbody></table></div></div></div>';
+  }
+
+  function pintar(){
+    if(view()!=='amb')return;
+    if(!api())return;
+    var root=document.getElementById('content');if(!root)return;
+    var cs=codes();if(!cs.length)return;
+    var firma=cs.join(',')+'|'+fecha();
+    var ya=document.getElementById('v263Card');
+    if(!ya||ya.dataset.firma!==firma){
+      var h=html();
+      if(!h){if(ya)ya.remove();return}
+      if(ya)ya.outerHTML=h;
+      else{
+        /* debajo de "Ambientes por completitud" si esta; si no, al final */
+        var ancla=document.getElementById('v258AmbHost');
+        if(ancla)ancla.insertAdjacentHTML('afterend',h);
+        else root.insertAdjacentHTML('beforeend',h);
+      }
+      ya=document.getElementById('v263Card');
+      if(ya)ya.dataset.firma=firma;
+    }
+    /* si la tarjeta de completitud aparecio despues, me coloco debajo de ella */
+    var host=document.getElementById('v258AmbHost');
+    if(ya&&host&&host.nextElementSibling!==ya)host.insertAdjacentElement('afterend',ya);
+  }
+  function clics(e){
+    var t=e.target;if(!t||!t.closest)return;
+    var prod=t.closest('[data-v263-cod]');
+    if(prod){
+      e.preventDefault();e.stopPropagation();
+      var c=prod.getAttribute('data-v263-cod');
+      try{
+        if(typeof window.openInventoryProduct==='function')window.openInventoryProduct(c);
+        else if(typeof window.openGuideProduct==='function')window.openGuideProduct(c);
+      }catch(_){}
+      return;
+    }
+    var b=t.closest('[data-v263]');
+    if(!b)return;
+    e.preventDefault();e.stopPropagation();
+    window.abrirCuadro263(b.getAttribute('data-v263'));
+  }
+  function install(){
+    try{pintar()}catch(e){console.error('V86.263',e)}
+    if(!window.__v263Tick)window.__v263Tick=setInterval(function(){try{pintar()}catch(_){}},900);
+    if(!window.__v263Clic){window.__v263Clic=true;document.addEventListener('click',clics,true)}
+    window.LlaveroCuadroGuias={datos:datos,porTienda:deTienda};
+    console.info('LLAVERO V86.263 · Cuadro de guías con respaldo CENDIS');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,1800)},{once:true});
+  else setTimeout(install,1800);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,1700)});
+})();
+
+/* ===== V86.266 · Productos sanos: definición estricta y visible =====
+
+   EL PROBLEMA. "Productos sanos" se leía como "todo lo que no está en las listas
+   oficiales de Rotación y Evacuación", y su descripción decía "incluye
+   próximos". Con eso un producto con unidades de más de 90 días podía aparecer
+   como sano: no entra en Rotación porque la regla oficial pide estado A / Línea,
+   ni en Evacuación porque pide fuera de surtido con estado N. Con el corte del
+   02/09 son 353 productos en las 21 tiendas.
+
+   LA DEFINICIÓN NUEVA (la pedida): un producto está sano cuando no tiene
+   ninguna unidad en ningún estado — ni Rotación, ni Evacuación — y TODAS sus
+   unidades están por debajo de 90 días.
+
+   LOS 353 NO SE ESCONDEN. Salen en su propia tarjeta, "Con unidades vencidas",
+   porque son justo los que se estaban colando: tienen mercancía de más de 90
+   días y ninguna lista oficial los reclama. La suma sigue cerrando contra el
+   inventario: sanos + vencidos + rotación + evacuación = productos con
+   existencia.
+
+   Este bloque solo ajusta lo que se ve: el cálculo vive en calc() (V86.266). */
+(function(){
+  'use strict';
+  function s(v){return v==null?'':String(v).trim()}
+  function fint(v){try{return Number(v||0).toLocaleString('es-CO')}catch(_){return String(v||0)}}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function resumen(){
+    try{
+      if(typeof window.inventorySummary!=='function')return null;
+      var st=(typeof S!=='undefined'&&S&&typeof CUR!=='undefined')?S[CUR]:null;
+      return window.inventorySummary(st||{});
+    }catch(_){return null}
+  }
+
+  function tarjetas(){
+    if(view()!=='inventario')return;
+    var grid=document.querySelector('#content .inventoryKpis, #content .v8662Kpis');
+    if(!grid)grid=(function(){
+      var c=document.querySelector('#content .inventoryKpi');
+      return c?c.parentElement:null;
+    })();
+    if(!grid)return;
+    var x=resumen();if(!x)return;
+
+    /* el texto de "Productos sanos" decía "incluye próximos", que es lo que
+       hacía confusa la lectura */
+    Array.prototype.forEach.call(grid.querySelectorAll('.inventoryKpi'),function(card){
+      var l=card.querySelector('.ikLabel'),m=card.querySelector('.ikMeta'),v=card.querySelector('.ikValue');
+      if(!l)return;
+      var z=s(l.textContent);
+      if(z==='Productos sanos'){
+        if(v)v.textContent=fint(x.healthy);
+        if(m)m.textContent='Sin unidades en Rotación ni Evacuación y todas por debajo de 90 días.';
+      }
+      if(z==='Próximos a Rotar'&&m){
+        m.textContent='Aviso dentro de Sanos · unidades entre 61 y 90 días.';
+      }
+    });
+
+    /* tarjeta del grupo intermedio */
+    var ya=document.getElementById('v266Aged');
+    var n=Number(x.aged||0);
+    if(!n){if(ya)ya.remove();return}
+    var html='<div class="inventoryKpi clickableKpi" id="v266Aged" onclick="window.abrirVencidos266()">'+
+      '<div class="ikLabel">Con unidades vencidas</div>'+
+      '<div class="ikValue" style="color:var(--rot)">'+fint(n)+'</div>'+
+      '<div class="ikMeta">Más de 90 días y ninguna lista oficial los reclama</div></div>';
+    if(ya){if(ya.outerHTML!==html)ya.outerHTML=html;}
+    else{
+      var sano=Array.prototype.slice.call(grid.querySelectorAll('.inventoryKpi')).filter(function(c){
+        var l=c.querySelector('.ikLabel');return l&&s(l.textContent)==='Productos sanos';
+      })[0];
+      if(sano)sano.insertAdjacentHTML('afterend',html);
+      else grid.insertAdjacentHTML('beforeend',html);
+    }
+  }
+
+  window.abrirVencidos266=function(){
+    var x=resumen();if(!x)return;
+    var rows=(x.agedRows||[]).slice().sort(function(a,b){
+      return Number(b.valorInventario||0)-Number(a.valorInventario||0);
+    });
+    var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),
+        tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');
+    if(!modal||!body)return;
+    function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+    if(tt)tt.textContent='Productos con unidades vencidas';
+    if(ss)ss.textContent=fint(rows.length)+' productos con mercancía de más de 90 días que no están '+
+      'en la lista oficial de Rotación (pide estado A / Línea) ni en la de Evacuación (pide fuera de surtido con estado N).';
+    body.innerHTML='<div class="twrap"><table class="v8618Table"><thead><tr>'+
+      '<th>Producto</th><th>Estado abast.</th><th>Ciclo de vida</th>'+
+      '<th class="num">Stock</th><th class="num">Más de 90 días</th>'+
+      '<th class="num">Valor</th><th>Antigüedad</th></tr></thead><tbody>'+
+      rows.map(function(r){
+        var u90=0,etq='';
+        Object.keys(r.rangos||{}).forEach(function(k){
+          var lo=parseInt(String(k).replace(/[^0-9].*$/,''),10);
+          if(String(k).indexOf('360')===0||lo>=91){u90+=Number(r.rangos[k]||0);if(!etq)etq=k}
+        });
+        return '<tr><td><b>'+esc(r.producto||(r.p&&r.p.n)||r.c)+'</b><div class="muted">'+esc(r.c)+'</div></td>'+
+          '<td>'+esc(r.estadoAbastecimiento)+'</td><td>'+esc(r.cicloVida)+'</td>'+
+          '<td class="num">'+fint(r.stock)+'</td><td class="num"><b>'+fint(u90)+'</b></td>'+
+          '<td class="num">'+fint(r.valorInventario)+'</td><td>'+esc(etq)+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+    modal.classList.add('on');
+  };
+
+  function nota(){
+    if(view()!=='inventario')return;
+    var n=document.querySelector('#content .v8662MixNote');if(!n)return;
+    var x=resumen();if(!x)return;
+    var html='<b>Cierre:</b> '+fint(x.healthy)+' sanos + '+fint(x.aged||0)+' con unidades vencidas + '+
+      fint(x.rotation)+' rotación + '+fint(x.evacuation)+' evacuación = <b>'+
+      fint(Number(x.healthy)+Number(x.aged||0)+Number(x.rotation)+Number(x.evacuation))+' productos</b>'+
+      ' de '+fint(x.refs)+' con existencia · los '+fint(x.prox)+' próximos a rotar van dentro de los sanos';
+    if(n.innerHTML!==html)n.innerHTML=html;
+  }
+
+  function tick(){try{tarjetas();nota()}catch(e){}}
+  function install(){
+    tick();
+    if(!window.__v266Tick)window.__v266Tick=setInterval(tick,900);
+    console.info('LLAVERO V86.266 · Sano estricto: sin estados y todo por debajo de 90 días');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2000)},{once:true});
+  else setTimeout(install,2000);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,1900)});
+})();
+
+/* ===== V86.272 · Chips de identificación en TODAS las tablas =====
+
+   Lo pedido: ver Estrella/Testeo/Novedad/etc. directo en la fila, sin abrir el
+   detalle, y en todos los módulos — Inventario, Rotación, Evacuación, Próximos
+   a rotar, Markdown, Traslados, Ventas...
+
+   CÓMO SE HACE SIN TOCAR 25+ GENERADORES DE FILA. El código de producto se
+   pinta en <span class="code"> en 104 sitios distintos del proyecto (64 en
+   index.html, 40 en app.js): son 25+ funciones que arman filas de tabla, cada
+   una con su propio HTML. Editar cada una una por una es lento y arriesgado en
+   un proyecto con este nivel de duplicación.
+
+   En vez de eso, igual que V86.258 y V86.263, este bloque trabaja SOBRE LO YA
+   RENDERIZADO: cada 900 ms recorre los <span class="code"> visibles en
+   #content, y a cada uno que aún no tiene su chip le agrega un punto de color
+   con el estado del producto. No importa qué módulo esté abierto ni qué
+   función pintó esa fila.
+
+   POR QUÉ UN PUNTO Y NO EL CHIP COMPLETO. "★ Estrella" o "Fuera de surtido"
+   completos no caben al lado de un código de 7 dígitos sin romper columnas
+   angostas (Rotación, Evacuación, Ventas). Se usa un punto de color con el
+   texto completo en el atributo title (aparece al pasar el mouse), y si el
+   producto tiene el matiz más importante -- Estrella -- también la letra ★
+   junto al punto, porque es la que más le importa ver de un vistazo al que
+   decide qué reponer primero.
+
+   LA FUENTE es la misma de la ficha (V86.271): cicloVida/surtido/estado de
+   abastecimiento del inventario de la tienda actual, con el matriz de P como
+   respaldo para Estrella. Se indexa una vez por tienda y corte, no en cada
+   tick. */
+(function(){
+  'use strict';
+  function s(v){return v==null?'':String(v).trim()}
+  function up(v){return s(v).toUpperCase()}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function fecha(){try{return s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){return ''}}
+
+  var IDX=null,CLAVE='';
+  function indice(){
+    var k=cur()+'|'+fecha();
+    if(IDX&&CLAVE===k)return IDX;
+    var m=Object.create(null);
+    try{
+      var St=(typeof S!=='undefined'&&S)?S:{},st=St[cur()];
+      var P1=(typeof P!=='undefined'&&P)?P:{};
+      (Array.isArray(st&&st.inventario)?st.inventario:[]).forEach(function(r){
+        var c=s(r&&r.codigo);if(!c)return;
+        var ciclo=up(r.cicloVida),surt=up(r.surtido),ab=up(r.estadoAbastecimiento);
+        var tags=[];
+        if(surt==='ESTRELLA'||up(r.matriz)==='ESTRELLA')tags.push(['estrella','Estrella']);
+        /* V86.281: igual que en la ficha, Testeo y Novedad se deciden solo por
+           el estado de abastecimiento (T u O), que son mutuamente excluyentes. */
+        if(ab==='T')tags.push(['t','Testeo']);
+        else if(ab==='O')tags.push(['o','Novedad']);
+        if(ciclo==='FUERA SURTIDO'||surt==='FUERA SURTIDO'||ab==='N')tags.push(['evac','Fuera de surtido']);
+        if(surt==='FAMILIAR LÍDER'||surt==='FAMILIAR LIDER')tags.push(['familiar','Familiar líder']);
+        if(surt==='PROTECTOR DE TERRENO')tags.push(['protector','Protector de terreno']);
+        if(surt==='IMAGEN')tags.push(['imagen','Imagen']);
+        if(tags.length)m[c]=tags;
+      });
+      /* codigos que no aparecen en el inventario de la tienda (por ejemplo en
+         una tabla nacional o de otra tienda): respaldo solo con Estrella de P,
+         que es national y no depende de la tienda */
+      Object.keys(P1).forEach(function(c){
+        if(m[c])return;
+        if(up(P1[c]&&P1[c].matriz)==='ESTRELLA')m[c]=[['estrella','Estrella']];
+      });
+    }catch(e){console.error('V86.272',e)}
+    IDX=m;CLAVE=k;return m;
+  }
+
+  /* V86.273: el punto de color con el texto solo en el title (al pasar el
+     mouse) no se entendía -- se pidió que el campo se lea directo, sin acción
+     del usuario. Ahora se inserta el texto de cada estado como una etiqueta
+     visible junto al código, no un punto mudo. Orden de prioridad si un
+     producto tiene varios (para no saturar columnas angostas se muestran
+     como máximo 2, con "+N" si hay más y el resto en el title). */
+  var ORDEN272=['estrella','t','o','evac','familiar','protector','imagen'];
+  function marcar(){
+    var root=document.body;if(!root)return;
+    var idx=indice();
+    var spans=root.querySelectorAll('span.code:not([data-v272])');
+    if(!spans.length)return;
+    spans.forEach(function(sp){
+      sp.setAttribute('data-v272','1');
+      var c=s(sp.textContent);
+      var tags=idx[c];
+      if(!tags||!tags.length)return;
+      tags=tags.slice().sort(function(a,b){return ORDEN272.indexOf(a[0])-ORDEN272.indexOf(b[0])});
+      var wrap=document.createElement('span');
+      wrap.className='v272Wrap';
+      tags.slice(0,2).forEach(function(t){
+        var chip=document.createElement('span');
+        chip.className='v227Tag v272Inline '+t[0];
+        chip.textContent=t[1];
+        wrap.appendChild(chip);
+      });
+      if(tags.length>2){
+        var mas=document.createElement('span');
+        mas.className='v227Tag v272Inline mas';
+        mas.title=tags.slice(2).map(function(t){return t[1]}).join(' · ');
+        mas.textContent='+'+(tags.length-2);
+        wrap.appendChild(mas);
+      }
+      sp.insertAdjacentElement('afterend',wrap);
+    });
+  }
+
+  function install(){
+    try{marcar()}catch(e){console.error('V86.272',e)}
+    if(!window.__v272Tick)window.__v272Tick=setInterval(function(){try{marcar()}catch(_){}},900);
+    console.info('LLAVERO V86.272 · Chips de identificación en todas las tablas');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2100)},{once:true});
+  else setTimeout(install,2100);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,2000)});
+})();
+
+/* ===== V86.275 · Aviso de corte nuevo al iniciar =====
+
+   Guarda en el navegador la fecha del último corte que esa persona vio
+   (localStorage, igual que hace el resto del proyecto con la memoria de
+   Markdown y las acciones). Al arrancar, si DB.meta.fecha es distinta a la
+   guardada, muestra un aviso con toast() -- el mismo mecanismo que ya usa la
+   app para sus demás notificaciones -- y actualiza lo guardado.
+
+   Primera vez en un navegador (no hay fecha guardada): no se avisa, solo se
+   guarda la fecha actual. Avisar en la primera visita diría "corte nuevo"
+   cuando en realidad la persona nunca vio uno viejo.
+
+   Si el corte retrocede (se volvió a publicar uno anterior, o se restauró un
+   respaldo), también se avisa: la persona necesita saber que lo que ve no es
+   lo último que vio antes, no solo cuando avanza. */
+(function(){
+  'use strict';
+  var CLAVE='llavero_ultimo_corte_visto_v1';
+  function s(v){return v==null?'':String(v).trim()}
+  function fechaLegible(f){
+    try{
+      var p=f.split('-');if(p.length!==3)return f;
+      var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));
+      return d.toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'});
+    }catch(_){return f}
+  }
+  function avisar(){
+    var fecha='';
+    try{fecha=s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){}
+    if(!fecha)return;                 /* corte aun no cargado, se reintenta luego */
+    var previo='';
+    try{previo=s(localStorage.getItem(CLAVE))}catch(_){}
+    if(previo&&previo!==fecha){
+      var msg=fecha>previo
+        ? 'Nuevo corte cargado: '+fechaLegible(fecha)
+        : 'Este corte ('+fechaLegible(fecha)+') es anterior al último que viste ('+fechaLegible(previo)+')';
+      try{
+        if(typeof toast==='function')toast(msg,'ok');
+        else console.info('LLAVERO ·',msg);
+      }catch(_){console.info('LLAVERO ·',msg)}
+    }
+    try{localStorage.setItem(CLAVE,fecha)}catch(_){}
+  }
+  function install(){
+    try{avisar()}catch(e){console.error('V86.275',e)}
+    /* DB puede tardar en poblarse tras el evento de arranque; unos reintentos
+       cortos bastan, sin dejar un temporizador corriendo para siempre */
+    var i=0,t=setInterval(function(){
+      i++;
+      try{
+        if((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||i>15)clearInterval(t);
+        avisar();
+      }catch(_){}
+    },400);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,600)},{once:true});
+  else setTimeout(install,600);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,500)});
+})();
+
+/* ===== V86.282 · Quitar "Inventario actual" del detalle de guía =====
+
+   Pedido: en la vista detallada de un ambiente (guideFloorTableV50, la tabla
+   por piso con Existencia/Inventario actual/Presencia/Dispo CENDIS/Estado...)
+   dejar solo Existencia y Presencia.
+
+   Esta tabla la arma un parche base (V86.50) y despues la retocan otros tres
+   (V86.8680 le agrega "Estado guía", uno mas le agrega "Venta 3 meses" y
+   "Distribución 3M", y V86.117 la reescribe por completo fusionando columnas
+   para OTRA vista). Tocar la columna en cada capa por separado significa
+   editar cuatro sitios que dependen del mismo indice de columna. Es mas
+   seguro trabajar sobre lo que ya quedo en pantalla, despues de que las demas
+   capas terminaron: se busca el encabezado "Inventario actual" y se retira esa
+   columna entera (encabezado + celda de cada fila).
+
+   Si la tabla ya fue reescrita por V86.117 (fusiona Existencia+Inventario en
+   una sola celda, "Existencia tienda"), no hay columna aparte que quitar: se
+   detecta por su marca (dataset.v117) y no se toca. */
+(function(){
+  'use strict';
+  function quitarColumna(tabla, nombre){
+    var head=tabla.tHead&&tabla.tHead.rows&&tabla.tHead.rows[0];
+    if(!head)return;
+    var ths=Array.prototype.slice.call(head.children),idx=-1;
+    for(var i=0;i<ths.length;i++){
+      if(ths[i].textContent.trim().toUpperCase()===nombre){idx=i;break}
+    }
+    if(idx<0)return;                 /* ya no esta, nada que hacer */
+    ths[idx].remove();
+    Array.prototype.forEach.call(tabla.tBodies&&tabla.tBodies[0]?tabla.tBodies[0].rows:[],function(tr){
+      if(tr.children.length>idx)tr.children[idx].remove();
+    });
+  }
+  function limpiar(){
+    document.querySelectorAll('.guideFloorTableV50, .guideModalTableV48').forEach(function(tabla){
+      if(tabla.dataset.v117==='1')return;       /* V86.117 ya fusiono esta columna */
+      if(tabla.dataset.v282==='1')return;
+      quitarColumna(tabla,'INVENTARIO ACTUAL');
+      tabla.dataset.v282='1';
+    });
+  }
+  function install(){
+    try{limpiar()}catch(e){console.error('V86.282',e)}
+    if(!window.__v282Tick)window.__v282Tick=setInterval(function(){try{limpiar()}catch(_){}},900);
+    console.info('LLAVERO V86.282 · "Inventario actual" retirado del detalle de guía');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2300)},{once:true});
+  else setTimeout(install,2300);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,2200)});
+})();
+
+/* ===== V86.284 · Título fijo de la pestaña =====
+
+   Hay mas de 30 funciones "mark()" repartidas en capas anteriores (una por
+   cada version publicada) que sobrescriben document.title con el numero de
+   version y la fecha de esa capa ("Llavero · Inventarios Jamar · 18/08/2026 ·
+   V86.124", etc). Cambiar el <title> estatico en el <head> no alcanza: la
+   ultima de esas funciones que corre al arrancar lo vuelve a pisar.
+
+   En vez de rastrear las 30+, este bloque corre AL FINAL (se agrega al final
+   de app.js, que es lo ultimo que se ejecuta) y fuerza el titulo correcto
+   despues de que todas las demas ya corrieron. El intervalo cubre el caso de
+   alguna capa que reescriba el titulo mas tarde, ligada a la carga de datos. */
+(function(){
+  'use strict';
+  var TITULO='Llavero - Motor de operación de tienda';
+  /* V86.284: no basta con re-poner el titulo cada cierto tiempo. Hay mas de
+     30 funciones "mark()" (una por capa/version publicada) que reescriben
+     document.title, algunas disparadas al cambiar de vista, no solo al
+     arrancar -- entre que una de ellas lo cambia y el siguiente sondeo lo
+     corrige queda una ventana donde se ve el titulo viejo, y en la practica
+     esa ventana no siempre alcanzaba a cerrarse a tiempo.
+
+     En vez de sondear, se intercepta el setter de document.title: cualquier
+     asignacion, venga de donde venga, escribe el titulo fijo. Es la unica
+     forma de que ganen SIEMPRE, sin depender de quien corra ultimo ni de
+     cada cuanto se revise. */
+  try{
+    var nodo=document.getElementsByTagName('title')[0];
+    if(!nodo){nodo=document.createElement('title');document.head.appendChild(nodo)}
+    var descriptor=Object.getOwnPropertyDescriptor(Document.prototype,'title')||
+                    Object.getOwnPropertyDescriptor(HTMLDocument.prototype,'title');
+    var setNativo=descriptor&&descriptor.set?descriptor.set.bind(document):function(v){nodo.textContent=v};
+    setNativo(TITULO);
+    Object.defineProperty(document,'title',{
+      configurable:true,
+      get:function(){return TITULO},
+      set:function(){setNativo(TITULO)}     /* cualquier intento de cambiarlo se ignora */
+    });
+  }catch(e){
+    console.error('V86.284',e);
+    try{document.title=TITULO}catch(_){}
+  }
 })();

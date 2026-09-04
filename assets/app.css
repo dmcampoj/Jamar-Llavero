@@ -6992,3 +6992,397 @@ body.dark #rangeModalBody table.v8695MdTable tbody tr:hover td{background:#343b4
 #content .pv-guide-card .mkpis > .v223FloorBlock{width:100%;margin:14px 0 0}
 #content .pv-guide-card .mkpis > .v223FloorBlock + .pv-section-label,
 #content .pv-guide-card .mkpis > #v155GuideConcentration + .pv-section-label{margin-top:18px}
+
+/* ===== V86.224 · Barra de alcance del Líder ===== */
+.v224Bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:var(--card,#fff);border:1px solid var(--line,#e6e9ef);border-radius:14px;padding:12px 14px;margin:0 0 14px}
+.v224Field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.v224Field label{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut,#77808f)}
+.v224Field select,.v224Field input{height:34px;border:1px solid var(--line,#dde1e8);border-radius:9px;background:var(--bg2,#f7f8fa);color:var(--ink,#1e2430);font:inherit;font-size:12.5px;padding:0 10px;min-width:150px;max-width:230px}
+.v224Field.v224Search{flex:1 1 220px}
+.v224Field.v224Search input{width:100%;max-width:none;min-width:180px}
+.v224Bar .v224Clear{height:34px;padding:0 16px;border:1px solid var(--line,#dde1e8);border-radius:9px;background:var(--card,#fff);color:var(--ink,#1e2430);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.v224Bar .v224Clear:hover{background:var(--bg2,#f2f4f7)}
+.v224Count{align-self:center;background:var(--bg2,#f2f4f7);border:1px solid var(--line,#e2e5ea);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:800;color:var(--ink2,#4a5160);white-space:nowrap}
+@media(max-width:860px){.v224Field select,.v224Field input{min-width:0;width:100%;max-width:none}.v224Field{flex:1 1 45%}}
+
+/* ===== V86.225 · Columna de tienda y Ambientes consolidado ===== */
+.v225StoreCell{display:flex;flex-direction:column;line-height:1.25}
+.v225StoreCell b{font-size:12px;font-weight:800;color:var(--ink,#1e2430)}
+.v225StoreCell small{font-size:10px;color:var(--mut,#77808f);font-weight:700;letter-spacing:.03em}
+.v225StoreCell.v225Unknown{color:var(--mut,#9aa3b0)}
+.v225Note{background:var(--bg2,#f7f8fa);border:1px dashed var(--line,#dde1e8);border-radius:11px;padding:11px 14px;font-size:12px;color:var(--ink2,#4a5160);line-height:1.55;margin-bottom:14px}
+.v225Kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.v225Kpi{border:1px solid var(--line,#e6e9ef);border-radius:13px;padding:13px 15px;background:var(--card,#fff);display:flex;flex-direction:column;gap:3px;min-width:0}
+.v225Kpi label{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut,#77808f)}
+.v225Kpi b{font-size:22px;font-weight:800;color:var(--ink,#1e2430);line-height:1.15}
+.v225Kpi small{font-size:11px;color:var(--mut,#77808f)}
+.v225Bad{color:var(--rot,#d64545)}
+.v225Warn{color:var(--amb,#c98a1b)}
+.v225TableWrap{overflow-x:auto;border:1px solid var(--line,#e6e9ef);border-radius:13px}
+.v225Table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:840px}
+.v225Table thead th{position:sticky;top:0;background:var(--bg2,#f5f7fa);text-align:left;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--mut,#6b7480);padding:10px 12px;border-bottom:1px solid var(--line,#e2e5ea);white-space:nowrap}
+.v225Table thead th.num,.v225Table td.num{text-align:right}
+.v225Table td{padding:11px 12px;border-bottom:1px solid var(--line,#eef0f4);vertical-align:middle}
+.v225Table tbody tr{cursor:pointer}
+.v225Table tbody tr:hover{background:var(--bg2,#f7f9fc)}
+.v225St{display:flex;flex-direction:column;line-height:1.3}
+.v225St b{font-size:12.5px;font-weight:800}
+.v225St small{font-size:10px;color:var(--mut,#77808f);font-weight:700}
+.v225PctCell{min-width:200px}
+.v225PctCell b{font-size:13px;font-weight:800}
+.v225PctCell small{display:block;font-size:10.5px;color:var(--mut,#77808f);margin-top:3px}
+.v225Track{height:6px;border-radius:999px;background:var(--line,#e6e9ef);overflow:hidden;margin:5px 0 0}
+.v225Fill{height:100%;border-radius:999px}
+.v226Th{white-space:nowrap}
+.v226Td{vertical-align:middle}
+
+/* ===== V86.227 · Desglose por tienda ===== */
+.v227Box{border:1px solid var(--line,#e6e9ef);border-radius:14px;background:var(--card,#fff);padding:14px 16px;margin:0 0 16px}
+.v227Head{display:flex;flex-direction:column;gap:3px;margin-bottom:11px}
+.v227Head b{font-size:14px;font-weight:800;color:var(--ink,#1e2430)}
+.v227Head span{font-size:12px;color:var(--mut,#6b7480);line-height:1.5}
+.v227Wrap{overflow-x:auto;border:1px solid var(--line,#eef0f4);border-radius:11px}
+.v227Table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:720px}
+.v227Table thead th{background:var(--bg2,#f5f7fa);text-align:left;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--mut,#6b7480);padding:9px 11px;border-bottom:1px solid var(--line,#e2e5ea);white-space:nowrap}
+.v227Table th.num,.v227Table td.num{text-align:right}
+.v227Table td{padding:10px 11px;border-bottom:1px solid var(--line,#f0f2f6);vertical-align:middle}
+.v227Table tbody tr{cursor:pointer}
+.v227Table tbody tr:hover{background:var(--bg2,#f7f9fc)}
+.v227Table tfoot td{padding:10px 11px;background:var(--bg2,#f7f8fa);font-size:12.5px;border-top:1px solid var(--line,#e2e5ea)}
+.v227St{display:flex;flex-direction:column;line-height:1.28}
+.v227St b{font-size:12.5px;font-weight:800}
+.v227St small{font-size:10px;color:var(--mut,#77808f);font-weight:700}
+.v227Age{font-size:11px;color:var(--ink2,#4a5160);line-height:1.4}
+.v227Muted{color:var(--mut,#9aa3b0)}
+.v227States{white-space:nowrap}
+.v227Tag{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.02em;margin-right:3px}
+.v227Tag.rot{background:rgba(214,69,69,.12);color:var(--rot,#c33)}
+.v227Tag.evac{background:rgba(201,138,27,.14);color:var(--amb,#a8730f)}
+.v227Tag.ok{background:rgba(34,150,94,.12);color:var(--ok,#1f8a55)}
+.v227Tag.t{background:rgba(70,110,200,.14);color:#3c62b8}
+.v227Tag.o{background:rgba(140,80,190,.14);color:#7a48b0}
+.v227Tag.n{background:rgba(120,128,140,.14);color:#5d6673}
+.v227Pill{display:inline-block;min-width:26px;padding:2px 8px;border-radius:999px;background:var(--bg2,#eef1f6);border:1px solid var(--line,#dfe3ea);font-size:11.5px;font-weight:800;color:var(--ink2,#41485a)}
+.v227Th{white-space:nowrap}
+.v228Note{display:block;font-size:10px;font-weight:700;color:var(--mut,#8a929f);margin-top:2px;letter-spacing:.01em}
+.detailItem.v228Fixed b{display:flex;flex-direction:column;line-height:1.25}
+
+/* ===== V86.233 · Tienda en Traslados y descuentos ===== */
+.v233Th{white-space:nowrap}
+.v233Store{display:flex;flex-direction:column;line-height:1.25}
+.v233Store b{font-size:12px;font-weight:800;color:var(--ink,#1e2430);white-space:nowrap}
+.v233Store small{font-size:10px;color:var(--mut,#77808f);font-weight:700}
+.v233Mut{color:var(--mut,#9aa3b0)}
+.v233Pol{display:block;font-size:9.5px;font-weight:700;color:var(--mut,#8a929f);text-transform:uppercase;letter-spacing:.03em;margin-top:1px}
+.v233Gap{color:var(--rot,#c33)}
+
+/* ===== V86.235 · Barra superior del Líder ===== */
+body.v235Lider .hctl .search,
+body.v235Lider .hctl .uploadBtn,
+body.v235Lider .hctl #downloadHtmlBtn,
+body.v235Lider .hctl #xlsxStatus,
+body.v235Lider .hctl .toolBtn[onclick*="exportCurrentViewCSV"],
+body.v235Lider .hctl .toolBtn[onclick*="print"],
+body.v235Lider .pageTitleLine .cutChip{display:none!important}
+/* Sin esos controles la fila queda con aire de sobra a la derecha. */
+body.v235Lider .hctl{gap:8px}
+body.v235Lider .pageTitleLine{gap:0}
+
+/* ===== V86.238 · Conteos e Inventario agrupado ===== */
+.v238Th{white-space:nowrap}
+.v238Pill{display:inline-block;min-width:28px;padding:2px 9px;border-radius:999px;background:var(--bg2,#eef1f6);border:1px solid var(--line,#dfe3ea);font-size:11.5px;font-weight:800;color:var(--ink2,#41485a)}
+.v238Chips{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 11px}
+.v238Chip{border:1px solid var(--line,#dfe3ea);background:var(--card,#fff);border-radius:999px;padding:5px 12px;font:inherit;font-size:11.5px;font-weight:700;color:var(--ink2,#4a5160);cursor:pointer;white-space:nowrap}
+.v238Chip b{font-weight:800;color:var(--ink,#1e2430)}
+.v238Chip:hover{background:var(--bg2,#f4f6f9)}
+.v238Chip.on{background:var(--ink,#1e2430);border-color:var(--ink,#1e2430);color:#fff}
+.v238Chip.on b{color:#fff}
+
+/* ===== V86.239 · Filtros de ambiente, scroll de listas y del comparativo ===== */
+.v239Cats{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 14px}
+.v239Cat{border:1px solid var(--line,#dfe3ea);background:var(--card,#fff);border-radius:999px;padding:6px 13px;font:inherit;font-size:11.5px;font-weight:700;color:var(--ink2,#4a5160);cursor:pointer;white-space:nowrap}
+.v239Cat b{font-weight:800;color:var(--ink,#1e2430)}
+.v239Cat:hover{background:var(--bg2,#f4f6f9)}
+.v239Cat.on{background:var(--ink,#1e2430);border-color:var(--ink,#1e2430);color:#fff}
+.v239Cat.on b{color:#fff}
+.v239Scroll{max-height:430px;overflow-y:auto;overflow-x:auto;border:1px solid var(--line,#eef0f4);border-radius:11px}
+.v239Scroll table thead th{position:sticky;top:0;z-index:2;background:var(--bg2,#f5f7fa)}
+.v170SugTitle small{font-weight:700;color:var(--mut,#8a929f);font-size:10.5px;margin-left:6px}
+/* La regla que recortaba era «.leaderGrid .card:first-child .twrap{overflow-x:hidden!important}»,
+   de mayor especificidad que una sola clase. Por eso este selector va cargado. */
+#content .leaderGrid .card .twrap.v239ScrollX,
+#content .leaderGrid .twrap.v239ScrollX,
+html body #content .v239ScrollX,
+.v239ScrollX{overflow-x:auto!important;max-width:100%}
+#content .v239ScrollX table,.v239ScrollX table{min-width:max-content}
+.v239NoClip{overflow:visible!important}
+
+/* V86.241 · columna Tienda en la tarjeta de cambios de descuento.
+   Estas tablas van con «twrap table{table-layout:fixed}», asi que sin un ancho
+   declarado la columna sale del mismo tamano que las demas y la pildora del
+   nombre se montaba encima de la columna Codigo. */
+.v241Th{width:118px}
+.v241Td{overflow:hidden}
+.v241Store{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  vertical-align:bottom;font-size:10.4px;font-weight:700;color:#334155;background:#f1f5f9;
+  border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;box-sizing:border-box}
+
+/* V86.242 · nota que explica en qué unidad va cada número de la tarjeta */
+.v242Nota{margin:0 0 12px;padding:9px 12px;border-radius:10px;background:#f8fafc;
+  border:1px solid #e2e8f0;border-left:3px solid #94a3b8;color:#475569;
+  font-size:11.6px;line-height:1.45}
+.v242Nota b{color:#1e293b;font-weight:800}
+.v242Meta{opacity:.85}
+
+/* V86.243 · segunda línea del KPI de cuadrante */
+.v243Meta{font-size:10.8px;color:#64748b;line-height:1.35;margin-top:3px}
+
+/* V86.244 · producto tienda por tienda */
+.v244Hero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0 14px;
+  align-items:start;align-content:start}
+/* La ficha del producto es un contenedor flexible: sin estos topes las cuatro
+   tarjetas se estiraban a todo el alto del modal y tapaban la tabla. */
+.v244H{border:1px solid var(--line,#e2e8f0);border-radius:10px;padding:10px 11px;background:#fff;
+  min-width:0;height:auto;align-self:start;overflow:hidden}
+/* Se llamaba .main y chocaba con una regla del armazon del sitio que pone
+   display:flex y un ancho fijo: la tarjeta salia de 74 px de ancho y 932 de
+   alto. Nombre propio para que no vuelva a pasar. */
+.v244H.v244Main{border-color:#fdba74;background:#fffbf5;display:block!important;width:auto!important}
+.v244H .k{font-size:9.6px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#64748b;
+  white-space:normal;line-height:1.25;min-height:2.4em}
+.v244H .v{font-size:21px;font-weight:800;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.v244H .v.val{font-size:15px}
+.v244H.v244Main .v{color:#ea580c}
+.v244H .m{font-size:10.6px;color:#64748b;margin-top:2px;line-height:1.35}
+.v244Th{white-space:nowrap}
+.v244Td.g b{color:#ea580c;font-weight:800}
+.v244Sin{color:#94a3b8}
+.v244Age{min-width:130px}
+.v244Bar{display:flex;width:100%;min-width:110px;height:10px;border-radius:99px;overflow:hidden;gap:2px;background:#f1f5f9}
+.v244Bar i{display:block}
+.a1{background:#f7dfb5} .a2{background:#e79318} .a3{background:#a04f00} .a4{background:#4a2000}
+.v244Leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#64748b;margin-top:10px}
+.v244Leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.v244LegNote{font-style:italic}
+@media(max-width:820px){.v244Hero{grid-template-columns:repeat(2,1fr)}}
+
+/* V86.246 · nota de días entre cortes */
+.v246Nota{margin:8px 0 2px;padding:8px 12px;border-radius:9px;background:#f8fafc;
+  border:1px solid #e2e8f0;border-left:3px solid #94a3b8;color:#475569;font-size:11.8px;line-height:1.5}
+.v246Nota b{color:#1e293b;font-weight:800}
+.v246Sub{color:#94a3b8}
+
+/* V86.248 · antigüedad en números, no en barra */
+/* Texto corrido, no fichas apiladas: con tres tramos las fichas ocupaban tres
+   líneas y hacían la fila el triple de alta. */
+.v248Edades{display:inline;white-space:normal;line-height:1.5}
+.v248Tramo{white-space:nowrap;font-size:11px;color:#64748b}
+.v248Tramo+.v248Tramo::before{content:" · ";color:#cbd5e1}
+.v248Tramo b{font-weight:800;color:#334155}
+.v248Tramo.urge{color:#9a3412;font-weight:700}
+.v248Tramo.urge b{color:#7c2d12}
+.v244Age{min-width:165px}
+
+/* V86.250 · módulo de desarrollador */
+.v250Wrap{max-width:1100px}
+.v250H1{font-size:20px;font-weight:800;margin:0 0 2px;letter-spacing:-.01em}
+.v250Sub{color:#64748b;font-size:12.5px;margin:0 0 16px}
+.v250Tabla{width:100%;border-collapse:collapse;font-size:12.5px}
+.v250Tabla th{text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:#64748b;font-weight:800;padding:0 9px 8px;border-bottom:1px solid #e2e8f0}
+.v250Tabla td{padding:7px 9px;border-bottom:1px solid #f1f5f9}
+.v250Tabla code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#1e293b}
+.v250Si{color:#0b7a56;font-weight:700} .v250No{color:#b3400a;font-weight:700}
+.v250Form{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:end}
+.v250Form label{display:flex;flex-direction:column;gap:4px;font-size:10.5px;font-weight:800;
+  letter-spacing:.05em;text-transform:uppercase;color:#64748b}
+.v250Form input,.v250Form select{font:inherit;font-size:13px;padding:7px 9px;border:1px solid #cbd5e1;
+  border-radius:8px;background:#fff;color:#132043}
+.v250Btn{font:inherit;font-size:12.5px;font-weight:800;padding:8px 14px;border-radius:8px;
+  border:1px solid #e52b2f;background:#e52b2f;color:#fff;cursor:pointer}
+.v250Btn.sec{background:#fff;color:#334155;border-color:#cbd5e1}
+.v250Salida{margin-top:14px;padding:13px 15px;border-radius:11px;background:#f8fafc;
+  border:1px solid #e2e8f0;font-size:12.5px;line-height:1.55}
+.v250Salida.bien{border-left:3px solid #13a877} .v250Salida.mal{border-left:3px solid #d91515}
+.v250Ok{font-size:13.5px;margin-bottom:10px}
+.v250Campo{margin:10px 0}
+.v250Campo label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:#64748b;margin-bottom:4px}
+.v250Campo textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:11px;
+  padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;resize:vertical}
+.v250Pin{font-family:ui-monospace,Consolas,monospace;font-size:19px;font-weight:800;letter-spacing:.06em;
+  background:#fffbf5;border:1px solid #fdba74;border-radius:9px;padding:9px 13px;color:#9a3412;display:inline-block}
+.v250Nota{font-size:11.8px;color:#64748b;line-height:1.55;margin:10px 0 0}
+.v250Nota code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:11px}
+#navDev.on{background:#fff;font-weight:800}
+@media(max-width:900px){.v250Form{grid-template-columns:1fr 1fr}}
+
+/* V86.252 · usuarios desde la hoja */
+.v250Mut{color:#94a3b8}
+.v250Aviso{color:#8a4b0b;background:#fff7ed;border:1px solid #fed7aa;
+  border-radius:8px;padding:9px 11px;margin:10px 0 0}
+.v250Acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.v250Form label small{font-weight:600;color:#94a3b8;font-size:10.5px}
+.v250Acciones input{font:inherit;font-size:12.5px;padding:7px 10px;border:1px solid #cbd5e1;
+  border-radius:8px;min-width:180px}
+
+/* V86.255 · Faltantes con respaldo en CENDIS */
+.v255Kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:14px}
+.v255Kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px}
+.v255Kpi label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.04em;
+  text-transform:uppercase;color:#64748b;margin-bottom:4px}
+.v255Kpi b{font-size:22px;font-weight:800;color:#0f2f56;line-height:1.15;display:block}
+.v255Kpi small{display:block;font-size:11px;color:#94a3b8;margin-top:2px;line-height:1.35}
+.v255Kpi.mut b{color:#94a3b8}
+.v255Tabla{width:100%;border-collapse:collapse;font-size:12.5px}
+.v255Tabla th{text-align:left;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+  color:#64748b;border-bottom:2px solid #e2e8f0;padding:8px 10px;background:#f8fafc}
+.v255Tabla th.num,.v255Tabla td.num{text-align:right}
+.v255Tabla td{border-bottom:1px solid #eef2f7;padding:9px 10px;vertical-align:top}
+.v255Mut{font-size:11px;color:#94a3b8;margin-top:2px}
+.v255Lista{display:flex;flex-wrap:wrap;gap:6px}
+.v255Prod{display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;
+  border-radius:6px;padding:3px 8px;font-size:11.5px;cursor:pointer;max-width:320px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v255Prod:hover{background:#dbeafe}
+.v255Prod b{color:#0b7a56}
+.v255Fila{cursor:pointer}
+.v255Fila:hover{background:#f1f5f9}
+.v255Aviso{background:#fff7ed;border:1px solid #fed7aa;color:#8a4b0b;border-radius:9px;
+  padding:11px 13px;font-size:12px;line-height:1.55;margin-bottom:12px}
+.v255Vacio{color:#64748b;font-size:12.5px;padding:6px 0}
+.v255Nota{font-size:11.8px;color:#64748b;line-height:1.55;margin:12px 0 0}
+
+/* V86.257 · Inventario de presencias */
+.v257Filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px}
+.v257Filtros label{display:flex;flex-direction:column;gap:4px;font-size:10.5px;font-weight:800;
+  letter-spacing:.04em;text-transform:uppercase;color:#64748b}
+.v257Filtros input,.v257Filtros select{font:inherit;font-size:12.5px;font-weight:500;
+  text-transform:none;letter-spacing:0;color:#0f2f56;padding:7px 10px;border:1px solid #cbd5e1;
+  border-radius:8px;background:#fff;min-width:150px}
+.v257Filtros input#v257Q{min-width:230px}
+.v257Check{flex-direction:row!important;align-items:center;gap:6px;text-transform:none;
+  font-size:12px;color:#334155;font-weight:600;padding-bottom:8px}
+.v257Barra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;
+  padding:9px 11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px}
+.v257Cuenta{font-size:12px;color:#475569;margin-right:auto}
+.v257Cuenta b{color:#b3400a;font-size:14px}
+.v257Tabla td,.v257Tabla th{vertical-align:middle}
+.v257Sub{font-size:9.5px;font-weight:600;color:#94a3b8;text-transform:none;letter-spacing:0;margin-top:1px}
+.v257Chk{width:34px;text-align:center}
+.v257Fila.marcada{background:#fff7ed}
+.v257Fila.marcada td{border-bottom-color:#fed7aa}
+.v257Nom{cursor:pointer;color:#0f2f56}
+.v257Nom:hover{text-decoration:underline}
+.v257Amb{display:inline-block;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;
+  border-radius:6px;padding:2px 7px;font-size:11px;max-width:220px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+.v257Sin{color:#94a3b8;font-size:11.5px;font-style:italic}
+.v257Mas{display:flex;gap:10px;align-items:center;margin-top:10px}
+.v255Prod.no{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.v255Prod.no b,.v255Prod.no i{color:#b91c1c}
+.v255Ok{display:inline-block;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;
+  border-radius:6px;padding:3px 9px;font-size:11.5px;font-weight:700}
+.v255Parcial{display:inline-block;background:#fff7ed;border:1px solid #fed7aa;color:#8a4b0b;
+  border-radius:6px;padding:3px 9px;font-size:11.5px;font-weight:600}
+.v255Parcial i{font-style:normal;color:#b0763e}
+.v255Completo td{background:#f6fefb}
+.v255Sub2{font-size:12.5px;font-weight:800;color:#0f2f56;margin:18px 0 8px;
+  padding-top:14px;border-top:1px solid #e2e8f0}
+.v257Est{display:inline-block;border-radius:5px;padding:2px 7px;font-size:10.5px;font-weight:800;
+  letter-spacing:.02em;white-space:nowrap}
+.v257Est.amb{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}
+.v257Est.rot{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.v257Est.evac{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+.v257Sano{color:#94a3b8;font-size:11.5px}
+.v257Ests{display:flex;flex-wrap:wrap;gap:4px}
+.v257AmbNom{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
+.v257Cero{color:#cbd5e1}
+
+/* V86.260 · CAN SUM que el inventario de Llavero no respalda */
+.v257Tabla td.v257Descuadre{color:var(--evac,#c2410c);font-weight:800;text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
+
+/* V86.262 · posicion de guia cuyo codigo no viene en el maestro del corte */
+.guideProductName.v262SinFicha{color:#94a3b8;font-style:italic;font-weight:600}
+
+/* V86.263 · cuadro de guías: avance y respaldo CENDIS */
+.v263Tabla{width:100%;border-collapse:collapse}
+.v263Tabla th{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--mut,#64748b);text-align:left;padding:8px 12px;border-bottom:1px solid var(--line,#e6eaf0)}
+.v263Tabla th.num{text-align:right}
+.v263Tabla td{padding:12px;border-bottom:1px solid var(--line,#eef1f5);vertical-align:middle}
+.v263Tabla td.num{text-align:right;white-space:nowrap}
+.v263Tabla tr.v263R:hover{background:var(--bg2,#f8fafc)}
+.v263Tabla tr.v263Total td{border-top:2px solid var(--line,#d8dfe8);border-bottom:0;background:var(--bg2,#f6f8fb);font-size:15px}
+.v263Sub{font-size:11.5px;color:var(--mut,#7b8794);margin-top:3px;font-weight:500}
+.v263Dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:#cbd5e1;vertical-align:middle}
+.v263Dot.ok{background:#16a34a}.v263Dot.via{background:#2563eb}.v263Dot.no{background:#dc2626}
+.v263Num{background:none;border:0;padding:0;font:inherit;font-size:20px;font-weight:800;color:var(--vta,#1d4ed8);cursor:pointer;line-height:1.1;border-bottom:2px dotted currentColor}
+.v263Num:hover{border-bottom-style:solid}
+.v263Num.cero{color:#b9c2cf;border:0;cursor:default}
+.v263Pie{font-size:10.5px;color:var(--mut,#8b95a3);margin-top:2px;font-weight:600}
+.v263Tabla td.v263Na{color:#d5dbe3}
+
+/* detalle */
+.v263Detalle td{vertical-align:top}
+.v263Chip{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;margin:0 4px 4px 0;border:1px solid}
+.v263Chip.ok{color:#166534;background:#f0fdf4;border-color:#bbf7d0}
+.v263Chip.via{color:#1e40af;background:#eff6ff;border-color:#bfdbfe}
+.v263Chip.nd{color:#92400e;background:#fffbeb;border-color:#fde68a}
+.v263Chip.no{color:#991b1b;background:#fef2f2;border-color:#fecaca}
+.v263Faltas{margin-top:8px;display:grid;gap:5px}
+.v263Falta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}
+.v263Punto{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:#cbd5e1}
+.v263Punto.ok{background:#16a34a}.v263Punto.via{background:#2563eb}.v263Punto.nd{background:#d97706}.v263Punto.no{background:#dc2626}
+.v263Prod{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--tx,#243247);cursor:pointer;text-align:left;text-decoration:underline dotted;text-underline-offset:3px}
+.v263Prod:hover{color:var(--vta,#1d4ed8)}
+.v263Cod{font-size:11px;color:var(--mut,#8b95a3);font-variant-numeric:tabular-nums}
+.v263Est{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+.v263Est.ok{color:#16a34a}.v263Est.via{color:#2563eb}.v263Est.nd{color:#d97706}.v263Est.no{color:#dc2626}
+.v263Piso{font-size:10.5px;color:var(--mut,#8b95a3);margin-left:auto}
+@media(max-width:760px){.v263Num{font-size:17px}.v263Piso{margin-left:0}}
+
+/* V86.265 · tendencia histórica: sin letterboxing, a todo el ancho del panel */
+body[data-v8620-view="dashboard"] .v8657TrendWrap{width:100%!important;padding:0!important}
+body[data-v8620-view="dashboard"] .v8657TrendSvg{
+  width:100%!important;height:auto!important;max-height:320px!important;
+  aspect-ratio:1180/280;display:block!important}
+.v8650TrendSvg{height:auto!important;min-width:0!important;max-height:320px!important;aspect-ratio:1180/280}
+
+/* V86.267 · Tendencia histórica a todo el ancho.
+   La tarjeta vive en un .chartPair de dos columnas. La clase que lo pasaba a una
+   sola (.v8650TrendStack) solo se aplicaba cuando el par tenía TAMBIÉN "Tendencia
+   de gestión diaria", y esa tarjeta se retiró en V86.259: desde entonces la
+   gráfica quedó sola ocupando media pantalla. Cualquier par con una sola tarjeta
+   pasa a ocupar el ancho completo. */
+#content .chartPair > .card:only-child{
+  grid-column:1/-1!important;width:100%!important;min-width:0!important}
+#content .chartPair:has(> .card:only-child){
+  grid-template-columns:minmax(0,1fr)!important}
+#content .chartPair > .card:only-child .v8657TrendSvg,
+#content .chartPair > .card:only-child .v8650TrendSvg{
+  width:100%!important;height:auto!important;max-height:none!important;
+  aspect-ratio:1180/360;display:block!important}
+
+/* V86.271 · chips de identificación del producto (ficha de producto) */
+.v271Chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.v227Tag.estrella{background:rgba(230,180,20,.16);color:#96720c}
+.v227Tag.familiar{background:rgba(34,150,94,.12);color:var(--ok,#1f8a55)}
+.v227Tag.protector{background:rgba(120,120,130,.14);color:#5a5f68}
+.v227Tag.imagen{background:rgba(70,110,200,.14);color:#3c62b8}
+.v227Tag.panama{background:rgba(214,69,69,.10);color:#a83f3f}
+.v227Tag.sinfamilia{background:rgba(120,120,130,.10);color:#8a8f98}
+
+/* V86.274 · etiqueta de identificación: en bloque bajo el código, no en línea.
+   Antes iba pegada al código en la misma línea y reventaba columnas angostas
+   (Rotación, Evacuación); ahora ocupa su propia línea, con ancho consistente y
+   sin desbordar. Un solo estilo de chip para toda la app. */
+.v272Wrap{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:3px}
+.v272Inline{display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;
+  font-weight:800;letter-spacing:.02em;line-height:1.6;white-space:nowrap;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis}
+.v272Inline.estrella{background:rgba(230,180,20,.16);color:#96720c}
+.v272Inline.mas{background:rgba(120,120,130,.12);color:#5a5f68;cursor:help}
+
+/* V86.279 · las 4 tarjetas del consolidado de Ambientes ahora abren detalle */
+.v225Kpi.v225Click{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.v225Kpi.v225Click:hover{border-color:var(--vta,#1d4ed8);box-shadow:0 2px 10px rgba(29,78,216,.10)}
