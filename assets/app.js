@@ -8593,6 +8593,19 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
             var r=remotos[u];
             if(!r||!r.salt||!r.hash)return;
             r.__hoja=true;
+            /* V86.285: Google Sheets convierte solo el codigo de tienda que
+               ESCRIBAS sin apostrofo en numero, y de paso le come el cero de
+               la izquierda -- "01" queda guardado como 1. Con eso CUR=1 y
+               S[CUR] nunca encuentra la tienda (S esta indexada por texto:
+               "01"), y todo el modulo de ese administrador sale en cero. Pasa
+               solo con los codigos de un digito con cero adelante (01..09);
+               "95" sobrevive porque no tiene cero que perder.
+               Aqui se repara solo: si el codigo que llego es puramente
+               numerico y de un solo digito, se le agrega el cero adelante.
+               No corrige la hoja (eso hay que arreglarlo alla tambien, para
+               que quede bien escrito), pero la app deja de romperse mientras
+               tanto. */
+            if(r.store!=null&&/^\d$/.test(String(r.store)))r.store='0'+r.store;
             TABLA.users[String(u).toUpperCase()]=r;n++;
           });
           return n;
