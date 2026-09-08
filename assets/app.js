@@ -2787,7 +2787,12 @@ try{normalizeInventoryRows=window.normalizeInventoryRows;normalizeRotRows=window
 function syncStore(st){if(st)window.recalcOperationalKpis(st);}
 function syncAll(){try{Object.keys(S||{}).forEach(function(k){syncStore(S[k]);});}catch(_){} }
 function syncSidebar(){try{var st=(typeof S!=='undefined'&&S&&S[CUR])||{},x=window.inventorySummary(st),vals={'nc-inv':x.refs,'nc-prox':x.prox,'nc-rot':x.rotation,'nc-evac':x.evacuation};Object.keys(vals).forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=typeof fInt==='function'?fInt(vals[id]):String(vals[id]);});}catch(_){} }
-function patchInventoryClosure(){try{if(typeof VIEW==='undefined'||VIEW!=='inventario')return;var root=document.getElementById('content');if(!root)return;var x=window.inventorySummary((S&&S[CUR])||{});root.querySelectorAll('.inventoryKpi').forEach(function(card){var l=card.querySelector('.ikLabel'),m=card.querySelector('.ikMeta'),v=card.querySelector('.ikValue');if(!l)return;var z=s(l.textContent);if(z==='Productos sanos'){if(v)v.textContent=(typeof fInt==='function'?fInt(x.healthy):x.healthy);if(m)m.textContent='Productos fuera de Rotación y Evacuación. Incluye los próximos a rotar.';}if(z==='Próximos a Rotar'){if(v)v.textContent=(typeof fInt==='function'?fInt(x.prox):x.prox);if(m)m.textContent='Advertencia dentro de Sanos · unidades entre 61 y 90 días.';}if(z==='Rotación'&&v)v.textContent=(typeof fInt==='function'?fInt(x.rotation):x.rotation);if(z==='Evacuación'&&v)v.textContent=(typeof fInt==='function'?fInt(x.evacuation):x.evacuation);});var note=root.querySelector('.v8662MixNote');if(note)note.innerHTML='<b>Cierre:</b> '+x.healthy.toLocaleString('es-CO')+' Sanos + '+x.rotation.toLocaleString('es-CO')+' Rotación + '+x.evacuation.toLocaleString('es-CO')+' Evacuación = <b>'+x.refs.toLocaleString('es-CO')+' productos</b> · '+x.prox.toLocaleString('es-CO')+' próximos están incluidos dentro de Sanos';}catch(_){} }
+function patchInventoryClosure(){try{if(typeof VIEW==='undefined'||VIEW!=='inventario')return;var root=document.getElementById('content');if(!root)return;var x=window.inventorySummary((S&&S[CUR])||{});root.querySelectorAll('.inventoryKpi').forEach(function(card){var l=card.querySelector('.ikLabel'),m=card.querySelector('.ikMeta'),v=card.querySelector('.ikValue');if(!l)return;var z=s(l.textContent);if(z==='Productos sanos'){if(v)v.textContent=(typeof fInt==='function'?fInt(x.healthy):x.healthy);if(m)m.textContent='Productos fuera de Rotación y Evacuación. Incluye los próximos a rotar.';}if(z==='Próximos a Rotar'){if(v)v.textContent=(typeof fInt==='function'?fInt(x.prox):x.prox);if(m)m.textContent='Advertencia dentro de Sanos · unidades entre 61 y 90 días.';}if(z==='Rotación'&&v)v.textContent=(typeof fInt==='function'?fInt(x.rotation):x.rotation);if(z==='Evacuación'&&v)v.textContent=(typeof fInt==='function'?fInt(x.evacuation):x.evacuation);});/* V86.286: se deja de escribir aqui la nota de cierre (.v8662MixNote). Cuatro
+     funciones distintas la reescribian, cada una en su propio intervalo y con
+     numeros distintos (una por tienda, otra por alcance completo) -- el
+     resultado se veia titilar en la vista de Lider de area, cambiando de
+     texto varias veces por segundo. Ahora solo cierreInventario() la escribe,
+     que ya calcula bien para una tienda o para las 21 por igual. */}catch(_){} }
 function mark(){try{window.LLAVERO_BUILD=VERSION;document.documentElement.setAttribute('data-llavero-build',VERSION);document.documentElement.setAttribute('data-llavero-app-version',VERSION);var b=document.querySelector('.appVersionChip b');if(b)b.textContent='18/08/2026 · '+VERSION;document.title='Llavero · Inventarios Jamar · 18/08/2026 · '+VERSION;}catch(_){} }
 function enforce(){syncAll();syncSidebar();patchInventoryClosure();mark();}
 function install(){if(typeof S==='undefined'||!S||typeof window.setView!=='function'){setTimeout(install,120);return;}syncAll();
@@ -12499,7 +12504,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   }
   function install(){
     try{pintar()}catch(e){console.error('V86.263',e)}
-    if(!window.__v263Tick)window.__v263Tick=setInterval(function(){try{pintar()}catch(_){}},900);
+    if(!window.__v263Tick)window.__v263Tick=setInterval(function(){try{pintar()}catch(_){}},1600);
     if(!window.__v263Clic){window.__v263Clic=true;document.addEventListener('click',clics,true)}
     window.LlaveroCuadroGuias={datos:datos,porTienda:deTienda};
     console.info('LLAVERO V86.263 · Cuadro de guías con respaldo CENDIS');
@@ -12615,16 +12620,10 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     modal.classList.add('on');
   };
 
-  function nota(){
-    if(view()!=='inventario')return;
-    var n=document.querySelector('#content .v8662MixNote');if(!n)return;
-    var x=resumen();if(!x)return;
-    var html='<b>Cierre:</b> '+fint(x.healthy)+' sanos + '+fint(x.aged||0)+' con unidades vencidas + '+
-      fint(x.rotation)+' rotación + '+fint(x.evacuation)+' evacuación = <b>'+
-      fint(Number(x.healthy)+Number(x.aged||0)+Number(x.rotation)+Number(x.evacuation))+' productos</b>'+
-      ' de '+fint(x.refs)+' con existencia · los '+fint(x.prox)+' próximos a rotar van dentro de los sanos';
-    if(n.innerHTML!==html)n.innerHTML=html;
-  }
+  /* V86.286: ya no escribe sobre .v8662MixNote (ver nota junto a
+     cierreInventario). El desglose de "con unidades vencidas" vive en su
+     propia tarjeta (v266Aged), asi que no se pierde informacion. */
+  function nota(){}
 
   function tick(){try{tarjetas();nota()}catch(e){}}
   function install(){
@@ -12747,7 +12746,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
 
   function install(){
     try{marcar()}catch(e){console.error('V86.272',e)}
-    if(!window.__v272Tick)window.__v272Tick=setInterval(function(){try{marcar()}catch(_){}},900);
+    if(!window.__v272Tick)window.__v272Tick=setInterval(function(){try{marcar()}catch(_){}},1600);
     console.info('LLAVERO V86.272 · Chips de identificación en todas las tablas');
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2100)},{once:true});
@@ -12858,7 +12857,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   }
   function install(){
     try{limpiar()}catch(e){console.error('V86.282',e)}
-    if(!window.__v282Tick)window.__v282Tick=setInterval(function(){try{limpiar()}catch(_){}},900);
+    if(!window.__v282Tick)window.__v282Tick=setInterval(function(){try{limpiar()}catch(_){}},1600);
     console.info('LLAVERO V86.282 · "Inventario actual" retirado del detalle de guía');
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2300)},{once:true});
