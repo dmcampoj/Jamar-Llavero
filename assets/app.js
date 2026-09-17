@@ -11735,7 +11735,15 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var P=d.P||{},am=ambientes(),x=SS(),out=[];
     cs.forEach(function(sc){
       var st=(x&&x[sc])||{};
-      var pres=(d.GP||{})[sc]||null;
+      /* V86.292: usaba el codigo de tienda directo para buscar en GP, pero GP esta
+         indexado por CODIGO DE BODEGA (Trinitarias=29 vive bajo la bodega B5 en el
+         archivo de presencias, con el nombre "JAMAR SUR", no "TRINITARIAS"). Sin
+         traducir, GP['29'] nunca existia y toda la tabla salia en "Sin dato" para
+         Trinitarias, aunque el dato si estuviera en el archivo. La traduccion es la
+         misma que usa mapBod45() en index.html (indice.html:2710), puesta en linea
+         aqui porque esa funcion vive en un cierre privado, no es global. */
+      var bodPres=String((d.meta&&d.meta.mapeoBodegasInventario&&d.meta.mapeoBodegasInventario[sc])||sc);
+      var pres=(d.GP||{})[bodPres]||null;
       var inv=Object.create(null);
       (Array.isArray(st.inventario)?st.inventario:[]).forEach(function(r){
         var c=s(r&&r.codigo);if(c)inv[c]=r;
@@ -12908,4 +12916,57 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     console.error('V86.284',e);
     try{document.title=TITULO}catch(_){}
   }
+})();
+
+/* ===== V86.293 · La búsqueda ignora el límite de paginado =====
+
+   SÍNTOMA REPORTADO. En Inventario, Próximos a rotar, Rotación y Evacuación,
+   al escribir en el buscador algunos productos no aparecían -- había que
+   presionar "Mostrar 300 más" para que salieran, aunque coincidieran con lo
+   que se estaba buscando.
+
+   CAUSA. Las funciones de estas 4 vistas (hay varias capas superpuestas de
+   cada una, una por parche) hacen: rows.slice(0, s.limit||300). El buscador
+   solo actualiza state.X.q y vuelve a dibujar -- nunca toca state.X.limit.
+   Si el limite ya estaba elevado por haber presionado "Mostrar más" antes, o
+   si la busqueda coincide con mas de 300 productos (comun en alcance
+   nacional, donde el mismo codigo aparece en las 21 tiendas), el corte de
+   300 se aplica DESPUES de filtrar por texto, escondiendo resultados reales
+   sin ningun aviso.
+
+   ARREGLO. En vez de tocar cada una de las multiples capas de drawInventario/
+   drawRot/drawEvac/drawProx (arriesgando desalinear alguna), se engancha un
+   solo interceptor de nivel documento sobre los 4 campos de busqueda, que
+   sube el limite a un numero muy alto en cuanto hay texto escrito, y lo
+   regresa a 300 en cuanto el campo queda vacio -- para no perder el
+   rendimiento de la paginacion cuando se esta navegando sin filtrar. */
+(function(){
+  'use strict';
+  var CAMPOS={'q-inventario':'inventario','q-prox':'prox','q-rot':'rot','q-evac':'evac'};
+  function ajustar(input){
+    var modulo=CAMPOS[input.id];if(!modulo)return;
+    try{
+      var st=window.state&&window.state[modulo];if(!st)return;
+      var conTexto=!!String(input.value||'').trim();
+      st.limit=conTexto?999999:300;
+    }catch(_){}
+  }
+  function onInput(e){
+    var el=e.target;
+    if(!el||!el.id||!CAMPOS[el.id])return;
+    ajustar(el);
+    /* el oninput inline ya dispara el redibujado con el texto nuevo; aqui solo
+       se ajusta el limite ANTES de que ese redibujado lea state.X.limit. Si el
+       oninput inline corre primero (mismo evento, distinto listener), se
+       repinta una vez mas para que el limite nuevo quede aplicado. */
+    setTimeout(function(){
+      try{
+        var fn={'inventario':window.drawInventario,'prox':window.drawProx,
+                'rot':window.drawRot,'evac':window.drawEvac}[CAMPOS[el.id]];
+        if(typeof fn==='function')fn();
+      }catch(_){}
+    },0);
+  }
+  document.addEventListener('input',onInput,true);
+  console.info('LLAVERO V86.293 · la busqueda ya no depende del paginado');
 })();
