@@ -2967,18 +2967,18 @@ function patchLeaderAction(){if((typeof VIEW!=='undefined'?VIEW:'')!=='markdown'
 
 /* 15. Mismo lenguaje visual de filtros, campos según el módulo. */
 var filterCfg={
- inventario:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cond','Condición','condition'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['cendis','CENDIS','cendis']],
+ inventario:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cond','Condición','condition'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['cendis','CENDIS','cendis']],
  prox:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']],
  rot:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']],
  evac:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']]
 };
 function tableRowsFor(module){var root=document.getElementById(module==='inventario'?'inventario-tbl':module==='prox'?'prox-tbl':module+'-tbl'),table=root&&root.querySelector('table');return table&&table.tBodies&&table.tBodies[0]?Array.from(table.tBodies[0].rows).filter(function(tr){return !!(tr.querySelector('.code'))}):[]}
 function rowCode(tr){var x=tr.querySelector('.code');return s(x&&x.textContent).trim()}
-function filterHtml(type,key){if(type==='search')return'<input type="search" data-v127-f="'+key+'" placeholder="Código o producto...">';if(type==='condition')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="Sanos">Sanos</option><option value="Próximos a rotar">Próximos a rotar</option><option value="Rotación">Rotación</option><option value="Evacuación">Evacuación</option></select>';if(type==='cendis')return'<select data-v127-f="'+key+'"><option value="">Todos</option><option value="with">Con respaldo</option><option value="without">Sin respaldo</option></select>';if(type==='sales')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="with">Con venta</option><option value="without">Sin venta</option></select>';if(type==='age')return'<select data-v127-f="'+key+'"><option value="">Todos los rangos</option><option value="0-60">0–60</option><option value="61-90">61–90</option><option value="91-150">91–150</option><option value="151-180">151–180</option><option value="181-210">181–210</option><option value="211-240">211–240</option><option value="241-360">241–360</option><option value="360+">+360</option></select>';return'<select data-v127-f="'+key+'"></select>'}
+function filterHtml(type,key){if(type==='search')return'<input type="search" data-v127-f="'+key+'" placeholder="Código o producto...">';if(type==='condition')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="Sanos">Sanos</option><option value="Próximos a rotar">Próximos a rotar</option><option value="Rotación">Rotación</option><option value="Evacuación">Evacuación</option></select>';if(type==='cendis')return'<select data-v127-f="'+key+'"><option value="">Todos</option><option value="with">Con respaldo</option><option value="without">Sin respaldo</option></select>';if(type==='sales')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="with">Con venta</option><option value="without">Sin venta</option></select>';if(type==='age')return'<select data-v127-f="'+key+'"><option value="">Todos los rangos</option><option value="0-60">0–60</option><option value="61-90">61–90</option><option value="91-150">91–150</option><option value="151-180">151–180</option><option value="181-210">181–210</option><option value="211-240">211–240</option><option value="241-360">241–360</option><option value="360+">+360</option></select>';if(type==='surt')return'<select data-v127-f="'+key+'"><option value="">Todo tipo de surtido</option><option value="ESTRELLA">Estrella</option><option value="NOVEDAD">Novedad</option><option value="FUERA SURTIDO">Fuera de surtido</option><option value="FAMILIAR LÍDER">Familiar líder</option><option value="PROTECTOR DE TERRENO">Protector de terreno</option><option value="IMAGEN">Imagen</option><option value="PANAMA">Panamá</option><option value="SIN FAMILIA">Sin familia</option></select>';return'<select data-v127-f="'+key+'"></select>'}
 function selectOptions(vals,label){var u=Array.from(new Set(vals.filter(Boolean))).sort(function(a,b){return s(a).localeCompare(s(b),'es')});return'<option value="">'+esc(label||'Todos')+'</option>'+u.map(function(v){return'<option value="'+esc(v)+'">'+esc(v)+'</option>'}).join('')}
-function dataForCode(code){code=s(code);var c=v127EnsureCache();if(c.data[code])return c.data[code];var r=invMap()[code]||{},p=prod(code),d={code:code,p:p,cc:norm(p.cc||'SIN CLASIFICACIÓN').replace('SIN CLASIFICACION','SIN CLASIFICACIÓN'),cat:s(p.cat||r.categoria),lin:s(p.lin||r.linea),sub:s(p.sub||r.sublinea),cendis:n(r.dispCendis!=null?r.dispCendis:p.dispCendis),sales:n(r.unidadesFacUlt3Meses),cond:conditionOf(code),ages:ageBuckets(r)};c.data[code]=d;return d}
+function dataForCode(code){code=s(code);var c=v127EnsureCache();if(c.data[code])return c.data[code];var r=invMap()[code]||{},p=prod(code),d={code:code,p:p,cc:norm(p.cc||'SIN CLASIFICACIÓN').replace('SIN CLASIFICACION','SIN CLASIFICACIÓN'),cat:s(p.cat||r.categoria),lin:s(p.lin||r.linea),sub:s(p.sub||r.sublinea),cendis:n(r.dispCendis!=null?r.dispCendis:p.dispCendis),sales:n(r.unidadesFacUlt3Meses),cond:conditionOf(code),ages:ageBuckets(r),surt:norm(r.surtido||p.surtido)};c.data[code]=d;return d}
 function populate127(module,bar){var rows=tableRowsFor(module).map(function(tr){return dataForCode(rowCode(tr))}),cc=bar.querySelector('[data-v127-f="cc"]'),cat=bar.querySelector('[data-v127-f="cat"]'),lin=bar.querySelector('[data-v127-f="lin"]'),sub=bar.querySelector('[data-v127-f="sub"]');function reset(sel,vals){if(!sel)return;var cur=sel.value;sel.innerHTML=selectOptions(vals);if(Array.from(sel.options).some(function(o){return o.value===cur}))sel.value=cur}reset(cc,rows.map(function(x){return x.cc}));var cv=cc&&cc.value,byCc=rows.filter(function(x){return !cv||x.cc===cv});reset(cat,byCc.map(function(x){return x.cat}));var av=cat&&cat.value,byCat=byCc.filter(function(x){return !av||x.cat===av});reset(lin,byCat.map(function(x){return x.lin}));var lv=lin&&lin.value,byLin=byCat.filter(function(x){return !lv||x.lin===lv});reset(sub,byLin.map(function(x){return x.sub}))}
-function apply127(module,bar){var v={};bar.querySelectorAll('[data-v127-f]').forEach(function(x){v[x.dataset.v127F]=x.value});var rows=tableRowsFor(module),shown=0;rows.forEach(function(tr){var d=dataForCode(rowCode(tr)),ok=!v.q||norm([d.code,d.p.n,d.cat,d.lin,d.sub].join(' ')).indexOf(norm(v.q))>=0;if(ok&&v.cc&&d.cc!==v.cc)ok=false;if(ok&&v.cat&&d.cat!==v.cat)ok=false;if(ok&&v.lin&&d.lin!==v.lin)ok=false;if(ok&&v.sub&&d.sub!==v.sub)ok=false;if(ok&&v.cond&&d.cond!==v.cond)ok=false;if(ok&&v.cendis==='with'&&d.cendis<=0)ok=false;if(ok&&v.cendis==='without'&&d.cendis>0)ok=false;if(ok&&v.sales==='with'&&d.sales<=0)ok=false;if(ok&&v.sales==='without'&&d.sales>0)ok=false;if(ok&&v.age&&d.ages.indexOf(v.age)<0)ok=false;tr.style.display=ok?'':'none';if(ok)shown++});var ct=bar.querySelector('.v127FilterCount');if(ct)ct.textContent=fi(shown)+' de '+fi(rows.length)+' productos'}
+function apply127(module,bar){var v={};bar.querySelectorAll('[data-v127-f]').forEach(function(x){v[x.dataset.v127F]=x.value});var rows=tableRowsFor(module),shown=0;rows.forEach(function(tr){var d=dataForCode(rowCode(tr)),ok=!v.q||norm([d.code,d.p.n,d.cat,d.lin,d.sub].join(' ')).indexOf(norm(v.q))>=0;if(ok&&v.cc&&d.cc!==v.cc)ok=false;if(ok&&v.cat&&d.cat!==v.cat)ok=false;if(ok&&v.lin&&d.lin!==v.lin)ok=false;if(ok&&v.sub&&d.sub!==v.sub)ok=false;if(ok&&v.cond&&d.cond!==v.cond)ok=false;if(ok&&v.cendis==='with'&&d.cendis<=0)ok=false;if(ok&&v.cendis==='without'&&d.cendis>0)ok=false;if(ok&&v.sales==='with'&&d.sales<=0)ok=false;if(ok&&v.sales==='without'&&d.sales>0)ok=false;if(ok&&v.age&&d.ages.indexOf(v.age)<0)ok=false;if(ok&&v.surt&&d.surt!==v.surt)ok=false;tr.style.display=ok?'':'none';if(ok)shown++});var ct=bar.querySelector('.v127FilterCount');if(ct)ct.textContent=fi(shown)+' de '+fi(rows.length)+' productos'}
 function patchModuleFilters(){var module=(typeof VIEW!=='undefined'?VIEW:'');if(!filterCfg[module])return;var rows=tableRowsFor(module);if(!rows.length)return;var old=document.querySelector('.v118ModuleFilters[data-module="'+module+'"]'),root=document.getElementById(module==='inventario'?'inventario-tbl':module==='prox'?'prox-tbl':module+'-tbl');if(!root)return;var bar=old||document.createElement('div');bar.className='v118ModuleFilters v127ContextFilters';bar.dataset.module=module;if(bar.dataset.v127Ready!==module){bar.innerHTML=filterCfg[module].map(function(f){return'<div class="v118ModuleField"><label>'+esc(f[1])+'</label>'+filterHtml(f[2],f[0])+'</div>'}).join('')+'<button type="button" class="v118ModuleClear">Limpiar filtros</button><span class="v127FilterCount"></span>';bar.dataset.v127Ready=module;if(!old)root.parentNode.insertBefore(bar,root);var timer=0;bar.querySelectorAll('input,select').forEach(function(x){var ev=x.tagName==='INPUT'?'input':'change';x.addEventListener(ev,function(){if(['cc','cat','lin'].indexOf(x.dataset.v127F)>=0)populate127(module,bar);if(ev==='input'){clearTimeout(timer);timer=setTimeout(function(){apply127(module,bar)},60)}else apply127(module,bar)})});bar.querySelector('.v118ModuleClear').onclick=function(){bar.querySelectorAll('input').forEach(function(x){x.value=''});bar.querySelectorAll('select').forEach(function(x){x.value=''});populate127(module,bar);apply127(module,bar)}}populate127(module,bar);apply127(module,bar)}
 
 function mark(){try{window.LLAVERO_BUILD=VERSION;document.documentElement.setAttribute('data-llavero-build',VERSION);document.documentElement.setAttribute('data-llavero-app-version',VERSION);var b=document.querySelector('.appVersionChip b');if(b)b.textContent='18/08/2026 · '+VERSION;document.title='Llavero · Inventarios Jamar · 18/08/2026 · '+VERSION}catch(_){} }
@@ -6054,17 +6054,24 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
     try{
       var rows=(typeof window.mdRows8664==='function'?window.mdRows8664(code):[])||[];
       return rows.filter(function(r){return r&&r.statusKey==='manage';})
-        .map(function(r){return {code:t217(r.code),u:Number(r.stock)||0,v:Number(r.value)||0,info:info217(t217(r.code)),sug:r.discount};})
+        .map(function(r){return {code:t217(r.code),u:Number(r.stock)||0,v:Number(r.value)||0,info:info217(t217(r.code)),sug:r.discount,cur:r.currentDiscount};})
         .sort(function(a,b){return b.v-a.v;});
     }catch(_){return [];}
   }
   function table217(items,extraCol){
     if(!items.length)return '<div class="dashboardNote">Sin productos en este resultado.</div>';
-    var head='<tr><th>Código</th><th>Producto</th><th class="num">Unidades</th><th class="num">Valor</th>'+(extraCol?'<th class="num">'+e217(extraCol)+'</th>':'')+'</tr>';
+    /* V86.298: la tabla "A gestionar descuento" solo mostraba el sugerido.
+       Cuando los items traen .cur (descuento actual de muestra), se agrega
+       esa columna tambien, sin afectar las otras tablas que usan esta misma
+       funcion (Persistentes Rotacion/Evacuacion, que no traen .cur). */
+    var conActual=items.some(function(it){return it.cur!=null});
+    var head='<tr><th>Código</th><th>Producto</th><th class="num">Unidades</th><th class="num">Valor</th>'+
+      (conActual?'<th class="num">Actual</th>':'')+(extraCol?'<th class="num">'+e217(extraCol)+'</th>':'')+'</tr>';
     var body=items.map(function(it){
       return '<tr data-v217-prod="'+e217(it.code)+'"><td><span class="code">'+e217(it.code)+'</span></td>'+
         '<td><b>'+e217(it.info.n||it.code)+'</b><div class="muted">'+e217(it.info.cat||'—')+' · '+e217(it.info.lin||'—')+'</div></td>'+
         '<td class="num"><b>'+i217(it.u)+'</b></td><td class="num">'+money217(it.v)+'</td>'+
+        (conActual?'<td class="num">'+(it.cur==null?'<span class="muted">—</span>':(Math.round(it.cur*10)/10).toFixed(1).replace('.0','')+'%')+'</td>':'')+
         (extraCol?'<td class="num">'+(it.sug==null?'<span class="muted">sin política</span>':'<b>'+(Math.round(it.sug*10)/10).toFixed(1).replace('.0','')+'%</b>')+'</td>':'')+'</tr>';
     }).join('');
     return '<div class="twrap" style="max-height:320px"><table class="rangeProductTable"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
@@ -13015,22 +13022,53 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   }
   function onInput(e){
     var el=e.target;
-    if(!el||!el.id||!CAMPOS[el.id])return;
-    ajustar(el);
-    /* el oninput inline ya dispara el redibujado con el texto nuevo; aqui solo
-       se ajusta el limite ANTES de que ese redibujado lea state.X.limit. Si el
-       oninput inline corre primero (mismo evento, distinto listener), se
-       repinta una vez mas para que el limite nuevo quede aplicado. */
-    setTimeout(function(){
-      try{
-        var fn={'inventario':window.drawInventario,'prox':window.drawProx,
-                'rot':window.drawRot,'evac':window.drawEvac}[CAMPOS[el.id]];
-        if(typeof fn==='function')fn();
-      }catch(_){}
-    },0);
+    if(el&&el.id&&CAMPOS[el.id]){
+      ajustar(el);
+      /* el oninput inline ya dispara el redibujado con el texto nuevo; aqui solo
+         se ajusta el limite ANTES de que ese redibujado lea state.X.limit. Si el
+         oninput inline corre primero (mismo evento, distinto listener), se
+         repinta una vez mas para que el limite nuevo quede aplicado. */
+      setTimeout(function(){
+        try{
+          var fn={'inventario':window.drawInventario,'prox':window.drawProx,
+                  'rot':window.drawRot,'evac':window.drawEvac}[CAMPOS[el.id]];
+          if(typeof fn==='function')fn();
+        }catch(_){}
+      },0);
+      return;
+    }
+    /* V86.299: el mismo problema, en otro buscador. El sistema de filtros
+       "v127" (Clasificacion/Condicion/Categoria/Linea/Sublinea/CENDIS que se
+       ve debajo del encabezado de Inventario) tiene SU PROPIO campo de
+       busqueda -- data-v127-f="q" -- que es un input totalmente distinto de
+       #q-inventario, sin id, y por eso el arreglo de arriba no lo cubria.
+       apply127() solo revisa las filas YA PINTADAS en el DOM (tableRowsFor),
+       asi que si la tabla esta topada en 300 filas, este buscador nunca ve
+       lo que hay mas alla -- exactamente lo mismo que pasaba antes con la
+       busqueda de #q-inventario, en un lugar distinto del codigo. */
+    if(!el||el.getAttribute('data-v127-f')!=='q')return;
+    var bar=el.closest('.v118ModuleFilters,.v127ContextFilters');
+    var modulo=bar&&bar.dataset&&bar.dataset.module;
+    if(!modulo)return;
+    try{
+      var st=(typeof state!=='undefined'&&state)?state[modulo]:null;if(!st)return;
+      var conTexto=!!String(el.value||'').trim();
+      st.limit=conTexto?999999:300;
+      var fn={'inventario':window.drawInventario,'prox':window.drawProx,
+              'rot':window.drawRot,'evac':window.drawEvac}[modulo];
+      if(typeof fn==='function')fn();
+      /* al repintar, la barra de filtros y sus valores elegidos se conservan
+         (patchModuleFilters reutiliza el bar si ya existe), pero apply127 hay
+         que volver a llamarlo para que filtre sobre las filas nuevas, recien
+         pintadas con el limite ya ampliado. */
+      setTimeout(function(){
+        try{if(typeof window.apply127==='function')window.apply127(modulo,bar);
+            else if(typeof apply127==='function')apply127(modulo,bar);}catch(_){}
+      },30);
+    }catch(_){}
   }
   document.addEventListener('input',onInput,true);
-  console.info('LLAVERO V86.293 · la busqueda ya no depende del paginado');
+  console.info('LLAVERO V86.293/299 · la busqueda ya no depende del paginado, en ninguno de los dos buscadores');
 })();
 
 
