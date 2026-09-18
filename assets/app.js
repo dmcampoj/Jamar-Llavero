@@ -543,7 +543,7 @@
     var grid='';for(var j=0;j<5;j++){var gv=lo+(hi-lo)*j/4,gy=y(gv);grid+='<line x1="'+p.l+'" y1="'+gy+'" x2="'+(W-p.r)+'" y2="'+gy+'" stroke="var(--line2)"/><text x="'+(p.l-12)+'" y="'+(gy+4)+'" text-anchor="end" font-size="11" fill="var(--mut)">'+gv.toFixed(1)+'%</text>';}
     function path(k){return data.map(function(d,i){return (i?'L':'M')+x(i).toFixed(1)+','+y(val(d,k)).toFixed(1);}).join(' ');}
     var labelStep=data.length>12?Math.ceil(data.length/10):1;
-    function pts(k,color,up){return data.map(function(d,i){var v=val(d,k),cx=x(i),cy=y(v),txt=d.isBase&&!exposure?'Base 0%':v.toFixed(1)+'%',show=(i%labelStep===0||i===data.length-1),bw=Math.max(64,txt.length*7+20),ry=up?cy-39:cy+14,ty=up?cy-23:cy+31;return '<g role="button" tabindex="0" style="cursor:pointer" onclick="V8620.openTerritoryCut('+i+')" onkeydown="if(event.keyCode===13||event.keyCode===32){event.preventDefault();V8620.openTerritoryCut('+i+')}"><circle cx="'+cx+'" cy="'+cy+'" r="7" fill="'+color+'" stroke="var(--card)" stroke-width="2"><title>'+esc(d.date)+' · '+txt+'</title></circle>'+(show?'<rect x="'+(cx-bw/2)+'" y="'+ry+'" width="'+bw+'" height="25" rx="9" fill="var(--card)" stroke="'+color+'"></rect><text x="'+cx+'" y="'+ty+'" text-anchor="middle" font-size="10.5" font-weight="900" fill="'+color+'">'+txt+'</text>':'')+'</g>';}).join('');}
+    function pts(k,color,up,metricKey){return data.map(function(d,i){var v=val(d,k),cx=x(i),cy=y(v),txt=d.isBase&&!exposure?'Base 0%':v.toFixed(1)+'%',show=(i%labelStep===0||i===data.length-1),bw=Math.max(64,txt.length*7+20),ry=up?cy-39:cy+14,ty=up?cy-23:cy+31;return '<g role="button" tabindex="0" style="cursor:pointer" onclick="V8620.openTerritoryMetricCut('+i+',\''+metricKey+'\')" onkeydown="if(event.keyCode===13||event.keyCode===32){event.preventDefault();V8620.openTerritoryMetricCut('+i+',\''+metricKey+'\')}"><circle cx="'+cx+'" cy="'+cy+'" r="7" fill="'+color+'" stroke="var(--card)" stroke-width="2"><title>'+esc(d.date)+' · '+txt+'</title></circle>'+(show?'<rect x="'+(cx-bw/2)+'" y="'+ry+'" width="'+bw+'" height="25" rx="9" fill="var(--card)" stroke="'+color+'"></rect><text x="'+cx+'" y="'+ty+'" text-anchor="middle" font-size="10.5" font-weight="900" fill="'+color+'">'+txt+'</text>':'')+'</g>';}).join('');}
     /* V86.203: antes se ocultaba la fecha de los cortes que no cayeran en
        labelStep (con 20 cortes, labelStep=2, y el corte 24/08 -indice impar-
        quedaba con su punto y su porcentaje pero SIN fecha abajo, mientras
@@ -552,7 +552,7 @@
     var gapPx=data.length>1?((W-p.l-p.r)/(data.length-1)):W,denseLbl=gapPx<52;
     var labels=data.map(function(d,i){var ly=denseLbl?((i%2)?(H-10):(H-30)):(H-24);return '<text x="'+x(i)+'" y="'+ly+'" text-anchor="middle" font-size="11" font-weight="800" fill="var(--mut)">'+trendDate8650(d.date)+'</text>';}).join(''),zero=!exposure?'<line x1="'+p.l+'" y1="'+y(0)+'" x2="'+(W-p.r)+'" y2="'+y(0)+'" stroke="var(--mut)" stroke-width="2" stroke-dasharray="7 6"/>':'';
     var pathLabel=dashboardPath8649().join(' › '),period=periodDef8656().label;
-    return '<div class="v8650TrendWrap v8657TrendWrap"><svg class="v8650TrendSvg v8657TrendSvg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">'+grid+zero+'<path d="'+path(k1)+'" fill="none" stroke="var(--rot)" stroke-width="4" stroke-linecap="round"/>'+pts(k1,'var(--rot)',true)+'<path d="'+path(k2)+'" fill="none" stroke="var(--evac)" stroke-width="4" stroke-linecap="round"/>'+pts(k2,'var(--evac)',false)+labels+'</svg></div><div class="v8650TrendLegend"><span><i style="background:var(--rot)"></i>'+(exposure?'Rotación':'Mejora Rotación')+'</span><span><i style="background:var(--evac)"></i>'+(exposure?'Evacuación':'Mejora Evacuación')+'</span></div><div class="v8650TrendContext"><span><b>Filtro:</b> '+esc(pathLabel)+'</span><span><b>Periodo:</b> '+esc(period)+' · '+int(data.length)+' cortes</span></div><div class="dashboardNote">Presiona cualquier punto para consultar el detalle del corte dentro del territorio filtrado.</div>';
+    return '<div class="v8650TrendWrap v8657TrendWrap"><svg class="v8650TrendSvg v8657TrendSvg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">'+grid+zero+'<path d="'+path(k1)+'" fill="none" stroke="var(--rot)" stroke-width="4" stroke-linecap="round"/>'+pts(k1,'var(--rot)',true,'rot')+'<path d="'+path(k2)+'" fill="none" stroke="var(--evac)" stroke-width="4" stroke-linecap="round"/>'+pts(k2,'var(--evac)',false,'evac')+labels+'</svg></div><div class="v8650TrendLegend"><span><i style="background:var(--rot)"></i>'+(exposure?'Rotación':'Mejora Rotación')+'</span><span><i style="background:var(--evac)"></i>'+(exposure?'Evacuación':'Mejora Evacuación')+'</span></div><div class="v8650TrendContext"><span><b>Filtro:</b> '+esc(pathLabel)+'</span><span><b>Periodo:</b> '+esc(period)+' · '+int(data.length)+' cortes</span></div><div class="dashboardNote">Presiona cualquier punto para consultar el detalle del corte dentro del territorio filtrado.</div>';
   }
   function filteredLeaderMetrics8649(codes){var allow=new Set(codes),rows=[];try{rows=window.__LLAVERO_ORIG_LEADER_METRICS_8649?window.__LLAVERO_ORIG_LEADER_METRICS_8649():leaderStoreMetrics();}catch(_){rows=[];}return rows.filter(function(r){return allow.has(r.code);});}
   function originalDashboardFiltered8649(codes){
@@ -608,6 +608,68 @@
     var table='<div class="v8620TableWrap"><table class="v8620Table"><thead><tr><th>Tienda</th><th>Estado</th><th class="num">Indicador</th><th class="num">Índice</th><th class="num">Δ índice</th><th class="num">Gestionados</th><th class="num">Nuevos</th><th class="num">Persistentes</th><th class="num">+360</th><th class="num">Markdown</th><th class="num">Órdenes</th><th class="num">Ambientes</th></tr></thead><tbody>'+body+'</tbody></table></div>';
     openDetail(territoryMetricTitle(kind),'Desagregación por tienda · periodo '+periodDef8656().label,section('Qué representa','Criterio de lectura','<div class="v8620Explain"><b>'+esc(territoryMetricTitle(kind))+':</b> '+esc(territoryMetricDescription(kind))+'</div>')+section('Resultado por tienda','Selecciona una fila para abrir el resumen completo de la tienda',table),'Dashboard general','dashboard');
   }
+  /* ===== V86.297 · Detalle filtrado al hacer clic en Rotacion/Evacuacion =====
+
+     Pedido: al hacer clic en un porcentaje de la grafica de tendencia, que el
+     detalle muestre SOLO lo que ese porcentaje representa -- no el resumen
+     completo del corte (indice, ejecucion, traslados, acciones... que es lo
+     que mostraba openTerritoryCut para TODOS los puntos, sin distinguir cual
+     linea se toco).
+
+     Los datos ya existian: cada tienda trae, por dia, rot/evac con
+     recoveredVal/recoveredCount (lo que salio de la lista = gestionado),
+     newVal/newCount (lo que entro), persistentVal/persistentCount (lo que
+     se quedo) y currentVal/currentCount (el total de hoy). No hubo que
+     inventar ningun calculo: es el mismo compareStateRows() que ya usa
+     openTerritoryCut, solo que aqui se muestra UN SOLO modulo (rot o evac)
+     en vez de mezclar los seis indicadores del corte completo. */
+  function openTerritoryMetricCut(index,metricKey){
+    var snap=state.periodRows[index];if(!snap)return;
+    var hist=periodHistory(),source=hist.find(function(x){return x.date===snap.date;});
+    var esRot=metricKey==='rot',nombreMetrica=esRot?'Rotación':'Evacuación',color=esRot?'var(--rot)':'var(--evac)';
+    var rows=state.visibleCodes.map(function(code){
+      var m=metricFromHistory(code,source),sm=state.visibleMetrics.find(function(x){return x.code===code;});
+      var sub=(esRot?m.rot:m.evac)||{};
+      return {code:code,name:sm&&sm.name||m.name||code,zone:sm&&sm.zone||'',city:sm&&sm.city||'',
+        pct:esRot?m.rotPct:m.evacPct,
+        currentVal:num(sub.currentVal),currentCount:num(sub.currentCount),
+        recoveredVal:num(sub.recoveredVal),recoveredCount:num(sub.recoveredCount),
+        newVal:num(sub.newVal),newCount:num(sub.newCount),
+        persistentVal:num(sub.persistentVal),persistentCount:num(sub.persistentCount)};
+    }).sort(function(a,b){return num(b.recoveredVal)-num(a.recoveredVal)||num(b.pct)-num(a.pct);});
+    var tot={gestVal:0,gestCount:0,newVal:0,newCount:0,persVal:0,persCount:0,curVal:0,curCount:0};
+    rows.forEach(function(r){
+      tot.gestVal+=r.recoveredVal;tot.gestCount+=r.recoveredCount;
+      tot.newVal+=r.newVal;tot.newCount+=r.newCount;
+      tot.persVal+=r.persistentVal;tot.persCount+=r.persistentCount;
+      tot.curVal+=r.currentVal;tot.curCount+=r.currentCount;
+    });
+    var body=rows.map(function(r){
+      return '<tr onclick="V8620.openTerritoryStore(\''+esc(r.code)+'\')"><td><span class="name">'+esc(r.name)+'</span><div class="meta">'+esc(r.zone+' · '+r.city)+'</div></td>'+
+        '<td class="num">'+(r.pct==null?'—':pct(r.pct))+'</td>'+
+        '<td class="num">'+int(r.recoveredCount)+'</td><td class="num">'+money(r.recoveredVal)+'</td>'+
+        '<td class="num">'+int(r.newCount)+'</td><td class="num">'+money(r.newVal)+'</td>'+
+        '<td class="num">'+int(r.persistentCount)+'</td>'+
+        '<td class="num">'+int(r.currentCount)+'</td><td class="num">'+money(r.currentVal)+'</td></tr>';
+    }).join('');
+    var summary='<div class="v8620MetricGrid">'+
+      metric('% '+nombreMetrica+' hoy',snap.isBase&&!snap.hasPrevious?'—':pct(esRot?snap.rotPct:snap.evacPct),'del inventario total','good')+
+      metric('Gestionados',int(tot.gestCount),money(tot.gestVal),'good')+
+      metric('Nuevos en '+nombreMetrica.toLowerCase(),int(tot.newCount),money(tot.newVal),'bad')+
+      metric('Persistentes',int(tot.persCount),money(tot.persVal),'warn')+
+      metric('Total actual',int(tot.curCount),money(tot.curVal),'info')+
+      '</div>';
+    var table='<div class="v8620TableWrap"><table class="v8620Table"><thead><tr><th>Tienda</th><th class="num">% '+nombreMetrica+'</th>'+
+      '<th class="num">Gestionados</th><th class="num">Valor gestionado</th>'+
+      '<th class="num">Nuevos</th><th class="num">Valor nuevo</th>'+
+      '<th class="num">Persistentes</th><th class="num">Total unidades</th><th class="num">Valor total</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+    var nota='<div class="dashboardNote">"Gestionados" son los productos que ESTABAN en '+nombreMetrica.toLowerCase()+' el corte anterior y ya no lo estan hoy. "Nuevos" son los que entraron hoy. "Persistentes" llevan mas de un corte sin resolverse.</div>';
+    openDetail(''+nombreMetrica+' · '+dateLabel(snap.date),'Solo lo gestionado en '+nombreMetrica.toLowerCase()+', tienda por tienda',
+      section('Resumen de '+nombreMetrica.toLowerCase(),'Unidades y valor gestionados ese corte',summary+nota)+
+      section('Resultado por tienda','Selecciona una tienda para abrir su vista',table),
+      nombreMetrica+' · '+dateLabel(snap.date),'dashboard');
+  }
+
   function openTerritoryCut(index){var snap=state.periodRows[index];if(!snap)return;var hist=periodHistory(),source=hist.find(function(x){return x.date===snap.date;}),rows=state.visibleCodes.map(function(code){var m=metricFromHistory(code,source),sm=state.visibleMetrics.find(function(x){return x.code===code;});return {code:code,name:sm&&sm.name||m.name||code,zone:sm&&sm.zone||'',city:sm&&sm.city||'',score:m.score,execution:m.executionScore,managed:num(m.critical&&m.critical.recoveredCount),newCritical:num(m.critical&&m.critical.newCount),persistent:num(m.critical&&m.critical.persistentCount),older:num(m.rot360&&m.rot360.currentCount),transfers:num(m.transfers&&m.transfers.current),resolved:num(m.transfers&&m.transfers.resolved),actionsLate:num(m.actions&&m.actions.late)};}).sort(function(a,b){return num(b.newCritical)-num(a.newCritical)||num(a.score)-num(b.score);});var body=rows.map(function(r){return '<tr onclick="V8620.openTerritoryStore(\''+esc(r.code)+'\')"><td><span class="name">'+esc(r.name)+'</span><div class="meta">'+esc(r.zone+' · '+r.city)+'</div></td><td class="num">'+(r.score==null?'—':num(r.score).toFixed(0))+'</td><td class="num">'+(r.execution==null?'—':pct(r.execution))+'</td><td class="num">'+int(r.managed)+'</td><td class="num">'+int(r.newCritical)+'</td><td class="num">'+int(r.persistent)+'</td><td class="num">'+int(r.older)+'</td><td class="num">'+int(r.transfers)+'</td><td class="num">'+int(r.resolved)+'</td><td class="num">'+int(r.actionsLate)+'</td></tr>';}).join('');var summary='<div class="v8620MetricGrid">'+metric('Índice promedio',snap.score==null?'—':snap.score.toFixed(0)+'/100','Resultado consolidado','good')+metric('Ejecución',snap.execution==null?'—':pct(snap.execution),'Promedio de gestión','good')+metric('Gestionados',int(snap.managed),money(snap.managedValue),'good')+metric('Nuevos críticos',int(snap.newCritical),money(snap.newValue),'bad')+metric('Persistentes',int(snap.persistent),money(snap.persistentValue),'warn')+metric('Traslados resueltos',int(snap.transferResolved),int(snap.transfers)+' pendientes','info')+'</div>';var table='<div class="v8620TableWrap"><table class="v8620Table"><thead><tr><th>Tienda</th><th class="num">Índice</th><th class="num">Ejecución</th><th class="num">Gestionados</th><th class="num">Nuevos</th><th class="num">Persistentes</th><th class="num">+360</th><th class="num">Traslados</th><th class="num">Resueltos</th><th class="num">Acciones vencidas</th></tr></thead><tbody>'+body+'</tbody></table></div>';openDetail('Detalle del corte '+dateLabel(snap.date),'Resultado operativo de las tiendas visibles',section('Resumen del corte','Indicadores consolidados',summary)+section('Resultado por tienda','Selecciona una tienda para abrir su vista',table),'Corte '+dateLabel(snap.date),'dashboard');}
 
   function bindOperationalDetails(view){
@@ -637,7 +699,7 @@
     window.openMarkdownCard8618=openMarkdownMetric;window.openMarkdownProduct8618=openMarkdownProduct;
     window.setView=function(v){if(v==='territorios')v='dashboard';var out=base.setView.call(this,v);postRender(v);return out;};
     if(typeof base.refresh==='function')window.refresh=function(){var out=base.refresh.apply(this,arguments);postRender(currentView());return out;};
-    window.V8620={goView:goView,backDetail:backDetail,openMarkdownMetric:openMarkdownMetric,openMarkdownProduct:openMarkdownProduct,setTerritoryFilter:setTerritoryFilter,searchTerritories:searchTerritories,clearTerritories:clearTerritories,setPeriod:setPeriod,setCutRange:setCutRange,setAnalysisMode:setAnalysisMode,drillTerritory:drillTerritory,openTerritoryStore:openTerritoryStore,openTerritoryMetric:openTerritoryMetric,openTerritoryCut:openTerritoryCut,drawTerritories:drawTerritories};
+    window.V8620={goView:goView,backDetail:backDetail,openMarkdownMetric:openMarkdownMetric,openMarkdownProduct:openMarkdownProduct,setTerritoryFilter:setTerritoryFilter,searchTerritories:searchTerritories,clearTerritories:clearTerritories,setPeriod:setPeriod,setCutRange:setCutRange,setAnalysisMode:setAnalysisMode,drillTerritory:drillTerritory,openTerritoryStore:openTerritoryStore,openTerritoryMetric:openTerritoryMetric,openTerritoryCut:openTerritoryCut,openTerritoryMetricCut:openTerritoryMetricCut,drawTerritories:drawTerritories};
     markVersion();
     if(document.body&&!document.body.classList.contains('auth-pending')&&!document.body.classList.contains('not-authenticated'))postRender(currentView());
     console.info('LLAVERO V86.50 · tendencias filtradas + layout horizontal completo');
@@ -13072,6 +13134,142 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     tick();
     if(!window.__v294Tick)window.__v294Tick=setInterval(tick,900);
     console.info('LLAVERO V86.294 · filtro de tipo de surtido en Inventario');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2300)},{once:true});
+  else setTimeout(install,2300);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,2200)});
+})();
+
+/* ===== V86.296 · Exportar Excel en todas las vistas de detalle =====
+
+   Pedido: en todas las vistas de detalle, poder exportar a Excel.
+
+   POR QUÉ ASÍ. Los "modales de detalle" del proyecto son mas de una decena
+   de contenedores distintos (#rangeModal, #v80ModalBack, #inventoryProductModal,
+   #leaderModal, y otros), cada uno con su propia plantilla. Agregar el boton
+   a cada plantilla es repetir el mismo trabajo mas de diez veces y arriesgar
+   dejar alguno afuera. En vez de eso: un solo botón flotante que aparece
+   cuando CUALQUIER modal con una tabla adentro esta abierto (clase .on), y
+   exporta esa tabla a un archivo .xlsx de verdad -- no CSV -- usando el
+   mismo motor XLSX que ya carga el proyecto bajo demanda (SheetJS, vía CDN,
+   con el mismo candado data-v8623-xlsx para no cargarlo dos veces). */
+(function(){
+  'use strict';
+  function s(v){return v==null?'':String(v).trim()}
+
+  function cargarXLSX(){
+    if(window.XLSX&&window.XLSX.utils&&window.XLSX.writeFile)return Promise.resolve(window.XLSX);
+    return new Promise(function(resolve,reject){
+      var existente=document.querySelector('script[data-v8623-xlsx]');
+      if(existente){
+        existente.addEventListener('load',function(){resolve(window.XLSX)},{once:true});
+        existente.addEventListener('error',function(){reject(new Error('No se pudo cargar el motor Excel.'))},{once:true});
+        return;
+      }
+      var sc=document.createElement('script');
+      sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      sc.async=true;sc.setAttribute('data-v8623-xlsx','1');
+      sc.onload=function(){window.XLSX?resolve(window.XLSX):reject(new Error('Motor Excel no disponible.'))};
+      sc.onerror=function(){reject(new Error('No se pudo cargar el motor Excel.'))};
+      document.head.appendChild(sc);
+    });
+  }
+
+  function nombreArchivo(modal){
+    var titulo='';
+    var t=modal.querySelector('h3,h4,.tt,#v80ModalTitle,#rangeModalTitle,#inventoryProductTitle');
+    if(t)titulo=s(t.textContent);
+    titulo=titulo.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g,'').trim().slice(0,60).replace(/\s+/g,'_')||'Detalle';
+    var fecha='';
+    try{fecha=s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){}
+    return 'Llavero_'+titulo+(fecha?'_'+fecha:'')+'.xlsx';
+  }
+
+  function extraerTablas(modal){
+    var tablas=modal.querySelectorAll('table');
+    var hojas=[];
+    tablas.forEach(function(tabla,i){
+      var filas=[];
+      tabla.querySelectorAll('tr').forEach(function(tr){
+        var fila=[];
+        tr.querySelectorAll('th,td').forEach(function(celda){
+          /* si la celda tiene un boton/enlace de accion, no exportarlo como texto */
+          var clon=celda.cloneNode(true);
+          clon.querySelectorAll('button,.actionBtn').forEach(function(b){b.remove()});
+          fila.push(s(clon.textContent));
+        });
+        if(fila.length)filas.push(fila);
+      });
+      if(filas.length)hojas.push({nombre:'Tabla'+(tablas.length>1?(i+1):''),filas:filas});
+    });
+    /* V86.296: la ficha de producto no usa <table> -- son pares etiqueta/valor
+       en .detailItem dentro de .detailGrid. Si no hay ninguna tabla, se
+       exportan esos pares como una hoja de dos columnas. */
+    if(!hojas.length){
+      var pares=[['Campo','Valor']];
+      modal.querySelectorAll('.detailItem').forEach(function(it){
+        var lab=it.querySelector('label'),val=it.querySelector('b');
+        if(lab)pares.push([s(lab.textContent),val?s(val.textContent):'']);
+      });
+      if(pares.length>1)hojas.push({nombre:'Ficha',filas:pares});
+    }
+    return hojas;
+  }
+
+  function exportar(modal){
+    var hojas=extraerTablas(modal);
+    if(!hojas.length){
+      if(typeof toast==='function')toast('No hay una tabla en este detalle para exportar','err');
+      return;
+    }
+    cargarXLSX().then(function(XLSX){
+      var wb=XLSX.utils.book_new();
+      hojas.forEach(function(h){
+        var ws=XLSX.utils.aoa_to_sheet(h.filas);
+        XLSX.utils.book_append_sheet(wb,ws,h.nombre.slice(0,31));
+      });
+      XLSX.writeFile(wb,nombreArchivo(modal));
+      if(typeof toast==='function')toast('Detalle exportado a Excel','ok');
+    }).catch(function(e){
+      console.error('V86.296',e);
+      if(typeof toast==='function')toast('No se pudo exportar: '+e.message,'err');
+    });
+  }
+
+  function modalesAbiertos(){
+    /* los contenedores de modal del proyecto: la clase .on los marca visibles.
+       Se excluye el propio menu lateral / login, que tambien usan .on para
+       otras cosas y no tienen tabla de datos. */
+    var candidatos=document.querySelectorAll(
+      '#rangeModal.on, #v80ModalBack.on, #inventoryProductModal.on, .modal.on, .modalBack.on, .v8664Wide.on, [id$="Modal"].on, [id$="ModalBack"].on'
+    );
+    var out=[];
+    candidatos.forEach(function(m){if(m.querySelector('table')||m.querySelector('.detailItem'))out.push(m)});
+    return out;
+  }
+
+  function asegurarBoton(modal){
+    if(modal.querySelector('.v296ExportBtn'))return;
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.className='v296ExportBtn';
+    btn.textContent='⬇ Exportar Excel';
+    btn.onclick=function(e){e.stopPropagation();exportar(modal)};
+    var ancla=modal.querySelector('.chead,.rt,h3,h4,#v80ModalTitle,#rangeModalTitle')||modal;
+    if(ancla===modal)modal.insertAdjacentElement('afterbegin',btn);
+    else ancla.insertAdjacentElement('afterend',btn);
+  }
+
+  function tick(){
+    try{
+      var abiertos=modalesAbiertos();
+      abiertos.forEach(asegurarBoton);
+    }catch(e){console.error('V86.296',e)}
+  }
+  function install(){
+    tick();
+    if(!window.__v296Tick)window.__v296Tick=setInterval(tick,900);
+    console.info('LLAVERO V86.296 · exportar a Excel en vistas de detalle');
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2300)},{once:true});
   else setTimeout(install,2300);

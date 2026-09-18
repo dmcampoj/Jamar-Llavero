@@ -7386,3 +7386,9 @@ body[data-v8620-view="dashboard"] .v8657TrendSvg{
 /* V86.279 · las 4 tarjetas del consolidado de Ambientes ahora abren detalle */
 .v225Kpi.v225Click{cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .v225Kpi.v225Click:hover{border-color:var(--vta,#1d4ed8);box-shadow:0 2px 10px rgba(29,78,216,.10)}
+
+/* V86.296 · boton de exportar Excel en modales de detalle */
+.v296ExportBtn{display:inline-flex;align-items:center;gap:5px;margin:6px 0;padding:6px 12px;
+  border:1px solid var(--jamar,#c0392b);border-radius:8px;background:#fff;color:var(--jamar,#c0392b);
+  font-size:12px;font-weight:700;cursor:pointer}
+.v296ExportBtn:hover{background:var(--jamar,#c0392b);color:#fff}
