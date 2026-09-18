@@ -12970,3 +12970,110 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   document.addEventListener('input',onInput,true);
   console.info('LLAVERO V86.293 · la busqueda ya no depende del paginado');
 })();
+
+
+/* ===== V86.294 · Filtro de tipo de surtido en Inventario =====
+
+   Pedido: agregar un filtro de tipo de surtido (Estrella, Novedad, Fuera de
+   surtido, Familiar líder, Protector de terreno, Imagen, Panamá, Sin
+   familia) en el módulo de Inventario.
+
+   POR QUÉ ASÍ. El primer intento envolvía normalizeInventoryRows() para que
+   filtrara los datos antes de dibujar la tabla -- funcionaba a veces y otras
+   no: el proyecto redefine esa función varias veces durante el arranque, y
+   la envoltura quedaba pisada de forma inconsistente segun el momento exacto
+   en que corriera. En vez de interceptar el CÁLCULO de datos, se trabaja
+   sobre la TABLA YA DIBUJADA -- el mismo enfoque que ya usan los chips de
+   identificación (V86.272) y que ha resultado estable toda la sesión: no
+   importa qué capa pintó la fila, cada fila trae el código en <span
+   class="code"> y desde ahí se puede ocultar o mostrar según su surtido. */
+(function(){
+  'use strict';
+  var VALORES=['ESTRELLA','NOVEDAD','FUERA SURTIDO','FAMILIAR LÍDER',
+               'PROTECTOR DE TERRENO','IMAGEN','PANAMA','SIN FAMILIA'];
+  function s(v){return v==null?'':String(v).trim()}
+  function up(v){return s(v).toUpperCase()}
+  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
+  function fecha(){try{return s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){return ''}}
+
+  var IDX=null,CLAVE='',FILTRO='';
+
+  function indice(){
+    var k=cur()+'|'+fecha();
+    if(IDX&&CLAVE===k)return IDX;
+    var m=Object.create(null);
+    try{
+      var St=(typeof S!=='undefined'&&S)?S:{},st=St[cur()];
+      (Array.isArray(st&&st.inventario)?st.inventario:[]).forEach(function(r){
+        var c=s(r&&r.codigo);if(c)m[c]=up(r.surtido);
+      });
+    }catch(e){console.error('V86.294',e)}
+    IDX=m;CLAVE=k;return m;
+  }
+
+  function aplicarFiltro(){
+    var root=document.getElementById('inventario-tbl');if(!root)return;
+    var idx=indice();
+    var filas=root.querySelectorAll('tbody tr');
+    var visibles=0;
+    filas.forEach(function(tr){
+      var span=tr.querySelector('span.code');
+      var cod=span?s(span.textContent):'';
+      var pasa=!FILTRO||idx[cod]===FILTRO;
+      tr.style.display=pasa?'':'none';
+      if(pasa)visibles++;
+    });
+    var cnt=document.getElementById('inventario-cnt');
+    if(cnt&&FILTRO){
+      var base=cnt.dataset.v294Base||cnt.textContent;
+      cnt.dataset.v294Base=base;
+      cnt.textContent=base+' · filtro de surtido: '+visibles+' visibles';
+    }else if(cnt&&cnt.dataset.v294Base){
+      cnt.textContent=cnt.dataset.v294Base;
+    }
+  }
+
+  function asegurarSelect(){
+    if(document.getElementById('inv-surt'))return;
+    var ancla=document.getElementById('inv-sub')||document.querySelector('.invFilterPanel');
+    if(!ancla)return;
+    var sel=document.createElement('select');
+    sel.id='inv-surt';
+    var opts='<option value="">Todo tipo de surtido</option>';
+    VALORES.forEach(function(v){
+      opts+='<option value="'+v+'">'+v.charAt(0)+v.slice(1).toLowerCase()+'</option>';
+    });
+    sel.innerHTML=opts;
+    sel.value=FILTRO;
+    sel.onchange=function(){
+      FILTRO=this.value;
+      /* mismo mecanismo que V86.293 para la busqueda de texto: sin esto, el
+         filtro solo alcanza a las primeras 300 filas ya pintadas y esconde
+         resultados reales mas alla de ese corte, sin ningun aviso. */
+      try{if(typeof state!=='undefined'&&state.inventario){
+        state.inventario.limit=FILTRO?999999:300;
+        if(typeof drawInventario==='function')drawInventario();
+      }}catch(_){}
+      setTimeout(aplicarFiltro,50);
+    };
+    if(ancla.id==='inv-sub')ancla.insertAdjacentElement('afterend',sel);
+    else ancla.appendChild(sel);
+  }
+
+  function tick(){
+    try{
+      var v=(typeof VIEW!=='undefined'?VIEW:'');
+      if(v!=='inventario'){FILTRO='';return}
+      asegurarSelect();
+      aplicarFiltro();
+    }catch(e){console.error('V86.294',e)}
+  }
+  function install(){
+    tick();
+    if(!window.__v294Tick)window.__v294Tick=setInterval(tick,900);
+    console.info('LLAVERO V86.294 · filtro de tipo de surtido en Inventario');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2300)},{once:true});
+  else setTimeout(install,2300);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,2200)});
+})();
