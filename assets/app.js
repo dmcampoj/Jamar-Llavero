@@ -11856,7 +11856,18 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
           ventaV:n(r.facturacionUlt3Meses),
           amb:ambs, rot:!!rot[c], evac:!!ev[c],
           estados:estados,
-          cendis:r.dispCendis==null?null:n(r.dispCendis)
+          cendis:r.dispCendis==null?null:n(r.dispCendis),
+          /* V86.308: campos pedidos para la tabla de presencias -- ya
+             viajaban en r (la fila de inventario de la tienda), solo
+             faltaba traerlos aqui. */
+          sub:s(p.sub)||s(r.sublinea)||'—',
+          ciclo:s(r.cicloVida)||'—',
+          estilo:s(r.estilo)||'—',
+          estadoAbast:s(r.estadoAbastecimiento)||'—',
+          disponible:r.disponible==null?null:n(r.disponible),
+          oc:n(r.ordenesCompra),
+          ird:n(r.ird),
+          rangos:r.rangos||{}
         });
       });
     });
@@ -11948,18 +11959,28 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var cats=[['','Todas']].concat(opciones().map(function(c){return [c,c]}));
     var cuerpo=vis.map(function(r){
       var k=clave(r);
+      var rangoTop='',rangoU=0;
+      Object.keys(r.rangos||{}).forEach(function(rk){var u=n(r.rangos[rk]);if(u>rangoU){rangoU=u;rangoTop=rk;}});
       return '<tr class="v257Fila'+(SEL[k]?' marcada':'')+'" data-k="'+esc(k)+'">'+
         '<td class="v257Chk"><input type="checkbox" data-v257-chk="'+esc(k)+'"'+(SEL[k]?' checked':'')+'></td>'+
         (multi()?'<td><b>'+esc(r.tienda)+'</b><div class="v255Mut">'+esc(r.sc)+'</div></td>':'')+
         '<td><span class="code">'+esc(r.c)+'</span></td>'+
         '<td><b class="v257Nom" data-v257-cod="'+esc(r.c)+'">'+esc(r.nom)+'</b>'+
-          '<div class="v255Mut">'+esc(r.cat)+' · '+esc(r.lin)+'</div></td>'+
+          '<div class="v255Mut">'+esc(r.cat)+' · '+esc(r.lin)+' · '+esc(r.sub)+'</div></td>'+
+        '<td>'+esc(r.ciclo)+'</td>'+
+        '<td>'+esc(r.estilo)+'</td>'+
         '<td><div class="v257Ests">'+badges(r)+'</div>'+
           (r.amb.length?'<div class="v255Mut v257AmbNom">'+esc(r.amb[0])+(r.amb.length>1?' +'+(r.amb.length-1):'')+'</div>':'')+'</td>'+
+        '<td>'+esc(r.estadoAbast)+'</td>'+
         '<td class="num'+(r.min>0?'':' v257Cero')+'">'+fint(r.min)+'</td>'+
         '<td class="num'+(r.sum>0?'':' v257Cero')+(r.sum>0&&!(r.stock>0)?' v257Descuadre':'')+'"'+
           (r.sum>0&&!(r.stock>0)?' title="El archivo de presencias reporta '+fint(r.sum)+' pero el inventario de Llavero no le registra existencia"':'')+
           '>'+fint(r.sum)+'</td>'+
+        '<td class="num">'+(r.disponible==null?'—':fint(r.disponible))+'</td>'+
+        '<td class="num">'+(r.cendis>0?'<span class="tag cr">'+fint(r.cendis)+' u</span>':(r.cendis===0?'<span class="tag sr">0 u</span>':'—'))+'</td>'+
+        '<td class="num">'+(r.oc>0?fint(r.oc):'—')+'</td>'+
+        '<td>'+(rangoU>0?'<b>'+fint(rangoU)+' u</b><div class="v255Mut">'+esc(rangoTop)+'</div>':'—')+'</td>'+
+        '<td class="num">'+(r.ird>0?r.ird.toFixed(1):'—')+'</td>'+
         '<td class="num">'+(r.ventaU>0
             ? '<b>'+fint(r.ventaU)+' u</b><div class="v255Mut">'+money(r.ventaV)+'</div>'
             : '<span class="v257Sin">Sin venta</span>')+'</td></tr>';
@@ -11989,9 +12010,14 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       '</div>'+
       '<div class="twrap"><table class="v255Tabla v257Tabla"><thead><tr>'+
         '<th class="v257Chk"></th>'+(multi()?'<th>Tienda</th>':'')+
-        '<th>Código</th><th>Producto</th><th>Le pega a</th>'+
+        '<th>Código</th><th>Producto</th><th>Ciclo de Vida</th><th>Estilo</th><th>Le pega a</th><th>Estado producto</th>'+
         '<th class="num">CAN MIN<div class="v257Sub">presencia</div></th>'+
         '<th class="num">CAN SUM<div class="v257Sub">existencia</div></th>'+
+        '<th class="num">Disponible<div class="v257Sub">en tienda</div></th>'+
+        '<th class="num">Dispo CENDIS</th>'+
+        '<th class="num">OC</th>'+
+        '<th>Rango de edad<div class="v257Sub">y unidades</div></th>'+
+        '<th class="num">IRD</th>'+
         '<th class="num">Venta 3 meses</th></tr></thead><tbody>'+cuerpo+'</tbody></table></div>'+
       (fs.length>vis.length
         ? '<div class="v257Mas"><button class="v250Btn sec" id="v257Mas" type="button">Mostrar 300 más</button>'+
@@ -13046,7 +13072,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
        asi que si la tabla esta topada en 300 filas, este buscador nunca ve
        lo que hay mas alla -- exactamente lo mismo que pasaba antes con la
        busqueda de #q-inventario, en un lugar distinto del codigo. */
-    if(!el||el.getAttribute('data-v127-f')!=='q')return;
+    var campoV127=el&&el.getAttribute('data-v127-f');if(!el||!campoV127)return;
     var bar=el.closest('.v118ModuleFilters,.v127ContextFilters');
     var modulo=bar&&bar.dataset&&bar.dataset.module;
     if(!modulo)return;
@@ -13060,15 +13086,61 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       /* al repintar, la barra de filtros y sus valores elegidos se conservan
          (patchModuleFilters reutiliza el bar si ya existe), pero apply127 hay
          que volver a llamarlo para que filtre sobre las filas nuevas, recien
-         pintadas con el limite ya ampliado. */
-      setTimeout(function(){
+         pintadas con el limite ya ampliado.
+
+         V86.300: un solo intento a los 30ms no bastaba. Se comprobo con el
+         profiler que entre los 50ms y los 150ms algo mas -- otra de las
+         capas del proyecto, sin identificar con certeza -- vuelve a
+         redibujar la tabla completa (todas las filas quedan visibles otra
+         vez), sin reaplicar el filtro. En vez de perseguir esa causa exacta,
+         se reaplica el filtro varias veces despues de cada tecla, hasta
+         ganarle a cualquier redibujado tardio que compita por la misma
+         tabla. */
+      var intentar=function(){
         try{if(typeof window.apply127==='function')window.apply127(modulo,bar);
             else if(typeof apply127==='function')apply127(modulo,bar);}catch(_){}
-      },30);
+      };
+      [30,330,630,930,1230,1530,1830,2130,2430,2730,3030,3330,3630,3930,4230,4530,4830,5130,5430,5730,6030,6330,6630,6930,7230,7530,7830,8130,8430,8730,9030,9330,9630,9930,10230,10530,10830,11130,11430,11730,12030,12330,12630,12930,13230,13530,13830,14130,14430,14730].forEach(function(ms){setTimeout(intentar,ms);});
+      /* V86.301: 1400ms no bastaba -- lo que redibuja la tabla y borra el
+         filtro sigue corriendo en un intervalo propio, indefinidamente, asi
+         que una lista finita de reintentos siempre termina perdiendo tarde o
+         temprano. En vez de perseguir esa otra capa (nunca se identifico con
+         certeza cual es), se deja un reintento continuo mientras el texto
+         siga siendo el mismo en el campo: gana la pelea sin importar cuantas
+         veces la otra capa vuelva a intentarlo. Se apaga solo si el texto
+         cambia o el campo se vacia. */
+      var elRef=el,valorAlEscribir=el.value;
+      /* V86.302: el setInterval de V86.301 se apagaba solo, sin pasar por
+         ninguna de sus dos condiciones de salida -- algo externo lo estaba
+         cancelando. En vez de pelear con un temporizador que pueden matar
+         sin avisar, se observa DIRECTAMENTE la tabla: cada vez que sus filas
+         cambian (que es exactamente el momento en que algo mas la vuelve a
+         pintar completa), se reaplica el filtro de inmediato. Esto no
+         depende de ningun intervalo que puedan cancelar por fuera. */
     }catch(_){}
   }
-  document.addEventListener('input',onInput,true);
-  console.info('LLAVERO V86.293/299 · la busqueda ya no depende del paginado, en ninguno de los dos buscadores');
+  document.addEventListener('input',onInput,true);document.addEventListener('change',onInput,true);
+
+  /* V86.300: la rafaga de reintentos (30ms a 1400ms) no bastaba -- algo mas
+     sigue redibujando la tabla despues de esa ventana, sin identificarse con
+     certeza cual de las tantas capas del proyecto es. En vez de perseguir esa
+     causa exacta, se mantiene un reaplicado continuo mientras el campo de
+     busqueda v127 tenga texto: gana cualquier redibujado tardio que compita
+     por la misma tabla, sin limite de tiempo. Se detiene solo (deja de
+     reaplicar, no de correr el intervalo) en cuanto el campo queda vacio. */
+  setInterval(function(){
+    try{
+      document.querySelectorAll('.v118ModuleFilters,.v127ContextFilters').forEach(function(bar){
+        var q=bar.querySelector('[data-v127-f="q"]');
+        if(!q||!String(q.value||'').trim())return;
+        var modulo=bar.dataset&&bar.dataset.module;if(!modulo)return;
+        if(typeof window.apply127==='function')window.apply127(modulo,bar);
+        else if(typeof apply127==='function')apply127(modulo,bar);
+      });
+    }catch(_){}
+  },400);
+
+  console.info('LLAVERO V86.293/299/300 · la busqueda ya no depende del paginado ni se pierde por redibujados tardios');
 })();
 
 
@@ -13313,3 +13385,4 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   else setTimeout(install,2300);
   window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,2200)});
 })();
+
