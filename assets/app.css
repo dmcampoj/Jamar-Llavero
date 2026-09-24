@@ -7057,11 +7057,11 @@ body.dark #rangeModalBody table.v8695MdTable tbody tr:hover td{background:#343b4
 .v227States{white-space:nowrap}
 .v227Tag{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.02em;margin-right:3px}
 .v227Tag.rot{background:rgba(214,69,69,.12);color:var(--rot,#c33)}
-.v227Tag.evac{background:rgba(214,69,69,.14);color:var(--rot,#c33)}
+.v227Tag.evac{background:rgba(214,69,69,.16);color:#c0392b}
 .v227Tag.ok{background:rgba(34,150,94,.12);color:var(--ok,#1f8a55)}
-.v227Tag.t{background:rgba(70,110,200,.14);color:#3c62b8}
+.v227Tag.t{background:rgba(155,60,200,.18);color:#7a1fb0}
 .v227Tag.o{background:rgba(155,60,200,.18);color:#7a1fb0}
-.v227Tag.n{background:rgba(120,128,140,.14);color:#5d6673}
+.v227Tag.n{background:rgba(214,69,69,.16);color:#c0392b}
 .v227Pill{display:inline-block;min-width:26px;padding:2px 8px;border-radius:999px;background:var(--bg2,#eef1f6);border:1px solid var(--line,#dfe3ea);font-size:11.5px;font-weight:800;color:var(--ink2,#41485a)}
 .v227Th{white-space:nowrap}
 .v228Note{display:block;font-size:10px;font-weight:700;color:var(--mut,#8a929f);margin-top:2px;letter-spacing:.01em}
@@ -7392,3 +7392,55 @@ body[data-v8620-view="dashboard"] .v8657TrendSvg{
   border:1px solid var(--jamar,#c0392b);border-radius:8px;background:#fff;color:var(--jamar,#c0392b);
   font-size:12px;font-weight:700;cursor:pointer}
 .v296ExportBtn:hover{background:var(--jamar,#c0392b);color:#fff}
+
+/* V86.309: la tabla de presencias (14 columnas) usaba table-layout:fixed
+   heredado de .twrap table -- con tantas columnas y encabezados cortos
+   ("Ciclo de Vida", "Estilo"), el ancho resultante era tan angosto que el
+   texto se partia letra por letra en vertical. Se cambia a table-layout:auto
+   solo para esta tabla (no afecta a las demas, que si dependen del ancho
+   fijo) y se evita el salto de linea en los encabezados -- el scroll
+   horizontal de .twrap ya se encarga de lo que no quepa. */
+.twrap .v257Tabla{table-layout:auto!important}
+.v257Tabla th{white-space:nowrap!important;padding-right:10px}
+.v257Tabla td{white-space:nowrap}
+.v257Tabla td .v255Mut,.v257Tabla td b.v257Nom{white-space:normal}
+
+/* V86.310: agrupa unidades (numero grande, arriba) y productos (texto chico,
+   abajo) en su propia columna dentro del boton de rango de Rotacion y
+   Evacuacion -- antes iban en una sola linea horizontal y se confundian. */
+.ccAgeNums68{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25}
+.ccAgeNums68 b{font-size:13px;color:var(--ink)}
+.ccAgeNums68 small{font-size:10px;color:var(--mut);font-weight:700}
+
+/* V86.311: en "Clasificacion por rangos" (CORE vs COMPLEMENTO), el conteo de
+   productos solo estaba en el title (tooltip al pasar el mouse), invisible
+   sin hacer hover -- causaba confundir el numero de unidades de una grafica
+   con el de productos de otra. Se agrega como texto visible, mas chico y
+   apagado que el de unidades para no competir con el. */
+.v82ProdCount{display:block;font-size:9.5px;color:var(--mut);font-weight:600;margin-top:1px}
+
+/* V86.313: aviso de "candidato a quitar presencia" -- presencia + rotacion
+   + sin venta 3 meses. Fila resaltada en tono calido, badge visible junto a
+   los demas estados. El checkbox de la fila ya hace la accion (marca
+   QUITAR PRESENCIA en el reporte), esto solo ayuda a encontrar los casos. */
+.v257Fila.v257Aviso{background:rgba(214,69,69,.05)}
+.v257AvisoTag{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:20px;
+  background:rgba(214,69,69,.14);color:#c0392b;font-size:10px;font-weight:800}
+
+/* V86.314: icono propio de Llavero (una llave, literal al nombre) junto al
+   texto del encabezado -- Hainer pidio un logo, Llavero no tenia ninguno
+   distinto del logo corporativo de Jamar que ya estaba ahi. */
+.llaveroIcon{width:26px;height:26px;color:var(--jamar,#e52b2f);flex-shrink:0;margin:0 2px}
+
+/* V86.315: carrusel de "flyers" por modulo en la pantalla de carga, pedido
+   en la reunion con Hainer (estilo Netflix: un modulo distinto mientras
+   carga, con icono y frase corta). Puramente CSS + un pequeño JS que rota
+   el indice -- sin imagenes, para no depender de archivos externos que
+   romperian el sitio estatico. */
+.v315Flyer{position:relative;height:78px;margin-bottom:10px;overflow:hidden}
+.v315FlyerSlide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;opacity:0;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease}
+.v315FlyerSlide.on{opacity:1;transform:translateY(0)}
+.v315Ico{font-size:26px;color:#e53232;line-height:1;margin-bottom:4px}
+.v315FlyerSlide b{font-size:15px;color:#173b63;margin:0}
+.v315FlyerSlide span{font-size:11.5px;color:#8a94a3;margin-top:2px}
