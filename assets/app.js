@@ -11807,15 +11807,48 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     AMB=m;AMBK=k;return m;
   }
 
+  /* ---------- producto -> estado de abastecimiento (cruce por código en toda
+     la red) ----------
+     V86.322: el "Estado producto" salia en "—" para muchos codigos porque solo
+     se miraba el inventario de LA TIENDA ACTUAL para ese codigo -- y buena
+     parte del universo de presencias son codigos que en esta tienda no tienen
+     fila de inventario (llegan solo por el archivo de presencias). El estado
+     de abastecimiento es un dato de producto (lo dice la herramienta de
+     abastecimiento por codigo, no por tienda), asi que si la tienda actual no
+     lo trae se cruza el codigo contra el inventario de cualquier otra tienda
+     del mismo corte que si lo tenga. */
+  var ESTG=null,ESTGK='';
+  function estadoRed(){
+    var d=db();if(!d)return {};
+    var k=s(d.meta&&d.meta.fecha);
+    if(ESTG&&ESTGK===k)return ESTG;
+    var m=Object.create(null),x=SS()||{};
+    Object.keys(x).forEach(function(sc){
+      (Array.isArray(x[sc]&&x[sc].inventario)?x[sc].inventario:[]).forEach(function(r){
+        var c=s(r&&r.codigo),e=s(r&&r.estadoAbastecimiento).trim();
+        if(c&&e&&!m[c])m[c]=e;
+      });
+    });
+    ESTG=m;ESTGK=k;return m;
+  }
+
   /* ---------- filas: el universo completo ---------- */
   var FILAS=null,FILK='';
   function filas(){
     var d=db();if(!d)return [];
     var cs=codes(),k=cur()+'|'+cs.join(',')+'|'+s(d.meta&&d.meta.fecha);
     if(FILAS&&FILK===k)return FILAS;
-    var P=d.P||{},am=ambientes(),x=SS(),out=[];
+    var P=d.P||{},am=ambientes(),x=SS(),EG=estadoRed(),out=[];
     cs.forEach(function(sc){
       var st=(x&&x[sc])||{};
+      /* V86.322: "venta 3 meses" venia de r.unidadesFacUlt3Meses /
+         r.facturacionUlt3Meses (columnas del propio inventario), pero ese dato
+         real lo trae la hoja VentasProducto (gestión de exhibición) -- el
+         mismo cruce por código que usa salesMap() en el resto de la app. */
+      var ventas=Object.create(null);
+      (Array.isArray(st.ventasProducto)?st.ventasProducto:[]).forEach(function(vr){
+        var vc=s(vr&&vr[0]);if(vc)ventas[vc]={v:n(vr&&vr[1]),u:n(vr&&vr[2])};
+      });
       /* V86.292: usaba el codigo de tienda directo para buscar en GP, pero GP esta
          indexado por CODIGO DE BODEGA (Trinitarias=29 vive bajo la bodega B5 en el
          archivo de presencias, con el nombre "JAMAR SUR", no "TRINITARIAS"). Sin
@@ -11864,8 +11897,8 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
           sum:par?n(par[0]):0,          /* existencia */
           enArchivo:!!par,
           stock:n(r.stock),
-          ventaU:n(r.unidadesFacUlt3Meses),
-          ventaV:n(r.facturacionUlt3Meses),
+          ventaU:ventas[c]?ventas[c].u:n(r.unidadesFacUlt3Meses),
+          ventaV:ventas[c]?ventas[c].v:n(r.facturacionUlt3Meses),
           amb:ambs, rot:!!rot[c], evac:!!ev[c],
           estados:estados,
           cendis:r.dispCendis==null?null:n(r.dispCendis),
@@ -11875,7 +11908,8 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
           sub:s(p.sub)||s(r.sublinea)||'—',
           ciclo:s(r.cicloVida)||'—',
           estilo:s(r.estilo)||'—',
-          estadoAbast:s(r.estadoAbastecimiento)||'—',
+          cc:s(p.cc)||'',
+          estadoAbast:s(r.estadoAbastecimiento)||EG[c]||'—',
           disponible:r.disponible==null?null:n(r.disponible),
           oc:n(r.ordenesCompra),
           ird:n(r.ird),
@@ -11962,6 +11996,19 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     }).join(' ');
   }
 
+  /* V86.321: clasificacion CORE/COMPLEMENTO del producto, mismo lenguaje
+     visual (ccBadge68) que Rotacion/Evacuacion/Proximos a rotar. */
+  function clasif(r){
+    var x=s(r.cc).toUpperCase();
+    if(x.indexOf('CORE')>=0)return'CORE';
+    if(x.indexOf('COMPLEMENT')>=0)return'COMPLEMENTO';
+    return'SIN CLASIFICACIÓN';
+  }
+  function clasifBadge(r){
+    var cc=clasif(r),cl=cc==='CORE'?'core':cc==='COMPLEMENTO'?'comp':'none';
+    return '<span class="ccBadge68 '+cl+'">'+esc(cc)+'</span>';
+  }
+
   function html(){
     var fs=filtradas(),marcados=fs.filter(function(r){return SEL[clave(r)]}).length;
     var vis=fs.slice(0,tope),todas=filas().length;
@@ -11986,6 +12033,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
         '<td><span class="code">'+esc(r.c)+'</span></td>'+
         '<td><b class="v257Nom" data-v257-cod="'+esc(r.c)+'">'+esc(r.nom)+'</b>'+
           '<div class="v255Mut">'+esc(r.cat)+' · '+esc(r.lin)+' · '+esc(r.sub)+'</div></td>'+
+        '<td>'+clasifBadge(r)+'</td>'+
         '<td>'+esc(r.ciclo)+'</td>'+
         '<td>'+esc(r.estilo)+'</td>'+
         '<td><div class="v257Ests">'+badges(r)+(avisoQuitar?'<span class="v257AvisoTag" title="Tiene presencia, esta en rotacion y no ha tenido venta en 3 meses -- candidato a quitar presencia">! Sin venta</span>':'')+'</div>'+
@@ -12029,7 +12077,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       '</div>'+
       '<div class="twrap"><table class="v255Tabla v257Tabla"><thead><tr>'+
         '<th class="v257Chk"></th>'+(multi()?'<th>Tienda</th>':'')+
-        '<th>Código</th><th>Producto</th><th>Ciclo de Vida</th><th>Estilo</th><th>Le pega a</th><th>Estado producto</th>'+
+        '<th>Código</th><th>Producto</th><th>Clasificación</th><th>Ciclo de Vida</th><th>Estilo</th><th>Le pega a</th><th>Estado producto</th>'+
         '<th class="num">CAN MIN<div class="v257Sub">presencia</div></th>'+
         '<th class="num">CAN SUM<div class="v257Sub">existencia</div></th>'+
         '<th class="num">Disponible<div class="v257Sub">en tienda</div></th>'+
