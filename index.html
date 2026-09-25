@@ -1582,6 +1582,7 @@ function openRotationMetric(metric){
   else rows.sort((a,b)=>b.u-a.u||b.val-a.val);
   const units=rows.reduce((a,r)=>a+r.u,0),value=rows.reduce((a,r)=>a+r.val,0);
   showMetricModal(title,`${safeText(st.name,CUR)} · ${description}`,[['Productos',fInt(rows.length)],['Unidades',fInt(units)],['Valor',fMoneyCOP(value)],['Corte',esc(safeText(DB.meta?.fecha,'—'))]],rows.map(r=>inventoryMetricRowHtml(r,r.u,r.val,r.sales3m>0?`${fInt(r.sales3m)} uds vendidas`:'Sin venta 3m')));
+  const _m296=document.getElementById('rangeModal');if(_m296)_m296.__v296Filas=rows;
 }
 function openEvacuationMetric(metric){
   const st=S[CUR]||{},all=evacuationDetailedRows(st);let rows=all.slice(),title='Evacuación · productos',description='Todos los productos actualmente en evacuación.';
@@ -1592,6 +1593,7 @@ function openEvacuationMetric(metric){
   else rows.sort((a,b)=>(a.cendis>0)-(b.cendis>0)||b.u-a.u);
   const units=rows.reduce((a,r)=>a+r.u,0),value=rows.reduce((a,r)=>a+r.v,0);
   showMetricModal(title,`${safeText(st.name,CUR)} · ${description}`,[['Productos',fInt(rows.length)],['Unidades',fInt(units)],['Valor',fMoneyCOP(value)],['Sin respaldo',fInt(rows.filter(r=>r.cendis<=0).length)]],rows.map(r=>inventoryMetricRowHtml(r,r.u,r.v,r.cendis>0?`${fInt(r.cendis)} uds en CENDIS`:'Sin respaldo CENDIS')));
+  const _m296=document.getElementById('rangeModal');if(_m296)_m296.__v296Filas=rows;
 }
 function openInventoryMetric(metric){
   const st=S[CUR]||{},all=normalizeInventoryRows(st).filter(r=>r.stock>0);let rows=all.slice(),title='Inventario · referencias con stock',description='Inventario completo de la tienda.';
@@ -1601,6 +1603,7 @@ function openInventoryMetric(metric){
   else if(metric==='value'){rows.sort((a,b)=>b.valorInventario-a.valorInventario);title='Inventario · valor total';description='Referencias ordenadas por valor de inventario.';}
   const units=rows.reduce((a,r)=>a+r.stock,0),value=rows.reduce((a,r)=>a+r.valorInventario,0);
   showMetricModal(title,`${safeText(st.name,CUR)} · ${description}`,[['Referencias',fInt(rows.length)],['Unidades',fInt(units)],['Valor',fMoneyCOP(value)],['Corte',esc(safeText(DB.meta?.fecha,'—'))]],rows.map(r=>inventoryMetricRowHtml(r,r.stock,r.valorInventario,toNum(r.dispCendis)>0?`${fInt(r.dispCendis)} uds en CENDIS`:'Sin respaldo CENDIS')));
+  const _m296=document.getElementById('rangeModal');if(_m296)_m296.__v296Filas=rows;
 }
 function salesMetricRowHtml(r){
   const code=safeCode(r.c),p=r.p||productInfo(code);
@@ -1615,6 +1618,7 @@ function openSalesMetric(metric){
   else if(metric==='nosales'){rows=ins.noSales;title='Ventas · productos con stock sin venta';description='Productos con stock y sin ventas durante los últimos 3 meses.';}
   const units=rows.reduce((a,r)=>a+r.u,0),value=rows.reduce((a,r)=>a+r.v,0),stock=rows.reduce((a,r)=>a+r.su,0);
   showMetricModal(title,`${safeText(st.name,CUR)} · ${description}`,[['Productos',fInt(rows.length)],['Unidades vendidas',fInt(units)],['Facturación',fMoneyCOP(value)],['Stock actual',fInt(stock)]],rows.map(salesMetricRowHtml));
+  const _m296=document.getElementById('rangeModal');if(_m296)_m296.__v296Filas=rows.map(r=>({...r,u:r.u,val:r.v}));
 }
 
 summaryProductList=function(st,stateName){
@@ -1736,6 +1740,7 @@ openRangeDetail=function(stateName,index){
   const table=`<table class="rangeProductTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Antigüedad seleccionada</th><th>Distribución completa</th><th class="num">Uds. en rango</th><th class="num">Valor estimado</th></tr></thead><tbody>${rows||'<tr><td colspan="7">Sin productos.</td></tr>'}</tbody></table>`;
   const cards=[['Rango de antigüedad',esc(stat.label)],['Edad del inventario',esc(ageText)],['Unidades en este rango',fInt(stat.units)],['Productos en este rango',fInt(stat.productsCount)]];
   document.getElementById('rangeModalBody').innerHTML=commonDetailShell(cards,'<b>Cómo leer esta vista:</b> “Antigüedad seleccionada” corresponde al rango presionado y “Distribución completa” muestra las demás unidades del mismo producto. Presiona el producto o la fila para abrir su ficha completa.',table);
+  const _m296=document.getElementById('rangeModal');if(_m296)_m296.__v296Filas=items.map(x=>({c:x.r.c,p:x.r.p,row:x.r,u:x.units,val:x.value,v:x.value,ageLabel:stat.label}));
   document.getElementById('rangeModal').classList.add('on');
   document.querySelector('#rangeModal .modalBody')?.scrollTo({top:0});
 };
@@ -4503,6 +4508,7 @@ if(document.documentElement.getAttribute('data-llavero-build')!=='V79')document.
       '<button type="button" data-v8698-clear>Limpiar</button><div class="v8698ClassFilterCount" data-v8698-count></div></div>';
     var body=rows.map(function(r){var ages=agesOf(r),search=(r.c+' '+r.p.n+' '+r.p.cat+' '+r.p.lin+' '+r.p.sub).toLowerCase();return '<tr class="v71CendisRow" data-code="'+e71(r.c)+'" data-v8698-search="'+e71(search)+'" data-v8698-cat="'+e71(r.p.cat)+'" data-v8698-lin="'+e71(r.p.lin)+'" data-v8698-age="'+e71(ages.join('|'))+'" data-v8698-cendis="'+(r.cendis>0?'with':'without')+'"><td><span class="code">'+e71(r.c)+'</span></td><td><b>'+e71(r.p.n)+'</b></td><td>'+e71(r.p.cat)+'<br><span style="color:var(--mut)">'+e71(r.p.lin)+' · '+e71(r.p.sub)+'</span></td><td>'+ageChips71(r.ranges)+'</td><td class="num">'+i71(r.units)+'</td><td class="num">'+i71(r.cendis)+'</td><td class="num">'+m71(r.value)+'</td></tr>';}).join('');
     openRangeModal71((module==='rot'?'Rotación':'Evacuación')+' · '+cc,'Detalle consolidado por producto y rangos de edad de 91 días o más','<div class="v70DetailSummary"><div class="v70DetailKpi"><label>Productos</label><b>'+i71(rows.length)+'</b></div><div class="v70DetailKpi"><label>Unidades</label><b>'+i71(rows.reduce(function(a,r){return a+r.units;},0))+'</b></div><div class="v70DetailKpi"><label>Valor</label><b>'+m71(rows.reduce(function(a,r){return a+r.value;},0))+'</b></div></div>'+filters+'<div class="v70DetailWrap"><table class="v71ImpactTable"><thead><tr><th>Código</th><th>Producto</th><th>Categoría / Línea / Sublínea</th><th>Rangos 91+ días</th><th class="num">Uds.</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+body+'</tbody></table></div>');
+    var _m296=document.getElementById('rangeModal');if(_m296)_m296.__v296Filas=rows.map(function(r){return {c:r.c,p:r.p,cc:r.cc,u:r.units,val:r.value,v:r.value,cendis:r.cendis};});
     setTimeout(function(){
       var root=document.getElementById('rangeModalBody');if(!root)return;var bar=root.querySelector('[data-v8698-class-filters]'),trs=Array.from(root.querySelectorAll('.v71CendisRow'));if(!bar)return;
       function val(k){var el=bar.querySelector('[data-v8698-f="'+k+'"]');return String(el&&el.value||'');}
@@ -6631,6 +6637,7 @@ setTimeout(function(){mark80();enhance80();},80);
       +'<div class="v80TableWrap"><table class="v80Table v869ClassTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Clasificación</th><th>Estado</th><th class="num">Unidades</th><th>Rangos</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     var modal=ensureModal869(),title=modal.querySelector('#v80ModalTitle'),sub=modal.querySelector('#v80ModalSub'),body=modal.querySelector('#v80ModalBody');
     if(title)title.textContent='Inventario '+kind;if(sub)sub.textContent=(st.name||CUR)+' · referencias y unidades en tienda';if(body)body.innerHTML=html;
+    modal.__v296Filas=data.rows.map(function(r){return Object.assign({},r,{cc:kind});});
     modal.classList.add('on');document.body.style.overflow='hidden';
   };
   window.filterInventoryClass869=function(input){
@@ -8216,7 +8223,7 @@ setTimeout(function(){mark80();enhance80();},80);
     try{Object.keys(S||{}).forEach(function(k){window.recalcOperationalKpis(S[k]);});}catch(_){ }
   }
 
-  function openRowsModal62(title,subtitle,rows,extra){var modal=document.getElementById('rangeModal');if(!modal)return;var ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle'),body=document.getElementById('rangeModalBody');if(ttl)ttl.textContent=title;if(sub)sub.textContent=subtitle;var content=rows.map(function(r){var p=r.p||prod62(r.c),ages=typeof invAgeHtml==='function'?invAgeHtml(r.rangos||{},r.stock):'';return '<tr onclick="openBestProductDetail('+JSON.stringify(r.c)+')"><td>'+((typeof imageThumb==='function')?imageThumb(r.c,'sm'):'')+'</td><td><span class="code">'+esc62(r.c)+'</span></td><td><b>'+esc62(p.n||r.c)+'</b><div class="muted">'+esc62((p.cat||'—')+' · '+(p.lin||'—')+' · '+(p.sub||'—'))+'</div></td><td class="num"><b>'+i62(r.stock||r.u||0)+'</b></td><td>'+ages+'</td><td class="num">'+(n(r.dispCendis||r.cendis)>0?'<span class="tag cr">'+i62(r.dispCendis||r.cendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td><td class="num">'+money62(r.valorInventario!=null?r.valorInventario:(r.val!=null?r.val:r.v))+'</td></tr>';}).join('');if(body)body.innerHTML=(extra||'')+'<div class="twrap" style="max-height:62vh"><table class="metricProductTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th class="num">Unidades</th><th>Antigüedad</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+(content||'<tr><td colspan="7"><div class="empty">No hay productos.</div></td></tr>')+'</tbody></table></div>';modal.classList.add('on');}
+  function openRowsModal62(title,subtitle,rows,extra){var modal=document.getElementById('rangeModal');if(!modal)return;var ttl=document.getElementById('rangeModalTitle'),sub=document.getElementById('rangeModalSubtitle'),body=document.getElementById('rangeModalBody');if(ttl)ttl.textContent=title;if(sub)sub.textContent=subtitle;var content=rows.map(function(r){var p=r.p||prod62(r.c),ages=typeof invAgeHtml==='function'?invAgeHtml(r.rangos||{},r.stock):'';return '<tr onclick="openBestProductDetail('+JSON.stringify(r.c)+')"><td>'+((typeof imageThumb==='function')?imageThumb(r.c,'sm'):'')+'</td><td><span class="code">'+esc62(r.c)+'</span></td><td><b>'+esc62(p.n||r.c)+'</b><div class="muted">'+esc62((p.cat||'—')+' · '+(p.lin||'—')+' · '+(p.sub||'—'))+'</div></td><td class="num"><b>'+i62(r.stock||r.u||0)+'</b></td><td>'+ages+'</td><td class="num">'+(n(r.dispCendis||r.cendis)>0?'<span class="tag cr">'+i62(r.dispCendis||r.cendis)+' u</span>':'<span class="tag sr">Sin respaldo</span>')+'</td><td class="num">'+money62(r.valorInventario!=null?r.valorInventario:(r.val!=null?r.val:r.v))+'</td></tr>';}).join('');if(body)body.innerHTML=(extra||'')+'<div class="twrap" style="max-height:62vh"><table class="metricProductTable"><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th class="num">Unidades</th><th>Antigüedad</th><th class="num">CENDIS</th><th class="num">Valor</th></tr></thead><tbody>'+(content||'<tr><td colspan="7"><div class="empty">No hay productos.</div></td></tr>')+'</tbody></table></div>';modal.__v296Filas=rows;modal.classList.add('on');}
   window.openInventoryCondition8662=function(kind){var st=store62(),x=window.inventorySummary(st),rows=kind==='healthy'?x.healthyRows.slice():kind==='prox'?x.proxRows.slice():kind==='rot'?x.rotationRows.slice():kind==='evac'?x.evacuationRows.slice():x.rows.slice(),label=kind==='healthy'?'Productos sanos':kind==='prox'?'Próximos a Rotar':kind==='rot'?'Productos en Rotación':kind==='evac'?'Productos en Evacuación':'Productos con stock',units=rows.reduce(function(a,r){return a+n(r.stock);},0),val=rows.reduce(function(a,r){return a+n(r.valorInventario);},0),summary='<div class="rangeModalSummary"><div class="rangeStat"><label>Productos</label><b>'+i62(rows.length)+'</b></div><div class="rangeStat"><label>Unidades</label><b>'+i62(units)+'</b></div><div class="rangeStat"><label>Valor</label><b>'+money62(val)+'</b></div><div class="rangeStat"><label>Condición</label><b>'+esc62(label.replace('Productos en ','').replace('Productos ',''))+'</b></div></div>';openRowsModal62(label,(st.name||CUR)+' · detalle por producto',rows,summary);};
   window.openHealthy8662=function(){return window.openInventoryCondition8662('healthy');};
   window.openRotCendis8662=function(kind){var st=store62(),rows=window.rotationDetailedRows(st).filter(function(r){return kind==='with'?n(r.dispCendis)>0:n(r.dispCendis)<=0;});openRowsModal62('Rotación · '+(kind==='with'?'con respaldo CENDIS':'sin respaldo CENDIS'),(st.name||CUR)+' · '+i62(rows.length)+' productos',rows,'');};
@@ -8382,7 +8389,7 @@ window.__LLAVERO_BOOTSTRAPPED__=true;window.__LLAVERO_STABLE_RENDER__=true;windo
   }).catch(function(error){fail('No fue posible cargar los datos externos (data/llavero.json.gz / data/historial.json.gz). '+(error&&error.message?error.message:''),error);});
 })();
 </script>
-<script src="assets/app.js?v=86323"></script>
+<script src="assets/app.js?v=86328"></script>
 
 <!-- LLAVERO_V86_20_VIEWS_JS_START -->
 

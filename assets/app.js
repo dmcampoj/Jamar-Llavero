@@ -2204,7 +2204,7 @@ function visibleRows(){var table=document.querySelector('#markdown-table-8618 ta
 function selectVisible(on){var m=readMem();visibleRows().forEach(function(x){if(!x.cb||x.cb.disabled)return;var r=rowBy(CUR,x.code);if(!r||r.statusKey!=='manage')return;var k=itemKey(CUR,x.code);if(on){var old=m.items[k]||{};m.items[k]={storeCode:CUR,code:s(x.code),requestedDiscount:n(old.requestedDiscount||r.discount),note:s(old.note||'')}}else delete m.items[k];x.cb.checked=on});writeMem(m)}
 function clearSelection(){writeMem({items:{}});visibleRows().forEach(function(x){if(x.cb)x.cb.checked=false});updateBar();renderManager()}
 function ensureManager(){var modal=document.getElementById('v8623MarkdownManageModal');if(modal)return modal;var wrap=document.createElement('div');wrap.id='v8623MarkdownManageModal';wrap.className='modalBack';wrap.innerHTML='<div class="modal v8623ManageModal" role="dialog" aria-modal="true"><div class="modalHead"><div><h3>Lista de gestión Markdown</h3><p>Productos seleccionados para la gestión.</p></div><button class="modalClose" type="button" onclick="V8623.closeManager()">×</button></div><div class="modalBody v8623ManageModalBody" id="v8623ManagerBody"></div><div class="modalFoot"><button class="btn danger" type="button" onclick="V8623.clearAll()">Limpiar lista</button><button class="btn ghost" type="button" onclick="V8623.closeManager()">Cerrar</button><button class="btn primary" id="v8623ModalExcelBtn" type="button" onclick="V8623.downloadExcel()">Descargar Excel</button><button class="btn ghost" id="v8623ModalPdfBtn" type="button" onclick="V8623.downloadPdf()">Descargar PDF</button></div></div>';document.body.appendChild(wrap);wrap.addEventListener('click',function(e){if(e.target===wrap)closeManager()});return wrap}
-function renderManager(){var body=document.getElementById('v8623ManagerBody');if(!body)return;var rs=selectedRecords(),t=totals(rs);if(!rs.length){body.innerHTML='<div class="v8623Empty"><b>No hay productos en la lista de gestión.</b><div style="margin-top:5px">Selecciona productos desde la tabla de Markdown.</div></div>';return}body.innerHTML='<div class="v8686SelectedSummary"><div><label>Productos</label><b>'+fi(t.count)+'</b></div><div><label>Unidades</label><b>'+fi(t.units)+'</b></div><div><label>Administrador</label><b>'+fi(t.admin)+'</b></div><div><label>Líder</label><b>'+fi(t.leader)+'</b></div></div><div class="twrap"><table class="v8686SelectedTable"><thead><tr><th>Código</th><th>Producto</th><th>Responsable</th><th class="num">Sugerido</th><th>Acción</th></tr></thead><tbody>'+rs.map(function(r){return'<tr><td><span class="code">'+esc(r.code)+'</span></td><td><b>'+esc(r.name)+'</b></td><td>'+esc(r.responsible)+'</td><td class="num"><b>'+fi(r.requestedDiscount)+'%</b></td><td><button class="remove" onclick="V8686Selection.remove('+JSON.stringify(r.storeCode)+','+JSON.stringify(r.code)+')">Quitar</button></td></tr>'}).join('')+'</tbody></table></div>'}
+function renderManager(){var body=document.getElementById('v8623ManagerBody');if(!body)return;var rs=selectedRecords(),t=totals(rs);if(!rs.length){body.innerHTML='<div class="v8623Empty"><b>No hay productos en la lista de gestión.</b><div style="margin-top:5px">Selecciona productos desde la tabla de Markdown.</div></div>';return}body.innerHTML='<div class="v8686SelectedSummary"><div><label>Productos</label><b>'+fi(t.count)+'</b></div><div><label>Unidades</label><b>'+fi(t.units)+'</b></div><div><label>Administrador</label><b>'+fi(t.admin)+'</b></div><div><label>Líder</label><b>'+fi(t.leader)+'</b></div></div><div class="twrap"><table class="v8686SelectedTable"><thead><tr><th>Código</th><th>Producto</th><th>Responsable</th><th class="num">Sugerido</th><th>Acción</th></tr></thead><tbody>'+rs.map(function(r){return'<tr><td><span class="code">'+esc(r.code)+'</span></td><td><b>'+esc(r.name)+'</b></td><td>'+esc(r.responsible)+'</td><td class="num"><b>'+fi(r.requestedDiscount)+'%</b></td><td><button class="remove" data-export-skip="1" onclick="V8686Selection.remove('+JSON.stringify(r.storeCode)+','+JSON.stringify(r.code)+')">Quitar</button></td></tr>'}).join('')+'</tbody></table></div>'}
 function openManager(){var m=ensureManager();renderManager();m.classList.add('on');updateBar()}
 function closeManager(){var m=document.getElementById('v8623MarkdownManageModal');if(m)m.classList.remove('on')}
 function excelObservation(r){return 'Markdown · '+s(r.policyApplied||'')+' · '+s(r.ruleApplied||'')+' · muestra '+(r.currentDiscount==null?'—':r.currentDiscount+'%')+' · sugerido '+n(r.requestedDiscount)+'%'}
@@ -7072,7 +7072,7 @@ window.addEventListener('llavero:view-stable',function(){setTimeout(patchAll,45)
     ensureAllOption(sel);
     sel.addEventListener('change',function(){
       var v=sel.value;
-      if(v===ALL){SCOPE.store='all';applyScope(false)}
+      if(v===ALL){SCOPE.store='all';lastKey='';applyScope(true)}
       else{SCOPE.store=v;SCOPE.zone='all';SCOPE.dep='all';SCOPE.city='all';SCOPE.q='';lastKey=''}
       setTimeout(injectBar,120);
     },true);
@@ -13362,6 +13362,119 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     return 'Llavero_'+titulo+(fecha?'_'+fecha:'')+'.xlsx';
   }
 
+  /* V86.298: exportar por CAMPO, no por lo que se ve en pantalla.
+     El detalle visual de estas tablas se arma para leerse cómodo (nombre y un
+     dato extra en la misma celda, categoría/línea/sublínea en una sola línea,
+     y aparte, cada 900ms-1600ms otro módulo (V86.272) inserta chips de "Estrella"
+     / "Fuera de surtido" pegados al <span class="code"> en TODAS las tablas del
+     proyecto). Leer eso con un scraper de HTML nunca va a dar columnas estables:
+     cambia con el tiempo y mezcla cosas que visualmente van juntas pero son
+     datos distintos. La corrección real es exportar desde el mismo objeto de
+     datos que ya usa cada tabla para pintarse (r.c, r.p.cat/lin/sub, r.surtido,
+     etc.), con una columna fija por campo, tal como lo pidió negocio. */
+  function n296(v){var x=Number(v);return isFinite(x)?x:0;}
+  function up296(v){return s(v).toUpperCase()}
+  function v296TipoSurtido(raw){
+    var surt=up296(raw.surtido),ciclo=up296(raw.cicloVida),ab=up296(raw.estadoAbastecimiento);
+    var tipos=[];
+    if(ab==='T')tipos.push('Testeo');else if(ab==='O')tipos.push('Novedad');
+    if(ciclo==='FUERA SURTIDO'||surt==='FUERA SURTIDO'||ab==='N')tipos.push('Fuera de surtido');
+    if(surt==='FAMILIAR LÍDER'||surt==='FAMILIAR LIDER')tipos.push('Familiar líder');
+    if(surt==='PROTECTOR DE TERRENO')tipos.push('Protector de terreno');
+    if(surt==='IMAGEN')tipos.push('Imagen');
+    return tipos.length?tipos.join(', '):s(raw.surtido);
+  }
+  /* V86.299: "Estrella / Interrogante / Protector de terreno / Imagen" viene del
+     campo matriz del producto; "CORE / Complemento" es un dato aparte (P[c].cc,
+     o ya viene resuelto como r.cc en varias vistas como el detalle por CORE /
+     COMPLEMENTO de Rotación y Evacuación). Se piden ambos como columnas propias. */
+  function v296Matriz(raw){
+    var m=up296(raw.matriz);
+    if(m==='ESTRELLA')return 'Estrella';
+    if(m==='INTERROGANTE')return 'Interrogante';
+    if(m==='PROTECTOR DE TERRENO'||m==='PROTECTOR TERRENO')return 'Protector de terreno';
+    if(m==='IMAGEN')return 'Imagen';
+    return s(raw.matriz);
+  }
+  function v296CoreComplemento(r,raw,p){
+    var x=up296(r.cc||raw.cc||p.cc||'');
+    if(x==='CORE')return 'CORE';
+    if(x==='COMPLEMENTO'||x==='COMPLEMENTOS')return 'COMPLEMENTO';
+    return 'SIN CLASIFICACIÓN';
+  }
+  function v296Registro(r){
+    r=r||{};
+    /* rotationDetailedRows/evacuationDetailedRows guardan el registro crudo del
+       inventario en r.row; normalizeInventoryRows lo trae mezclado en el propio r. */
+    var raw=(r.row&&typeof r.row==='object')?r.row:r;
+    var p=r.p||raw.p||{};
+    var codigo=s(r.c||raw.codigo||raw.c||'');
+    var unidades=r.u!=null?r.u:(r.stock!=null?r.stock:raw.stock);
+    var valor=r.val!=null?r.val:(r.v!=null?r.v:(r.valorInventario!=null?r.valorInventario:raw.valorInventario));
+    var cendis=r.dispCendis!=null?r.dispCendis:(r.cendis!=null?r.cendis:raw.dispCendis);
+    return {
+      'Código':codigo,
+      'Nombre':s(p.n||raw.producto||codigo),
+      'CORE / Complemento':v296CoreComplemento(r,raw,p),
+      'Matriz':v296Matriz(raw),
+      'Tipo de surtido':v296TipoSurtido(raw),
+      'Categoría':s(p.cat||raw.categoria),
+      'Línea':s(p.lin||raw.linea),
+      'Sublínea':s(p.sub||raw.sublinea),
+      'Antigüedad':s(r.ageLabel||r.edad||''),
+      'Unidades':n296(unidades),
+      'Respaldo CENDIS':n296(cendis),
+      'Valor':n296(valor)
+    };
+  }
+  /* V86.300: si mañana se agrega una columna nueva a alguna de estas tablas
+     (visible en pantalla) no debe hacer falta tocar este archivo para que
+     también salga en el Excel. Además de los campos fijos y confiables de
+     v296Registro, se agrega automáticamente, al final de cada fila, una
+     copia de TODAS las columnas que estén visibles en la tabla en ese
+     momento (con su mismo encabezado, marcado "(tabla) ..." para no
+     confundirlas con los campos fijos). Si el número de filas visibles no
+     coincide con los datos crudos (vista distinta, desalineada), se omite
+     esta parte y solo quedan los campos fijos. */
+  function v296ColumnasVisibles(modal,totalFilas){
+    var tabla=modal.querySelector('table');
+    if(!tabla)return null;
+    var filasDom=Array.prototype.slice.call(tabla.querySelectorAll('tbody tr'));
+    if(!filasDom.length||filasDom.length!==totalFilas)return null;
+    var headTr=tabla.querySelector('thead tr');
+    var headers=headTr?Array.prototype.map.call(headTr.querySelectorAll('th'),function(th){return s(th.textContent)||'Columna'}):[];
+    var filas=filasDom.map(function(tr){return Array.prototype.map.call(tr.querySelectorAll('td'),v296CeldaATexto)});
+    var maxCols=filas.reduce(function(m,f){return Math.max(m,f.length)},0);
+    while(headers.length<maxCols)headers.push('Columna '+(headers.length+1));
+    filas.forEach(function(f){while(f.length<maxCols)f.push('')});
+    return {headers:headers.slice(0,maxCols),filas:filas};
+  }
+  function exportarDesdeRegistros(modal,filas){
+    var registros=filas.map(v296Registro);
+    var visibles=v296ColumnasVisibles(modal,registros.length);
+    var registrosConVisibles=registros.map(function(r,i){
+      if(visibles)visibles.headers.forEach(function(h,j){r['(tabla) '+h]=visibles.filas[i][j]});
+      return r;
+    }).filter(function(x){return x['Código']});
+    if(!registrosConVisibles.length)return null;
+    var header=Object.keys(registrosConVisibles[0]);
+    var aoa=[header].concat(registrosConVisibles.map(function(r){return header.map(function(h){return r[h]})}));
+    var anchosFijos=[{wch:12},{wch:34},{wch:16},{wch:16},{wch:20},{wch:18},{wch:18},{wch:18},{wch:14},{wch:11},{wch:14},{wch:14}];
+    var anchos=header.map(function(h,i){return anchosFijos[i]||{wch:18}});
+    return {nombre:'Detalle',filas:aoa,anchos:anchos};
+  }
+
+  /* Respaldo para modales que todavía no traen los datos crudos adjuntos
+     (ver `modal.__v296Filas` más abajo): solo lee lo visible, sin partir
+     celdas en varias columnas (eso desalinea todo cuando V86.272 le agrega
+     chips al código en medio del scrape) y quitando los chips inyectados
+     y los controles de acción pura antes de leer el texto. */
+  function v296CeldaATexto(celda){
+    var clon=celda.cloneNode(true);
+    clon.querySelectorAll('.actionBtn,[data-export-skip],.v272Wrap').forEach(function(b){b.remove()});
+    clon.querySelectorAll('br').forEach(function(br){br.replaceWith(' ')});
+    return s(clon.textContent).replace(/\s+/g,' ').trim();
+  }
   function extraerTablas(modal){
     var tablas=modal.querySelectorAll('table');
     var hojas=[];
@@ -13369,12 +13482,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       var filas=[];
       tabla.querySelectorAll('tr').forEach(function(tr){
         var fila=[];
-        tr.querySelectorAll('th,td').forEach(function(celda){
-          /* si la celda tiene un boton/enlace de accion, no exportarlo como texto */
-          var clon=celda.cloneNode(true);
-          clon.querySelectorAll('button,.actionBtn').forEach(function(b){b.remove()});
-          fila.push(s(clon.textContent));
-        });
+        tr.querySelectorAll('th,td').forEach(function(celda){fila.push(v296CeldaATexto(celda))});
         if(fila.length)filas.push(fila);
       });
       if(filas.length)hojas.push({nombre:'Tabla'+(tablas.length>1?(i+1):''),filas:filas});
@@ -13393,8 +13501,23 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     return hojas;
   }
 
+  function v296DatosVigentes(modal,filas){
+    /* #rangeModal lo reutilizan más de 25 funciones distintas; no todas dejan
+       adjuntos los datos crudos. Antes de confiar en modal.__v296Filas se
+       compara con la cantidad de filas realmente visibles ahora mismo -- si
+       no coincide, es de una vista anterior y no corresponde a lo que hay en
+       pantalla, así que se descarta y se usa el respaldo (leer el HTML). */
+    var tbody=modal.querySelector('table tbody');
+    if(!tbody)return false;
+    return tbody.querySelectorAll('tr').length===filas.length;
+  }
   function exportar(modal){
-    var hojas=extraerTablas(modal);
+    /* si el que abrió este modal dejó adjuntos los datos crudos de fila
+       (V86.298), se exporta desde ahí -- un campo por columna, siempre --
+       en vez de leer el HTML ya renderizado. */
+    var filas=Array.isArray(modal.__v296Filas)&&modal.__v296Filas.length&&v296DatosVigentes(modal,modal.__v296Filas)?modal.__v296Filas:null;
+    var hoja=filas?exportarDesdeRegistros(modal,filas):null;
+    var hojas=hoja?[hoja]:extraerTablas(modal);
     if(!hojas.length){
       if(typeof toast==='function')toast('No hay una tabla en este detalle para exportar','err');
       return;
@@ -13403,6 +13526,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       var wb=XLSX.utils.book_new();
       hojas.forEach(function(h){
         var ws=XLSX.utils.aoa_to_sheet(h.filas);
+        if(h.anchos)ws['!cols']=h.anchos;
         XLSX.utils.book_append_sheet(wb,ws,h.nombre.slice(0,31));
       });
       XLSX.writeFile(wb,nombreArchivo(modal));
