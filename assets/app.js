@@ -2480,7 +2480,14 @@ function openDetail(titleText,data){
  var filters='<div class="v8695MdFilters"><div class="v8695MdField"><label>Buscar</label><input id="v8695MdQ" placeholder="Código, producto, categoría, política…"></div>'+field('v8695MdCategory','Categoría',categories,'Todas')+field('v8695MdClass','Clasificación',classes,'Todas')+field('v8695MdPolicy','Política',policies,'Todas')+field('v8695MdAge','Antigüedad',ages,'Todas')+'</div>';
  body.innerHTML='<div class="v8684DetailSummary"><div class="v8684DetailKpi"><label>Productos</label><b>'+fi(data.length)+'</b></div><div class="v8684DetailKpi"><label>Unidades</label><b>'+fi(units)+'</b></div><div class="v8684DetailKpi"><label>CORE</label><b>'+fi(core)+'</b></div><div class="v8684DetailKpi"><label>COMPLEMENTO</label><b>'+fi(comp)+'</b></div></div>'+filters+'<div class="v8695MdCount"><span id="v8695MdCount">'+fi(data.length)+' productos</span><span>Selecciona una fila para abrir la ficha del producto.</span></div><div class="v8695MdWrap"><table class="v8695MdTable"><colgroup><col class="img"><col class="code"><col class="prod"><col class="cls"><col class="stock"><col class="age"><col class="policy"><col class="disc"><col class="disc"><col class="disc"><col class="state"><col class="owner"></colgroup><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Clasificación</th><th class="num">Stock</th><th>Antigüedad</th><th>Política / regla</th><th class="num">Oferta</th><th class="num">Muestra</th><th class="num">Sugerido</th><th>Estado</th><th>Responsable</th></tr></thead><tbody>'+trs+'</tbody></table></div>';
  function filter(){var q=norm((document.getElementById('v8695MdQ')||{}).value||''),cat=(document.getElementById('v8695MdCategory')||{}).value||'all',cl=(document.getElementById('v8695MdClass')||{}).value||'all',po=(document.getElementById('v8695MdPolicy')||{}).value||'all',ag=(document.getElementById('v8695MdAge')||{}).value||'all',shown=0;body.querySelectorAll('.v8695MdTable tbody tr').forEach(function(tr){var ok=(!q||s(tr.dataset.q).indexOf(q)>=0)&&(cat==='all'||tr.dataset.category===cat)&&(cl==='all'||tr.dataset.class===cl)&&(po==='all'||tr.dataset.policy===po)&&(ag==='all'||tr.dataset.age===ag);tr.style.display=ok?'':'none';if(ok)shown++});var c=document.getElementById('v8695MdCount');if(c)c.textContent=fi(shown)+' productos'}
- ['v8695MdQ','v8695MdCategory','v8695MdClass','v8695MdPolicy','v8695MdAge'].forEach(function(id){var x=document.getElementById(id);if(x)x.addEventListener(id==='v8695MdQ'?'input':'change',filter)});body.querySelectorAll('tbody tr[data-code]').forEach(function(tr){tr.onclick=function(){if(typeof openMdProduct8664==='function')openMdProduct8664(tr.dataset.code)}});modal.classList.add('on');
+ ['v8695MdQ','v8695MdCategory','v8695MdClass','v8695MdPolicy','v8695MdAge'].forEach(function(id){var x=document.getElementById(id);if(x)x.addEventListener(id==='v8695MdQ'?'input':'change',filter)});body.querySelectorAll('tbody tr[data-code]').forEach(function(tr){tr.onclick=function(){if(typeof openMdProduct8664==='function')openMdProduct8664(tr.dataset.code)}});
+ /* V86.301: la celda "Producto" de esta tabla pega el nombre y la categoría
+    sin separador (<b>nombre</b><small>cat · lín · sub</small>, sin espacio
+    entre los dos), por eso salía "...NAT/GRISSOCIAL..." en el Excel. Se
+    exporta desde estos mismos datos (r.name/r.category/r.line/r.subline)
+    en vez de leer esa celda. */
+ modal.__v296Filas=data.map(function(r){return {c:r.code,p:{n:r.name,cat:r.category,lin:r.line,sub:r.subline},cc:cc(r),stock:r.stock,ageLabel:r.ageLabel,row:r};});
+ modal.classList.add('on');
 }
 function statusTitle(key){return key==='manage'?'Productos a gestionar':key==='offer_covered'?'Oferta cubre':key==='comply'?'Cumple política':key==='exceed'?'Supera política':key==='review'?'Revisar dato':key==='no_policy'?'Sin política':'Detalle Markdown'}
 function ageTitle(bucket){return bucket==='0-60'?'0–60 días':bucket==='61-90'?'61–90 días':bucket==='91-150'?'91–150 días':bucket==='151-180'?'151–180 días':bucket==='181-210'?'181–210 días':bucket==='211-240'?'211–240 días':bucket==='241-360'?'241–360 días':'+360 días'}
@@ -13468,11 +13475,23 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
      (ver `modal.__v296Filas` más abajo): solo lee lo visible, sin partir
      celdas en varias columnas (eso desalinea todo cuando V86.272 le agrega
      chips al código en medio del scrape) y quitando los chips inyectados
-     y los controles de acción pura antes de leer el texto. */
+     y los controles de acción pura antes de leer el texto.
+     V86.301: muchas plantillas del proyecto ponen el nombre y un dato extra
+     pegados sin espacio ni <br> entre ellos (p.ej. <b>Nombre</b><small>Categoría
+     · Línea</small>), y textContent los junta en una sola palabra ("...NAT/
+     GRISSOCIAL..."). Se recorre la celda y se agrega un espacio entre cada
+     bloque adyacente (sigue siendo UNA sola celda de Excel, solo que legible;
+     no se reparte en columnas nuevas, así no se repite el desalineo por los
+     chips de V86.272). */
   function v296CeldaATexto(celda){
     var clon=celda.cloneNode(true);
     clon.querySelectorAll('.actionBtn,[data-export-skip],.v272Wrap').forEach(function(b){b.remove()});
     clon.querySelectorAll('br').forEach(function(br){br.replaceWith(' ')});
+    (function separar(el){
+      var hijos=Array.prototype.filter.call(el.childNodes,function(n){return n.nodeType===1});
+      hijos.forEach(function(h,i){if(i>0)h.before(' ')});
+      hijos.forEach(separar);
+    })(clon);
     return s(clon.textContent).replace(/\s+/g,' ').trim();
   }
   function extraerTablas(modal){
