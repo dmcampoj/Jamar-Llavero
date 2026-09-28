@@ -13419,6 +13419,16 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var unidades=r.u!=null?r.u:(r.stock!=null?r.stock:raw.stock);
     var valor=r.val!=null?r.val:(r.v!=null?r.v:(r.valorInventario!=null?r.valorInventario:raw.valorInventario));
     var cendis=r.dispCendis!=null?r.dispCendis:(r.cendis!=null?r.cendis:raw.dispCendis);
+    var unidadesOC=n296(r.unidadesOC!=null?r.unidadesOC:raw.unidadesOC);
+    var ordenesCompra=n296(r.ordenesCompra!=null?r.ordenesCompra:raw.ordenesCompra);
+    var fechaOC=s(r.ocFecha||r.fechaRecibido||raw.fechaRecibido||'');
+    var discActual=(r.discountActual!=null)?r.discountActual:null;
+    var discSug=(r.discountSugerido!=null)?r.discountSugerido:(r.discount!=null?r.discount:null);
+    var discOferta=(r.discountOferta!=null)?r.discountOferta:null;
+    if(discActual==null&&discSug==null&&discOferta==null&&typeof window.v297Discount==='function'){
+      var d296=window.v297Discount(typeof CUR!=='undefined'?CUR:'',codigo);
+      discActual=d296.currentDiscount;discSug=d296.discount;discOferta=d296.offerDiscount;
+    }
     return {
       'Código':codigo,
       'Nombre':s(p.n||raw.producto||codigo),
@@ -13431,6 +13441,12 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       'Antigüedad':s(r.ageLabel||r.edad||''),
       'Unidades':n296(unidades),
       'Respaldo CENDIS':n296(cendis),
+      'Órdenes de compra CENDIS':ordenesCompra,
+      'Unidades en OC':unidadesOC,
+      'Fecha recibido OC':fechaOC,
+      'Descuento oferta':discOferta==null?'':discOferta,
+      'Descuento actual':discActual==null?'':discActual,
+      'Descuento sugerido':discSug==null?'':discSug,
       'Valor':n296(valor)
     };
   }
@@ -13466,7 +13482,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     if(!registrosConVisibles.length)return null;
     var header=Object.keys(registrosConVisibles[0]);
     var aoa=[header].concat(registrosConVisibles.map(function(r){return header.map(function(h){return r[h]})}));
-    var anchosFijos=[{wch:12},{wch:34},{wch:16},{wch:16},{wch:20},{wch:18},{wch:18},{wch:18},{wch:14},{wch:11},{wch:14},{wch:14}];
+    var anchosFijos=[{wch:12},{wch:34},{wch:16},{wch:16},{wch:20},{wch:18},{wch:18},{wch:18},{wch:14},{wch:11},{wch:14},{wch:14},{wch:10},{wch:14},{wch:12},{wch:12},{wch:12},{wch:14}];
     var anchos=header.map(function(h,i){return anchosFijos[i]||{wch:18}});
     return {nombre:'Detalle',filas:aoa,anchos:anchos};
   }
@@ -13623,4 +13639,53 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       clearInterval(intervalo);clearInterval(vigilar);
     }
   },1000);
+})();
+
+
+/* ===== V86.330 · Descuento actual/sugerido y OC compartidos entre modulos =====
+   Pedido: mostrar descuento actual, descuento sugerido, disponibilidad en
+   CENDIS y OC en todas las tablas de producto (Rotacion, Evacuacion,
+   Proximos a rotar, Resumen de tienda, Inventario). CENDIS ya existia en
+   esas tablas; este parche agrega un lector unico de descuento (reusa
+   mdRows8664, que ya calcula actual/sugerido para Rotacion/Evacuacion) y un
+   lector de OC (ordenesCompra/unidadesOC/fechaRecibido, ya presentes en
+   normalizeInventoryRows) para que cada modulo los consuma sin duplicar la
+   logica. Los productos "Sanos" (fuera de Rotacion/Evacuacion) no tienen
+   politica de descuento, asi que quedan en "—" a proposito. */
+(function(){
+  'use strict';
+  function num330(v){var x=Number(v);return Number.isFinite(x)?x:0;}
+  function code330(v){try{return typeof safeCode==='function'?safeCode(v):String(v==null?'':v).trim();}catch(_){return String(v==null?'':v).trim();}}
+  var cache330={key:'',map:null};
+  function discountIndex330(sc){
+    sc=sc||(typeof CUR!=='undefined'?CUR:'');
+    var fecha='';
+    try{fecha=(typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'';}catch(_){}
+    var key=sc+'|'+fecha;
+    if(cache330.key===key&&cache330.map)return cache330.map;
+    var map=new Map();
+    try{
+      var rows=(typeof window.mdRows8664==='function')?window.mdRows8664(sc):[];
+      rows.forEach(function(r){map.set(r.code,{currentDiscount:r.currentDiscount,discount:r.discount,offerDiscount:r.systemOfferDiscount,statusLabel:r.statusLabel,hasPolicy:r.hasPolicy});});
+    }catch(_){}
+    cache330.key=key;cache330.map=map;
+    return map;
+  }
+  window.v297Discount=function(sc,codigo){
+    var d=discountIndex330(sc).get(code330(codigo));
+    return d||{currentDiscount:null,discount:null,offerDiscount:null,statusLabel:'Sin política',hasPolicy:false};
+  };
+  window.v297DiscountText=function(v){return (v==null||v==='')?'—':(Number(v).toFixed(1).replace('.0','')+'%');};
+  window.v297Oc=function(row){
+    row=row||{};
+    return {ordenesCompra:num330(row.ordenesCompra),unidadesOC:num330(row.unidadesOC),fechaRecibido:row.fechaRecibido||''};
+  };
+  window.v297OcText=function(row){
+    var oc=window.v297Oc(row);
+    if(!oc.unidadesOC&&!oc.ordenesCompra)return '—';
+    var partes=[];
+    if(oc.unidadesOC)partes.push((typeof fInt==='function'?fInt(oc.unidadesOC):String(oc.unidadesOC))+' u en OC');
+    if(oc.fechaRecibido)partes.push('llega '+oc.fechaRecibido);
+    return partes.length?partes.join(' · '):'—';
+  };
 })();
