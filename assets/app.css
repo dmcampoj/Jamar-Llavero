@@ -6690,6 +6690,14 @@ body.dark .llvTable thead th,body.dark #content table thead th,body.dark #rangeM
   table-layout:fixed!important;background:var(--card)!important;
   font-size:11px!important;line-height:1.2!important;
 }
+/* v8664DetailTable se usa en varios modales (composición, sanos CENDIS,
+   markdown por regla/política/estado/antigüedad) con distinto número de
+   columnas cada vez y sin <colgroup> propio; con table-layout:fixed todas las
+   columnas sin ancho explícito se repartían el mismo ancho fijo (~84px), muy
+   angosto para "Descuento oferta/actual/sugerido", y el texto sin ajuste de
+   línea (nowrap) se superponía visualmente sobre la columna siguiente. auto
+   deja que cada columna crezca según su contenido, como ya hace .v80Table. */
+#rangeModalBody table.v8664DetailTable{table-layout:auto!important}
 #rangeModalBody table.v8692MdDetailTable thead th,
 #rangeModalBody table.v8664DetailTable thead th,
 #rangeModalBody table.v8695MdTable thead th{
