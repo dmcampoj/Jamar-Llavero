@@ -2764,6 +2764,10 @@ function buildUnifiedDetailFilters(body){
   field('Categoría','cat','<select></select>');
   field('Línea','lin','<select></select>');
   field('Sublínea','sub','<select></select>');
+  var hasSurt298=rows.some(function(r){return r.dataset.metricSurt});
+  if(hasSurt298)field('Tipo de surtido','msurt','<select>'+opts(values('metricSurt'))+'</select>');
+  var hasEstado298=rows.some(function(r){return r.dataset.metricEstado});
+  if(hasEstado298&&values('metricEstado').length>1)field('Rotación / Evacuación','mestado','<select>'+opts(values('metricEstado'))+'</select>');
   var cendisLocked=/CON RESPALDO|SIN RESPALDO/.test(title);if(!cendisLocked)field('CENDIS','cendis','<select><option value="">Todos</option><option value="with">Con respaldo</option><option value="without">Sin respaldo</option></select>');
   field('Venta 3 meses','sales','<select><option value="">Todas</option><option value="with">Con venta</option><option value="without">Sin venta</option></select>');
   if(/NOVEDAD/.test(title))field('Estado novedad','novel','<select><option value="">T + O</option><option value="T">Solo T</option><option value="O">Solo O</option></select>');
@@ -2780,7 +2784,7 @@ function buildUnifiedDetailFilters(body){
     var byCat=byCc.filter(function(r){return !catv||r.dataset.v118Cat===catv});setOptions('lin',values('v118Lin',byCat));linv=linsel&&linsel.value;
     var byLin=byCat.filter(function(r){return !linv||r.dataset.v118Lin===linv});setOptions('sub',values('v118Sub',byLin));
   }
-  function apply(){var v={};bar.querySelectorAll('[data-v118-df]').forEach(function(x){v[x.dataset.v118Df]=x.value});var shown=0;rows.forEach(function(tr){var ok=!v.q||tr.dataset.v118Q.indexOf(norm(v.q))>=0;if(ok&&v.cc&&tr.dataset.v118Cc!==norm(v.cc))ok=false;if(ok&&v.cat&&tr.dataset.v118Cat!==v.cat)ok=false;if(ok&&v.lin&&tr.dataset.v118Lin!==v.lin)ok=false;if(ok&&v.sub&&tr.dataset.v118Sub!==v.sub)ok=false;if(ok&&v.cendis&&tr.dataset.v118Cendis!==v.cendis)ok=false;if(ok&&v.sales&&tr.dataset.v118Sales!==v.sales)ok=false;if(ok&&v.novel&&tr.dataset.v118Novel!==norm(v.novel))ok=false;if(ok&&v.status&&tr.dataset.v118Status!==v.status)ok=false;if(ok&&v.activity&&tr.dataset.v118Activity!==v.activity)ok=false;if(ok&&v.age&&tr.dataset.v118Age!==v.age)ok=false;tr.classList.toggle('v118HiddenRow',!ok);if(ok)shown++});count.textContent=fi(shown)+' de '+fi(rows.length)+' productos'}
+  function apply(){var v={};bar.querySelectorAll('[data-v118-df]').forEach(function(x){v[x.dataset.v118Df]=x.value});var shown=0;rows.forEach(function(tr){var ok=!v.q||tr.dataset.v118Q.indexOf(norm(v.q))>=0;if(ok&&v.cc&&tr.dataset.v118Cc!==norm(v.cc))ok=false;if(ok&&v.cat&&tr.dataset.v118Cat!==v.cat)ok=false;if(ok&&v.lin&&tr.dataset.v118Lin!==v.lin)ok=false;if(ok&&v.sub&&tr.dataset.v118Sub!==v.sub)ok=false;if(ok&&v.cendis&&tr.dataset.v118Cendis!==v.cendis)ok=false;if(ok&&v.sales&&tr.dataset.v118Sales!==v.sales)ok=false;if(ok&&v.novel&&tr.dataset.v118Novel!==norm(v.novel))ok=false;if(ok&&v.status&&tr.dataset.v118Status!==v.status)ok=false;if(ok&&v.activity&&tr.dataset.v118Activity!==v.activity)ok=false;if(ok&&v.age&&tr.dataset.v118Age!==v.age)ok=false;if(ok&&v.msurt&&tr.dataset.metricSurt!==v.msurt)ok=false;if(ok&&v.mestado&&tr.dataset.metricEstado!==v.mestado)ok=false;tr.classList.toggle('v118HiddenRow',!ok);if(ok)shown++});count.textContent=fi(shown)+' de '+fi(rows.length)+' productos'}
   var qtimer=0;bar.querySelectorAll('input,select').forEach(function(x){var ev=x.tagName==='INPUT'?'input':'change';x.addEventListener(ev,function(){if(['cc','cat','lin'].indexOf(x.dataset.v118Df)>=0)hierarchy();if(ev==='input'){clearTimeout(qtimer);qtimer=setTimeout(apply,70)}else apply()})});
   clear.onclick=function(){bar.querySelectorAll('input').forEach(function(x){x.value=''});bar.querySelectorAll('select').forEach(function(x){x.value=''});hierarchy();apply()};table.dataset.v118UnifiedFilters='1';hierarchy();apply()
 }
@@ -2837,6 +2841,7 @@ function proxUnits(raw){return rangeUnits(raw,61,90);}
 function oldestLabel(raw,onlyOld){var es=Object.keys((raw&&raw.rangos)||{}).filter(function(k){var lo=rangeLow(k);return n(raw.rangos[k])>0&&(!onlyOld||lo>=91);}).sort(function(a,b){return rangeLow(b)-rangeLow(a);});return es[0]||'SIN DEFINIR';}
 function salesMap(st){var m={};try{if(typeof normalizeProductSalesRows==='function')(normalizeProductSalesRows(st)||[]).forEach(function(r){m[code(r.c)]={units:n(r.u),value:n(r.v)};});}catch(_){}rawInventory(st).forEach(function(r){var c=code(r.codigo);if(!m[c])m[c]={units:n(r.unidadesFacUlt3Meses),value:n(r.facturacionUlt3Meses)};});return m;}
 function normalizedInventory(st){return rawInventory(st).map(function(raw){var c=code(raw.codigo||raw.c),p=prod(c,raw);return Object.assign({},raw,{c:c,p:p,stock:n(raw.stock),valorInventario:n(raw.valorInventario),valorUnitarioPromedio:n(raw.valorUnitarioPromedio),dispCendis:n(raw.dispCendis),entradas:n(raw.entradas),rangos:(raw.rangos&&typeof raw.rangos==='object')?raw.rangos:{}});});}
+var GIFT_RX_V298=/\b(OBSEQ\w*|REGALO|BONO)\b/i;
 function calc(st){
   st=st||{};var se=sets(st),rows=normalizedInventory(st),im=invMap(st),sm=salesMap(st),healthy=[],prox=[],aged=[],rotRowsRaw=[],evRowsRaw=[];
   /* V86.266: sano estricto. Antes bastaba con no estar en las listas oficiales
@@ -2854,8 +2859,8 @@ function calc(st){
     healthy.push(r);
     if(proxUnits(r)>0)prox.push(r);
   });
-  (Array.isArray(st.rot)?st.rot:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);rotRowsRaw.push({c:c,u:n(a&&a[1]),aux:n(a&&a[2]),age:typeof ageRankFromLabel==='function'?ageRankFromLabel(a&&a[5]):-1,val:n(a&&a[3]),price:n(a&&a[4]),ageLabel:s(a&&a[5])||oldestLabel(raw,true),m1:n(a&&a[6]),m2:n(a&&a[7]),m3:n(a&&a[8]),sales3m:n(a&&a[6])+n(a&&a[7])+n(a&&a[8]),p:p,row:Object.assign({},raw,{c:c,p:p})});});
-  (Array.isArray(st.evac)?st.evac:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);evRowsRaw.push({c:c,u:n(a&&a[1]),v:n(a&&a[2]),cendis:n(a&&a[3]),sales1:n(a&&a[4]),sales2:n(a&&a[5]),edad:s(a&&a[6])||oldestLabel(raw,false),p:p,active:true,row:Object.assign({},raw,{c:c,p:p}),sales3m:n(a&&a[4])+n(a&&a[5])});});
+  (Array.isArray(st.rot)?st.rot:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);if(GIFT_RX_V298.test(p.n))return;rotRowsRaw.push({c:c,u:n(a&&a[1]),aux:n(a&&a[2]),age:typeof ageRankFromLabel==='function'?ageRankFromLabel(a&&a[5]):-1,val:n(a&&a[3]),price:n(a&&a[4]),ageLabel:s(a&&a[5])||oldestLabel(raw,true),m1:n(a&&a[6]),m2:n(a&&a[7]),m3:n(a&&a[8]),sales3m:n(a&&a[6])+n(a&&a[7])+n(a&&a[8]),p:p,row:Object.assign({},raw,{c:c,p:p})});});
+  (Array.isArray(st.evac)?st.evac:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);if(GIFT_RX_V298.test(p.n))return;evRowsRaw.push({c:c,u:n(a&&a[1]),v:n(a&&a[2]),cendis:n(a&&a[3]),sales1:n(a&&a[4]),sales2:n(a&&a[5]),edad:s(a&&a[6])||oldestLabel(raw,false),p:p,active:true,row:Object.assign({},raw,{c:c,p:p}),sales3m:n(a&&a[4])+n(a&&a[5])});});
   return {rows:rows,healthy:healthy,prox:prox,aged:aged,rotRows:rotRowsRaw,evRows:evRowsRaw,se:se,sm:sm};
 }
 window.normalizeInventoryRows=function(st){return normalizedInventory(st||((typeof S!=='undefined'&&S&&S[CUR])||{}));};
@@ -3002,9 +3007,9 @@ function patchLeaderAction(){if((typeof VIEW!=='undefined'?VIEW:'')!=='markdown'
 /* 15. Mismo lenguaje visual de filtros, campos según el módulo. */
 var filterCfg={
  inventario:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cond','Condición','condition'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['cendis','CENDIS','cendis']],
- prox:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']],
- rot:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']],
- evac:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']]
+ prox:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']],
+ rot:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']],
+ evac:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']]
 };
 function tableRowsFor(module){var root=document.getElementById(module==='inventario'?'inventario-tbl':module==='prox'?'prox-tbl':module+'-tbl'),table=root&&root.querySelector('table');return table&&table.tBodies&&table.tBodies[0]?Array.from(table.tBodies[0].rows).filter(function(tr){return !!(tr.querySelector('.code'))}):[]}
 function rowCode(tr){var x=tr.querySelector('.code');return s(x&&x.textContent).trim()}
@@ -13254,111 +13259,11 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
 })();
 
 
-/* ===== V86.294 · Filtro de tipo de surtido en Inventario =====
-
-   Pedido: agregar un filtro de tipo de surtido (Estrella, Novedad, Fuera de
-   surtido, Familiar líder, Protector de terreno, Imagen, Panamá, Sin
-   familia) en el módulo de Inventario.
-
-   POR QUÉ ASÍ. El primer intento envolvía normalizeInventoryRows() para que
-   filtrara los datos antes de dibujar la tabla -- funcionaba a veces y otras
-   no: el proyecto redefine esa función varias veces durante el arranque, y
-   la envoltura quedaba pisada de forma inconsistente segun el momento exacto
-   en que corriera. En vez de interceptar el CÁLCULO de datos, se trabaja
-   sobre la TABLA YA DIBUJADA -- el mismo enfoque que ya usan los chips de
-   identificación (V86.272) y que ha resultado estable toda la sesión: no
-   importa qué capa pintó la fila, cada fila trae el código en <span
-   class="code"> y desde ahí se puede ocultar o mostrar según su surtido. */
-(function(){
-  'use strict';
-  var VALORES=['ESTRELLA','NOVEDAD','FUERA SURTIDO','FAMILIAR LÍDER',
-               'PROTECTOR DE TERRENO','IMAGEN','PANAMA','SIN FAMILIA'];
-  function s(v){return v==null?'':String(v).trim()}
-  function up(v){return s(v).toUpperCase()}
-  function cur(){try{return (typeof CUR!=='undefined'?CUR:'')}catch(_){return ''}}
-  function fecha(){try{return s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){return ''}}
-
-  var IDX=null,CLAVE='',FILTRO='';
-
-  function indice(){
-    var k=cur()+'|'+fecha();
-    if(IDX&&CLAVE===k)return IDX;
-    var m=Object.create(null);
-    try{
-      var St=(typeof S!=='undefined'&&S)?S:{},st=St[cur()];
-      (Array.isArray(st&&st.inventario)?st.inventario:[]).forEach(function(r){
-        var c=s(r&&r.codigo);if(c)m[c]=up(r.surtido);
-      });
-    }catch(e){console.error('V86.294',e)}
-    IDX=m;CLAVE=k;return m;
-  }
-
-  function aplicarFiltro(){
-    var root=document.getElementById('inventario-tbl');if(!root)return;
-    var idx=indice();
-    var filas=root.querySelectorAll('tbody tr');
-    var visibles=0;
-    filas.forEach(function(tr){
-      var span=tr.querySelector('span.code');
-      var cod=span?s(span.textContent):'';
-      var pasa=!FILTRO||idx[cod]===FILTRO;
-      tr.style.display=pasa?'':'none';
-      if(pasa)visibles++;
-    });
-    var cnt=document.getElementById('inventario-cnt');
-    if(cnt&&FILTRO){
-      var base=cnt.dataset.v294Base||cnt.textContent;
-      cnt.dataset.v294Base=base;
-      cnt.textContent=base+' · filtro de surtido: '+visibles+' visibles';
-    }else if(cnt&&cnt.dataset.v294Base){
-      cnt.textContent=cnt.dataset.v294Base;
-    }
-  }
-
-  function asegurarSelect(){
-    if(document.getElementById('inv-surt'))return;
-    var ancla=document.getElementById('inv-sub')||document.querySelector('.invFilterPanel');
-    if(!ancla)return;
-    var sel=document.createElement('select');
-    sel.id='inv-surt';
-    var opts='<option value="">Todo tipo de surtido</option>';
-    VALORES.forEach(function(v){
-      opts+='<option value="'+v+'">'+v.charAt(0)+v.slice(1).toLowerCase()+'</option>';
-    });
-    sel.innerHTML=opts;
-    sel.value=FILTRO;
-    sel.onchange=function(){
-      FILTRO=this.value;
-      /* mismo mecanismo que V86.293 para la busqueda de texto: sin esto, el
-         filtro solo alcanza a las primeras 300 filas ya pintadas y esconde
-         resultados reales mas alla de ese corte, sin ningun aviso. */
-      try{if(typeof state!=='undefined'&&state.inventario){
-        state.inventario.limit=FILTRO?999999:300;
-        if(typeof drawInventario==='function')drawInventario();
-      }}catch(_){}
-      setTimeout(aplicarFiltro,50);
-    };
-    if(ancla.id==='inv-sub')ancla.insertAdjacentElement('afterend',sel);
-    else ancla.appendChild(sel);
-  }
-
-  function tick(){
-    try{
-      var v=(typeof VIEW!=='undefined'?VIEW:'');
-      if(v!=='inventario'){FILTRO='';return}
-      asegurarSelect();
-      aplicarFiltro();
-    }catch(e){console.error('V86.294',e)}
-  }
-  function install(){
-    tick();
-    if(!window.__v294Tick)window.__v294Tick=setInterval(tick,900);
-    console.info('LLAVERO V86.294 · filtro de tipo de surtido en Inventario');
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2300)},{once:true});
-  else setTimeout(install,2300);
-  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,2200)});
-})();
+/* V86.294 (filtro de tipo de surtido en Inventario, DOM-overlay con polling de 900ms) fue
+   retirado: quedaba corriendo en paralelo al filtro real de V86.127/filterCfg y, como su
+   propio select nunca se tocaba, cada tick reescribia tr.style.display a visible en TODAS
+   las filas, deshaciendo cualquier filtro aplicado (surtido, categoria, busqueda, etc).
+   El filtro de tipo de surtido vive ahora solo en filterCfg (V86.127), visible y funcional. */
 
 /* ===== V86.296 · Exportar Excel en todas las vistas de detalle =====
 
@@ -13462,11 +13367,12 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var discSug=(r.discountSugerido!=null)?r.discountSugerido:(r.discount!=null?r.discount:null);
     var discOferta=(r.discountOferta!=null)?r.discountOferta:null;
     var precioLista=(r.priceList!=null)?r.priceList:null;
-    var estadoLabel=r.statusLabel||null;
-    if(discActual==null&&discSug==null&&discOferta==null&&precioLista==null&&!estadoLabel&&typeof window.v297Discount==='function'){
+    if(discActual==null&&discSug==null&&discOferta==null&&precioLista==null&&typeof window.v297Discount==='function'){
       var d296=window.v297Discount(typeof CUR!=='undefined'?CUR:'',codigo);
-      discActual=d296.currentDiscount;discSug=d296.discount;discOferta=d296.offerDiscount;precioLista=d296.priceList;estadoLabel=d296.statusLabel;
+      discActual=d296.currentDiscount;discSug=d296.discount;discOferta=d296.offerDiscount;precioLista=d296.priceList;
     }
+    var estadoLetra=(typeof window.v297EstadoLetter==='function')?(window.v297EstadoLetter(r)||window.v297EstadoLetter(raw)):'';
+    var estadoLabel=estadoLetra?((typeof window.v297EstadoText==='function')?window.v297EstadoText(estadoLetra):estadoLetra):'';
     return {
       'Código':codigo,
       'Nombre':s(p.n||raw.producto||codigo),
@@ -13485,9 +13391,9 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       'Descuento oferta':discOferta==null?'':discOferta,
       'Descuento actual':discActual==null?'':discActual,
       'Descuento sugerido':discSug==null?'':discSug,
-      'Precio':precioLista==null?'':precioLista,
-      'Estado':estadoLabel||'',
-      'Valor':n296(valor)
+      'Precio lista':precioLista==null?'':precioLista,
+      'Estado CENDIS':estadoLabel,
+      'Valor inventario':n296(valor)
     };
   }
   /* V86.300: si mañana se agrega una columna nueva a alguna de estas tablas
@@ -13717,6 +13623,13 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   };
   window.v297DiscountText=function(v){return (v==null||v==='')?'—':(Number(v).toFixed(1).replace('.0','')+'%');};
   window.v297PriceText=function(v){return (v==null||v==='')?'—':(typeof fMoneyCOP==='function'?fMoneyCOP(Number(v)):'$ '+Math.round(Number(v)).toLocaleString('es-CO'));};
+  var ESTADO330={A:'Activo',O:'Novedad',T:'Testeo',N:'Inactivo'};
+  window.v297EstadoLetter=function(row){
+    row=row||{};
+    var raw=row.estadoAbastecimiento!=null?row.estadoAbastecimiento:(row.estado!=null?row.estado:null);
+    return raw==null?'':String(raw).trim().toUpperCase();
+  };
+  window.v297EstadoText=function(letter){return ESTADO330[letter]||(letter?letter:'—');};
   window.v297Oc=function(row){
     row=row||{};
     return {ordenesCompra:num330(row.ordenesCompra),unidadesOC:num330(row.unidadesOC),fechaRecibido:row.fechaRecibido||''};
@@ -13728,5 +13641,66 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     if(oc.unidadesOC)partes.push((typeof fInt==='function'?fInt(oc.unidadesOC):String(oc.unidadesOC))+' u en OC');
     if(oc.fechaRecibido)partes.push('llega '+oc.fechaRecibido);
     return partes.length?partes.join(' · '):'—';
+  };
+})();
+
+/* ===== LLAVERO V86.340 · Filtros combinables Estado CENDIS / OC / relacion de descuento ===== */
+(function(){
+  'use strict';
+  function n340(v){var x=Number(v);return Number.isFinite(x)?x:0;}
+  window.v298DiscRelMatch=function(rel,oferta,actual,sugerido){
+    var o=(oferta==null||oferta==='')?null:n340(oferta);
+    var a=(actual==null||actual==='')?null:n340(actual);
+    var s=(sugerido==null||sugerido==='')?null:n340(sugerido);
+    if(rel==='oferta')return o!=null&&s!=null&&o>=s;
+    if(rel==='muestra')return a!=null&&s!=null&&a>=s;
+    if(rel==='sugerido')return s!=null&&(o!=null||a!=null)&&(o==null||s>o)&&(a==null||s>a);
+    return false;
+  };
+  window.v298RowAttrs=function(estadoLetter,ocUnits,oferta,actual,sugerido){
+    var est=estadoLetter?String(estadoLetter).trim().toUpperCase():'';
+    var oc=(n340(ocUnits)>0)?'1':'0';
+    var rel=[];
+    if(window.v298DiscRelMatch('oferta',oferta,actual,sugerido))rel.push('oferta');
+    if(window.v298DiscRelMatch('muestra',oferta,actual,sugerido))rel.push('muestra');
+    if(window.v298DiscRelMatch('sugerido',oferta,actual,sugerido))rel.push('sugerido');
+    return ' data-v298-estado="'+est+'" data-v298-oc="'+oc+'" data-v298-disc="'+rel.join(' ')+'"';
+  };
+  window.v298ToolbarHtml=function(){
+    return '<div class="v298Filters" data-v298-toolbar>'
+      +'<select data-v298-estado><option value="">Estado CENDIS: todos</option><option value="A">Activo</option><option value="O">Novedad</option><option value="T">Testeo</option><option value="N">Inactivo</option></select>'
+      +'<select data-v298-oc><option value="">OC: todos</option><option value="con">Con OC</option><option value="sin">Sin OC</option></select>'
+      +'<select data-v298-disc><option value="">Relación de descuento: todas</option><option value="oferta">Oferta ≥ sugerido</option><option value="muestra">Muestra ≥ sugerido</option><option value="sugerido">Sugerido supera oferta y muestra</option></select>'
+      +'<button type="button" data-v298-clear>Limpiar</button><span class="v298Count" data-v298-count></span>'
+      +'</div>';
+  };
+  window.v298WireToolbar=function(root){
+    if(!root)return;
+    var tb=root.querySelector('[data-v298-toolbar]');
+    if(!tb)return;
+    var table=root.querySelector('table');
+    if(!table)return;
+    var estSel=tb.querySelector('[data-v298-estado]'),ocSel=tb.querySelector('[data-v298-oc]'),discSel=tb.querySelector('[data-v298-disc]');
+    var rows=Array.from(table.querySelectorAll('tbody tr[data-v298-estado]'));
+    function apply(){
+      var ev=estSel?estSel.value:'',ov=ocSel?ocSel.value:'',dv=discSel?discSel.value:'',shown=0;
+      rows.forEach(function(tr){
+        var ok=true;
+        if(ev&&tr.getAttribute('data-v298-estado')!==ev)ok=false;
+        if(ov==='con'&&tr.getAttribute('data-v298-oc')!=='1')ok=false;
+        if(ov==='sin'&&tr.getAttribute('data-v298-oc')!=='0')ok=false;
+        if(dv&&(' '+(tr.getAttribute('data-v298-disc')||'')+' ').indexOf(' '+dv+' ')<0)ok=false;
+        tr.style.display=ok?'':'none';
+        if(ok)shown++;
+      });
+      var cnt=tb.querySelector('[data-v298-count]');
+      if(cnt)cnt.textContent=shown+' de '+rows.length;
+    }
+    if(estSel)estSel.onchange=apply;
+    if(ocSel)ocSel.onchange=apply;
+    if(discSel)discSel.onchange=apply;
+    var clr=tb.querySelector('[data-v298-clear]');
+    if(clr)clr.onclick=function(){if(estSel)estSel.value='';if(ocSel)ocSel.value='';if(discSel)discSel.value='';apply();};
+    apply();
   };
 })();

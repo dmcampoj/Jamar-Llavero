@@ -519,6 +519,7 @@ body.dark .measureBadge{background:#383b40;color:#fff;border-color:#52565d}
 .productOpen:hover{color:var(--jamar);text-decoration:underline}
 .inventoryState{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;font-size:9.5px;font-weight:900;margin:1px 3px 1px 0;white-space:nowrap}
 .inventoryState.rot{background:#fff1d8;color:#a86200}.inventoryState.evac{background:#ffe5e6;color:#cf151b}.inventoryState.other{background:#eaf7f1;color:#087956}.inventoryState.critical{background:#d71920;color:#fff}
+td.metricStateBadge298{white-space:normal}
 .ageUnitList{display:flex;flex-wrap:wrap;gap:3px}.ageUnitChip{display:inline-flex;gap:4px;align-items:center;padding:3px 6px;border-radius:6px;background:#f0f2f5;color:#555b65;font-size:9.5px;font-weight:800;white-space:nowrap}
 .inventoryDetailModal{width:min(980px,96vw)!important}.inventoryDetailBody{display:block!important;padding:16px 18px!important}
 .detailHero{display:grid;grid-template-columns:1fr auto;gap:16px;padding:2px 0 14px;border-bottom:1px solid var(--line)}
@@ -3725,6 +3726,11 @@ body.dark .guideSalesScope78 span{background:#343b46;border-color:#4a5260}
 .rotEvClassStack861{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
 .rotEvClassBadge861{display:flex;align-items:center;min-height:20px}
 .rotEvHierarchy861{font-size:9px!important;color:var(--mut)!important;line-height:1.15!important;white-space:normal!important}
+.rotEvEstado861{display:flex;align-items:center;min-height:18px}
+.v298Filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}
+.v298Filters select{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--line2,#ddd);background:var(--card,#fff);color:var(--ink,#222)}
+.v298Filters button[data-v298-clear]{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--line2,#ddd);background:transparent;cursor:pointer}
+.v298Filters .v298Count{font-size:11px;color:var(--mut,#888);margin-left:4px}
 #rot-tbl .rotEvProxTable861 .v79RangeChip,
 #evac-tbl .rotEvProxTable861 .v79RangeChip{font-size:8px!important;padding:3px 5px!important;margin:1px!important;white-space:nowrap!important}
 #rot-tbl .rotEvProxTable861 .productThumb.sm,
