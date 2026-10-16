@@ -13,7 +13,98 @@
 <!-- LLAVERO_BUILD_V69_2026-07-30 -->
 <link rel="stylesheet" href="assets/app.css?v=86324">
 <!-- LLAVERO_V86_20_VIEWS_CSS_START -->
+<style>
+/* ==== Dashboard Directores (vista general de surtido) · módulo del líder ====
+   Tamaños calcados de .v8617Field/.v8618Field (filtro de Territorios/Markdown en Dashboard
+   general), que ya es el filtro compacto y presentable usado en el resto de la app. */
+.dirFilterBar{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:flex-end}
+.dirFilterBar .field{min-width:130px;flex:none;gap:4px}
+.dirFilterBar .field.grow{flex:1;min-width:200px}
+.dirFilterBar .field label{font-size:9px;text-transform:uppercase;letter-spacing:.5px;font-weight:900}
+.dirFilterBar .field select,.dirFilterBar .field input{min-width:130px;height:36px;padding:0 9px;font-size:11.5px}
+.dirClear{border:none;background:none;color:var(--brand);font-weight:700;font-size:11.5px;cursor:pointer;padding:8px 6px;white-space:nowrap}
+.dirCount{font-size:11px;color:var(--mut);margin-left:auto;white-space:nowrap;align-self:center}
 
+.dirMsel{position:relative}
+.dirMselBtn{border:1px solid var(--line2);background:#f8faff;color:var(--ink);border-radius:10px;padding:0 24px 0 9px;height:36px;font-size:11.5px;min-width:130px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;cursor:pointer;font-family:inherit;position:relative}
+.dirMselBtn::after{content:'';position:absolute;right:11px;top:50%;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--mut);transform:translateY(-50%)}
+.dirMsel.open .dirMselBtn{border-color:var(--brand);box-shadow:0 0 0 3px rgba(47,107,255,.12)}
+/* V86.322: .dirFilterBar .field select/input/label (reglas globales de la barra de filtros)
+   alcanzaban tambien los checkboxes/labels DENTRO del panel desplegable, porque viven bajo el
+   mismo ancestro .field -- forzaban checkboxes de 130x36px y texto de opcion a 9px/uppercase/bold,
+   por eso el panel se veia "roto" (una opcion gigante con mucho espacio en blanco). Se neutraliza
+   con selectores mas especificos, scoped solo al panel. */
+.dirFilterBar .field .dirMselPanel label.dirMselOpt{font-size:12.5px!important;text-transform:none!important;letter-spacing:normal!important;font-weight:400!important;color:var(--ink2)!important}
+.dirFilterBar .field .dirMselPanel input[type=checkbox]{width:14px!important;height:14px!important;min-width:14px!important;max-width:14px!important;padding:0!important;margin:0!important}
+.dirMselSearch{width:100%;box-sizing:border-box;border:1px solid var(--line2);border-radius:8px;padding:6px 8px;font-size:12px;margin-bottom:6px;background:var(--card);color:var(--ink);font-family:inherit;outline:none}
+.dirMselSearch:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(47,107,255,.12)}
+.dirMselOpt.dirMselHidden{display:none!important}
+.dirMselPanel{display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:220px;max-height:260px;overflow:auto;background:var(--card);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--sh2);padding:6px;z-index:40}
+.dirMsel.open .dirMselPanel{display:block}
+.dirMselOpt{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.dirMselOpt:hover{background:#f4f7fc}
+.dirMselOpt input{margin:0;width:14px;height:14px;min-width:14px;flex:none;padding:0;border-radius:3px}
+
+.dirKpis{display:grid;grid-template-columns:repeat(5,1fr);gap:15px;margin-bottom:4px}
+@media(max-width:1100px){.dirKpis{grid-template-columns:repeat(2,1fr)}}
+
+.dirCellBtn{border:none;background:none;cursor:pointer;font:inherit;font-weight:800;color:var(--ink2);display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:4px 6px;border-radius:8px;width:100%}
+.dirCellBtn:hover{background:#f4f7fc}
+.dirCellBtn.on{background:color-mix(in srgb, var(--brand) 14%, transparent);color:var(--brand2)}
+.dirCellPct{font-size:10px;color:var(--mut);font-weight:700}
+/* V86.324: mapa de calor de "Participación" (Consolidado por tienda) -- resalta las tiendas con
+   participación BAJA (pedido del usuario), calculado por columna A/O/T/N de forma independiente
+   (ver dirMainTableHtml) porque cada ciclo de vida tiene un rango típico muy distinto. Mismos
+   tonos que .badge.hot/.warm/.cool (assets/app.css) para quedar consistente con el resto de la app. */
+.dirCellPct.dirHeatLow{background:var(--evacBg);color:var(--bad);font-weight:900;padding:1px 6px;border-radius:8px}
+.dirCellPct.dirHeatMidLow{background:var(--rotBg);color:var(--rot);font-weight:800;padding:1px 6px;border-radius:8px}
+.dirCellPct.dirHeatHigh{background:var(--okBg);color:var(--ok);font-weight:800;padding:1px 6px;border-radius:8px}
+
+.dirBars{display:flex;align-items:flex-end;gap:8px;min-width:650px;padding:0 4px}
+.dirBarCol{display:flex;flex-direction:column;align-items:center;width:46px;cursor:pointer;border-radius:8px;padding:4px 2px 6px}
+.dirBarCol:hover{background:color-mix(in srgb, var(--brand) 10%, transparent)}
+.dirBarCol.active{background:color-mix(in srgb, var(--brand) 16%, transparent)}
+.dirBarTrackWrap{height:120px;width:100%;display:flex;align-items:flex-end;justify-content:center}
+.dirBarTrack{width:40px;height:100%;display:flex;align-items:flex-end;background:var(--line2);border-radius:6px;overflow:hidden}
+.dirBarFill{width:100%;min-height:0;border-radius:6px 6px 0 0;transition:height .4s ease}
+.dirBarInfo{margin-top:6px;display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.dirBarInfo b{font-size:10.5px;color:var(--ink2);font-weight:800}
+.dirBarInfo span{font-size:8.5px;color:var(--mut);font-weight:600}
+.dirAxisRow{align-items:flex-start;padding:0 4px 8px}
+.dirAxisCol{width:46px;display:flex;justify-content:center;padding:0 2px}
+.dirAxisLabel{font-size:9.5px;color:var(--mut);font-weight:700;white-space:nowrap;writing-mode:vertical-rl;transform:rotate(180deg)}
+.dirAntHead{vertical-align:bottom;padding-bottom:0!important;background:#f4f7fc}
+.dirAntHead>div:first-child{padding-bottom:8px;text-transform:none;font-size:10.5px;font-weight:800;color:var(--ink2)}
+.dirAntHeadRow th{vertical-align:bottom}
+
+#dirDetailCard .twrap{max-height:60vh}
+/* La tabla de detalle de producto vuelve a tener muchas columnas -- con table-layout:fixed
+   (.twrap table, assets/app.css) el ancho se reparte entre todas forzando el texto de los
+   encabezados angostos a partirse letra por letra. Se fuerza table-layout:auto con doble ID
+   (#content + el propio) para ganarle a la regla generica de assets/app.css, y se anula el
+   max-width:0 de ".twrap tbody td" (pensado para table-layout:fixed) que dejaba el texto
+   nowrap pintándose por encima de la celda vecina. */
+#content #directoresDetail-tbl table{min-width:2150px!important;table-layout:auto!important}
+#content #directoresDetail-tbl table th,#content #directoresDetail-tbl table td{white-space:nowrap!important;max-width:none!important}
+body.dark .dirMselBtn{background:#0e1830}
+body.dark .dirMselPanel{background:#121d35}
+body.dark .dirMselOpt:hover{background:#172441}
+body.dark .dirAntHead{background:#0e1830}
+
+/* Composición por antigüedad: scroll vertical propio con header fijo (position:sticky) dentro
+   del contenedor anidado .twrap; se anula el límite del contenedor externo para no duplicar
+   la barra de scroll vertical. */
+#directoresAnt-tbl.twrap{max-height:none!important;overflow-y:visible!important;overflow-x:auto!important}
+#directoresAnt-tbl .twrap{max-height:480px!important;overflow-y:auto!important;overflow-x:auto!important}
+
+/* Consolidado por tienda: mismo problema de scroll duplicado que Composición por antigüedad. */
+#directoresMain-tbl.twrap,#directoresMain-tbl .twrap{max-height:none!important;overflow-y:visible!important;overflow-x:auto!important}
+
+/* Las tarjetas de filtro (.card) recortan overflow y usan contain:paint (assets/app.css, y
+   content-visibility:auto fuerza lo mismo aunque "contain" marque "none"), lo que corta el panel
+   desplegable (.dirMselPanel, position:absolute) de Sub-línea/Ciclo de vida/Tienda/Estilo/Marca. */
+#dirFilterCard1,#dirFilterCard2{overflow:visible!important;contain:none!important;content-visibility:visible!important}
+</style>
 <!-- LLAVERO_V86_20_VIEWS_CSS_END -->
 
 
@@ -71,6 +162,7 @@
 <aside class="side" id="side">
 <nav class="nav" id="nav">
 <a class="leaderOnly leaderDashboardNav" data-v="dashboard"><span class="ic">◫</span> Dashboard general</a>
+<a class="leaderOnly" data-v="directores"><span class="ic">▥</span> Dashboard Directores</a>
 
 <div class="nlab navStoreLabel8670">Tienda</div>
 <a data-v="inventario"><span class="ic">▤</span> Inventario <span class="cnt" id="nc-inv">0</span></a>
@@ -288,7 +380,7 @@ function populateStoreSelect(preferred){
   sel.value=CUR||'';
 }
 populateStoreSelect();
-sel.addEventListener('change',()=>{if(!IS_LEADER)return;CUR=sel.value;state.prox.q=state.rot.q=state.evac.q=state.tr.q='';document.getElementById('gsearch').value='';if(VIEW==='dashboard'){VIEW='resumen';setActiveNav('resumen');}refresh();});
+sel.addEventListener('change',()=>{if(!IS_LEADER)return;CUR=sel.value;state.prox.q=state.rot.q=state.evac.q=state.tr.q='';document.getElementById('gsearch').value='';refresh();});
 document.getElementById('gsearch').addEventListener('input',e=>{
   const v=e.target.value; state.inventario.q=state.prox.q=state.rot.q=state.evac.q=state.tr.q=v;
   if(VIEW==='inventario')drawInventario();else if(VIEW==='prox')drawProx();else if(VIEW==='rot')drawRot();else if(VIEW==='evac')drawEvac();else if(VIEW==='amb')drawTr();else{setView('inventario');setActiveNav('inventario');}
@@ -298,7 +390,7 @@ document.getElementById('gsearch').addEventListener('input',e=>{
 function setActiveNav(v){document.querySelectorAll('#nav a').forEach(x=>x.classList.toggle('on',x.dataset.v===v));}
 document.querySelectorAll('#nav a').forEach(a=>a.addEventListener('click',()=>{
   if(!isAuthenticated()){openLeaderModal(true);return;}
-  if(a.dataset.v==='dashboard'&&!IS_LEADER)return;
+  if((a.dataset.v==='dashboard'||a.dataset.v==='directores')&&!IS_LEADER)return;
   setActiveNav(a.dataset.v);setView(a.dataset.v);document.getElementById('side').classList.remove('open');
 }));
 
@@ -322,14 +414,520 @@ function refresh(){
   document.getElementById('heroSub').innerHTML=IS_LEADER&&VIEW==='dashboard'?`Visión consolidada de <b>${Object.keys(S).length} tiendas</b> · corte ${esc(safeText(DB.meta?.fecha,'—'))}`:`Gestión diaria de <b>${esc(safeText(st.name,'Tienda sin nombre'))}</b> · corte ${esc(safeText(DB.meta?.fecha,'—'))}`;
   setView(VIEW);
 }
+/* ==== Dashboard Directores (vista general de surtido) · módulo del líder ==== */
+const DIR_AGE_ORDER=['000 - 030','031 - 060','061 - 090','091 - 120','121 - 150','151 - 180','181 - 210','210 - 240','241 - 360','360 - Más','SIN DEFINIR'];
+const DIR_AGE_SHORT={'000 - 030':'0-30','031 - 060':'31-60','061 - 090':'61-90','091 - 120':'91-120','121 - 150':'121-150','151 - 180':'151-180','181 - 210':'181-210','210 - 240':'211-240','241 - 360':'241-360','360 - Más':'360+','SIN DEFINIR':'S/D'};
+const DIR_AGE_COLOR=[AGECOL[0],AGECOL[1],AGECOL[2],AGECOL[3],AGECOL[4],AGECOL[4],AGECOL[5],AGECOL[5],AGECOL[6],AGECOL[6],'#9aa7c4'];
+const DIR_CICLO_LABEL={A:'Básico',O:'Novedad',T:'Testeo',N:'Fuera de surtido'};
+const DIR_CICLO_TONE={A:'ok',O:'amb',T:'vta',N:'evac'};
+let DIR_ROWS_CACHE=null;
+let DIR_DETAIL_ROWS=[];
+const DIRST={
+  cat:'',lin:'',sub:[],cc:'',ciclo:[],surtido:'',existencia:'',presencia:'',
+  traslado:'',venta:'',cendis:'',antiguedad:'',estadoInv:'',q:'',antTab:'A',
+  openCell:null,openAntCell:null
+};
+function dirMdMap(sc){
+  try{
+    const fn=window.mdRows8664||window.mdRows8618||window.mdRows8662;
+    if(typeof fn!=='function')return {};
+    const out={};fn(sc).forEach(r=>{out[r.code]=r;});return out;
+  }catch(_){return {};}
+}
+function dirTraslados(st){
+  const PR={'En Ruta':3,'En picking':2,'Pendiente':1};
+  const byCode={};
+  (st.trDetalle||[]).forEach(t=>{
+    if(t.estatus==='Entregado')return;
+    const c=safeCode(t.codigo);
+    (byCode[c]||(byCode[c]=[])).push({estado:t.estatus,unidades:toNum(t.unidades),fechaEntrega:t.fechaEntrega||null,lote:t.lote});
+  });
+  const best={};
+  Object.keys(byCode).forEach(c=>{
+    const lotes=byCode[c];
+    const top=lotes.slice().sort((a,b)=>(PR[b.estado]||0)-(PR[a.estado]||0))[0];
+    best[c]={estado:top.estado,lotes};
+  });
+  return best;
+}
+function dirBuildRows(){
+  const out=[];
+  Object.keys(S||{}).forEach(sc=>{
+    const st=S[sc]||{};
+    const mdMap=dirMdMap(sc);
+    const trMap=dirTraslados(st);
+    normalizeInventoryRows(st).filter(r=>r.stock>0).forEach(r=>{
+      const prod=(P&&P[r.c])||{};
+      const d=(typeof window.discountActual18==='function')?window.discountActual18(sc,r.c):null;
+      const md=mdMap[r.c]||null;
+      const tr=trMap[r.c]||null;
+      const lotes=DIR_AGE_ORDER.map(b=>({rango:b,unidades:toNum((r.rangos||{})[b])})).filter(l=>l.unidades>0);
+      out.push({
+        tienda:sc,tiendaNombre:safeText(st.name,sc),
+        cod:r.c,nom:r.p.n,cat:r.p.cat,lin:r.p.lin,sub:r.p.sub,
+        estilo:safeText(r.estilo,''),marca:safeText(r.marca,''),cc:safeText(prod.cc,''),
+        ciclo:safeText(r.estadoAbastecimiento,''),surtido:safeText(r.surtido,''),matrizBcg:safeText(r.matriz,''),
+        cicloVidaSap:safeText(r.cicloVida,''),
+        existencia:r.stock,presencia:r.presencia==null?0:r.presencia,dispCendis:r.dispCendis,
+        entradas:r.entradas,oc:r.unidadesOC,
+        precioLista:r.precioLista,precioOferta:r.precioOferta,
+        descuentoOferta:d&&d.descuentoOfertaSistema!=null?Math.round(d.descuentoOfertaSistema*10)/10:(r.precioLista>0&&r.precioOferta<r.precioLista?Math.round((r.precioLista-r.precioOferta)/r.precioLista*1000)/10:null),
+        descuentoMuestra:d&&d.descuentoAdministrado!=null?Math.round(d.descuentoAdministrado*10)/10:null,
+        descuentoSugerido:md&&md.discount!=null?md.discount:null,
+        venta3m:r.unidadesFacUlt3Meses,facturacion3m:r.facturacionUlt3Meses,
+        enTraslado:!!tr,estadoTraslado:tr?tr.estado:null,trasladoLotes:tr?tr.lotes:[],
+        lotes,estadoInv:(r.estados&&r.estados[0])||'Otros estados'
+      });
+    });
+  });
+  return out;
+}
+function dirRows(){ if(!DIR_ROWS_CACHE)DIR_ROWS_CACHE=dirBuildRows(); return DIR_ROWS_CACHE; }
+function dirFillSelect(sel,values,placeholder){
+  const cur=sel.value;
+  sel.innerHTML=`<option value="">${esc(placeholder)}</option>`+values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(values.indexOf(cur)>=0)sel.value=cur;
+}
+function dirGeoStores(){
+  // El recorte geografico compartido (zona/departamento/ciudad/tienda/buscar), si existe (via
+  // window.LlaveroScope), se usa como base para que el filtro realmente actualice Directores, en
+  // vez de duplicar un filtro propio. Luego se cruza con la selección propia de Directores
+  // (Tienda, multi-seleccion) para permitir elegir un subconjunto arbitrario de tiendas.
+  let codes;
+  if(window.LlaveroScope&&typeof window.LlaveroScope.codes==='function'){
+    const c=window.LlaveroScope.codes()||[];
+    codes=c.length?c:Object.keys(S||{});
+  }else{
+    codes=Object.keys(S||{});
+  }
+  const picked=dirMselValues('dirMTienda');
+  if(picked.length)codes=codes.filter(c=>picked.indexOf(c)>=0);
+  return codes;
+}
+function uniq(arr){ return Array.from(new Set(arr.filter(x=>x!=null&&x!=='')));}
+function dirRefreshCascade(){
+  const rows=dirRows(),cat=DIRST.cat,lin=DIRST.lin;
+  const selLin=document.getElementById('dirFLinea');
+  if(selLin)dirFillSelect(selLin,uniq(rows.filter(r=>!cat||r.cat===cat).map(r=>r.lin)).sort(),'Todas');
+  const subs=uniq(rows.filter(r=>(!cat||r.cat===cat)&&(!lin||r.lin===lin)).map(r=>r.sub)).sort();
+  const key=subs.join('|'),panel=document.getElementById('dirMSublinea');
+  if(panel&&panel.dataset.key!==key){panel.dataset.key=key;dirMselSetOptions('dirMSublinea',subs);}
+  const subSel=dirMselValues('dirMSublinea');
+  const estilos=uniq(rows.filter(r=>(!cat||r.cat===cat)&&(!lin||r.lin===lin)&&(!subSel.length||subSel.indexOf(r.sub)>=0)).map(r=>r.estilo)).sort();
+  const eKey=estilos.join('|'),ePanel=document.getElementById('dirMEstilo');
+  if(ePanel&&ePanel.dataset.key!==eKey){ePanel.dataset.key=eKey;dirMselSetOptions('dirMEstilo',estilos);}
+  const estiloSel=dirMselValues('dirMEstilo');
+  const marcas=uniq(rows.filter(r=>(!cat||r.cat===cat)&&(!lin||r.lin===lin)&&(!subSel.length||subSel.indexOf(r.sub)>=0)&&(!estiloSel.length||estiloSel.indexOf(r.estilo)>=0)).map(r=>r.marca)).sort();
+  const mKey=marcas.join('|'),mPanel=document.getElementById('dirMMarca');
+  if(mPanel&&mPanel.dataset.key!==mKey){mPanel.dataset.key=mKey;dirMselSetOptions('dirMMarca',marcas);}
+}
+function dirFilteredRows(){
+  const stores=dirGeoStores(),rows=dirRows();
+  const subSel=dirMselValues('dirMSublinea'),cicloSel=dirMselValues('dirMCiclo'),marcaSel=dirMselValues('dirMMarca'),estiloSel=dirMselValues('dirMEstilo');
+  const q=(DIRST.q||'').trim().toLowerCase();
+  return rows.filter(r=>{
+    if(stores.indexOf(r.tienda)<0)return false;
+    if(DIRST.cat&&r.cat!==DIRST.cat)return false;
+    if(DIRST.lin&&r.lin!==DIRST.lin)return false;
+    if(subSel.length&&subSel.indexOf(r.sub)<0)return false;
+    if(estiloSel.length&&estiloSel.indexOf(r.estilo)<0)return false;
+    if(marcaSel.length&&marcaSel.indexOf(r.marca)<0)return false;
+    if(DIRST.cc&&r.cc!==DIRST.cc)return false;
+    if(cicloSel.length&&cicloSel.indexOf(r.ciclo)<0)return false;
+    if(DIRST.surtido&&r.surtido!==DIRST.surtido)return false;
+    if(DIRST.existencia==='con'&&!(r.existencia>0))return false;
+    if(DIRST.existencia==='sin'&&!(r.existencia<=0))return false;
+    if(DIRST.presencia==='con'&&!(r.presencia>0))return false;
+    if(DIRST.presencia==='sin'&&!(r.presencia<=0))return false;
+    if(DIRST.traslado==='si'&&!r.enTraslado)return false;
+    if(DIRST.traslado==='no'&&r.enTraslado)return false;
+    if(DIRST.venta==='con'&&!(r.venta3m>0))return false;
+    if(DIRST.venta==='sin'&&!(r.venta3m<=0))return false;
+    if(DIRST.cendis==='con'&&!(r.dispCendis>0))return false;
+    if(DIRST.cendis==='sin'&&!(r.dispCendis<=0))return false;
+    if(DIRST.antiguedad&&!r.lotes.some(l=>l.rango===DIRST.antiguedad))return false;
+    if(DIRST.estadoInv&&r.estadoInv!==DIRST.estadoInv)return false;
+    if(q&&r.cod.toLowerCase().indexOf(q)<0&&r.nom.toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+}
+function dirFilterLabel(){
+  const subSel=dirMselValues('dirMSublinea'),marcaSel=dirMselValues('dirMMarca'),estiloSel=dirMselValues('dirMEstilo');
+  const parts=[DIRST.cat,DIRST.lin,subSel.join(', '),estiloSel.join(', '),marcaSel.join(', '),DIRST.cc].filter(Boolean);
+  return parts.length?parts.join(' › '):'';
+}
+/* ---- multiselect de checkboxes (porteado del prototipo, mismos tokens de color) ---- */
+function dirMselOptsHtml(opts){
+  // opts: array de string, o array de [value,label] para cuando el texto visible difiere del value.
+  const rows=opts.map(o=>{const [v,l]=Array.isArray(o)?o:[o,o];return `<label class="dirMselOpt"><input type="checkbox" value="${esc(v)}"> ${esc(l)}</label>`;}).join('');
+  const search=opts.length>6?'<input type="text" class="dirMselSearch" placeholder="Buscar…">':'';
+  return search+rows;
+}
+function dirMselSetOptions(id,values){
+  const root=document.getElementById(id);if(!root)return;
+  const panel=root.querySelector('.dirMselPanel');
+  panel.innerHTML=dirMselOptsHtml(values);
+  dirMselUpdateBtn(id);
+}
+function dirMselValues(id){
+  const root=document.getElementById(id);if(!root)return [];
+  return Array.from(root.querySelectorAll('input[type=checkbox]:checked')).map(c=>c.value);
+}
+function dirMselClear(id){
+  const root=document.getElementById(id);if(!root)return;
+  root.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);
+  dirMselUpdateBtn(id);
+}
+function dirMselUpdateBtn(id){
+  const root=document.getElementById(id);if(!root)return;
+  const btn=root.querySelector('.dirMselBtn'),vals=dirMselValues(id),ph=root.dataset.placeholder||'Todos';
+  btn.textContent=!vals.length?ph:(vals.length===1?vals[0]:vals.length+' seleccionados');
+}
+function dirWireMsel(id){
+  const root=document.getElementById(id);if(!root||root._dirWired)return;root._dirWired=true;
+  const btn=root.querySelector('.dirMselBtn');
+  btn.addEventListener('click',e=>{e.stopPropagation();document.querySelectorAll('.dirMsel.open').forEach(m=>{if(m!==root)m.classList.remove('open');});root.classList.toggle('open');});
+  const panel=root.querySelector('.dirMselPanel');
+  panel.addEventListener('click',e=>e.stopPropagation());
+  panel.addEventListener('change',()=>{dirMselUpdateBtn(id);drawDirectores();});
+  panel.addEventListener('input',e=>{
+    if(!e.target.classList.contains('dirMselSearch'))return;
+    const q=e.target.value.trim().toLowerCase();
+    panel.querySelectorAll('.dirMselOpt').forEach(opt=>{
+      opt.classList.toggle('dirMselHidden',q&&!opt.textContent.toLowerCase().includes(q));
+    });
+  });
+}
+document.addEventListener('click',()=>{document.querySelectorAll('.dirMsel.open').forEach(m=>m.classList.remove('open'));});
+/* ---- shell ---- */
+function viewDirectores(){
+  const storeOpts=Object.keys(S||{}).sort((a,b)=>safeText(S[a]&&S[a].name,a).localeCompare(safeText(S[b]&&S[b].name,b),'es'));
+  return `
+  <div class="card" id="dirFilterCard1"><div class="cbody">
+    <div class="dirFilterBar">
+      <div class="field"><label>Categoría</label><select id="dirFCategoria"></select></div>
+      <div class="field"><label>Línea</label><select id="dirFLinea"></select></div>
+      <div class="field"><label>Sub-línea</label>
+        <div class="dirMsel" id="dirMSublinea" data-placeholder="Todas"><button type="button" class="dirMselBtn">Todas</button><div class="dirMselPanel"></div></div>
+      </div>
+      <div class="field"><label>Tienda</label>
+        <div class="dirMsel" id="dirMTienda" data-placeholder="Todas"><button type="button" class="dirMselBtn">Todas</button>
+          <div class="dirMselPanel">${dirMselOptsHtml(storeOpts.map(code=>[code,safeText(S[code]&&S[code].name,code)]))}</div>
+        </div>
+      </div>
+      <div class="field"><label>Estilo</label>
+        <div class="dirMsel" id="dirMEstilo" data-placeholder="Todos"><button type="button" class="dirMselBtn">Todos</button><div class="dirMselPanel"></div></div>
+      </div>
+      <div class="field"><label>Marca</label>
+        <div class="dirMsel" id="dirMMarca" data-placeholder="Todas"><button type="button" class="dirMselBtn">Todas</button><div class="dirMselPanel"></div></div>
+      </div>
+      <div class="field"><label>Core / Complemento</label><select id="dirFCc"></select></div>
+      <div class="field grow"><label>Buscar por nombre o código</label><input id="dirFCodigo" placeholder="Ej. 7010478 o ALMOHADA"></div>
+    </div>
+  </div></div>
+  <div class="card" id="dirFilterCard2"><div class="cbody">
+    <div class="dirFilterBar">
+      <div class="field"><label>Ciclo de vida</label>
+        <div class="dirMsel" id="dirMCiclo" data-placeholder="Todos"><button type="button" class="dirMselBtn">Todos</button>
+          <div class="dirMselPanel">
+            <label class="dirMselOpt"><input type="checkbox" value="A"> Básico (A)</label>
+            <label class="dirMselOpt"><input type="checkbox" value="O"> Novedad (O)</label>
+            <label class="dirMselOpt"><input type="checkbox" value="T"> Testeo (T)</label>
+            <label class="dirMselOpt"><input type="checkbox" value="N"> Fuera de surtido (N)</label>
+          </div>
+        </div>
+      </div>
+      <div class="field"><label>Tipo de surtido</label><select id="dirFSurtido"></select></div>
+      <div class="field"><label>Existencia</label><select id="dirFExistencia"><option value="">Todas</option><option value="con">Con existencia</option><option value="sin">Sin existencia</option></select></div>
+      <div class="field"><label>Presencia</label><select id="dirFPresencia"><option value="">Todas</option><option value="con">Con presencia</option><option value="sin">Sin presencia</option></select></div>
+      <div class="field"><label>En traslado</label><select id="dirFTraslado"><option value="">Todos</option><option value="si">En traslado</option><option value="no">Sin traslado</option></select></div>
+      <div class="field"><label>Venta</label><select id="dirFVenta"><option value="">Todas</option><option value="con">Con venta (3m)</option><option value="sin">Sin venta (3m)</option></select></div>
+      <div class="field"><label>Disponibilidad CENDIS</label><select id="dirFCendis"><option value="">Todas</option><option value="con">Con disponibilidad</option><option value="sin">Sin disponibilidad</option></select></div>
+      <div class="field"><label>Antigüedad</label><select id="dirFAntiguedad"><option value="">Todas</option>${DIR_AGE_ORDER.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('')}</select></div>
+      <div class="field"><label>Estado inventario</label><select id="dirFEstadoInv"><option value="">Todos</option><option value="Rotación">Rotación</option><option value="Evacuación">Evacuación</option><option value="Otros estados">Otros estados</option></select></div>
+      <button class="dirClear" id="dirFClear" type="button">Limpiar filtros</button>
+      <span class="dirCount" id="dirFCount"></span>
+    </div>
+  </div></div>
+  <div class="dirKpis" id="dirKpis"></div>
+  <div class="card"><div class="chead"><div class="cnum n4">▥</div><div><div class="tt">Consolidado por tienda</div><div class="ds">Click en una participación (A / O / T / N) para ver el detalle de productos.</div></div></div>
+    <div class="cbody"><div class="twrap" id="directoresMain-tbl"></div></div>
+  </div>
+  <div class="card"><div class="chead"><div class="cnum n1">⟳</div><div><div class="tt">Composición por antigüedad</div><div class="ds">% de unidades en existencia por rango de antigüedad real del corte. Elige el tipo de surtido para ver su composición.</div></div></div>
+    <div class="cbody">
+      <div class="tbar" style="margin-bottom:4px" id="dirAntTabs">
+        ${['A','O','T','N',''].map(k=>`<span class="chip dirAntTab${k===DIRST.antTab?' on':''}" data-key="${k}">${k?DIR_CICLO_LABEL[k]+' ('+k+')':'Todos'}</span>`).join('')}
+      </div>
+      <div class="twrap" id="directoresAnt-tbl"></div>
+    </div>
+  </div>
+  <div class="card" id="dirDetailCard" hidden>
+    <div class="chead"><div><div class="tt" id="dirDetailTitle">Detalle</div><div class="ds" id="dirDetailSub"></div></div>
+      <div class="rt"><button class="actionBtn" id="dirDetailClose" type="button">Cerrar ✕</button></div></div>
+    <div class="cbody"><div class="twrap" id="directoresDetail-tbl"></div></div>
+  </div>`;
+}
+function dirKpiHtml(rows){
+  const stores=dirGeoStores(),n=stores.length||1;
+  const byCiclo={A:0,O:0,T:0,N:0};rows.forEach(r=>{if(byCiclo[r.ciclo]!=null)byCiclo[r.ciclo]++;});
+  const tones={A:'k-amb',O:'k-vta',T:'k-rot',N:'k-evac'};
+  let html=`<div class="kpi"><div class="top"><div class="ico" style="background:#eef2f9;color:var(--mut)">▥</div></div><div class="lab">SKUs evaluados</div><div class="val">${fInt(rows.length)}</div><div class="sub">en ${fInt(stores.length)} tiendas</div></div>`;
+  ['A','O','T','N'].forEach(k=>{
+    html+=`<div class="kpi ${tones[k]}"><div class="top"><div class="ico ${tones[k].replace('k-','i-')}">${k}</div></div><div class="lab">${esc(DIR_CICLO_LABEL[k])} (${k})</div><div class="val">${fInt(byCiclo[k])}</div><div class="sub">${(byCiclo[k]/(rows.length||1)*100).toFixed(1)}% del filtro</div></div>`;
+  });
+  return html;
+}
+function dirMainTableHtml(rows){
+  const stores=dirGeoStores();
+  const agg=stores.map(sc=>{
+    const srows=rows.filter(r=>r.tienda===sc);
+    const o={nombre:safeText(S[sc]&&S[sc].name,sc),tienda:sc,total:srows.length};
+    ['A','O','T','N'].forEach(k=>{o[k]=srows.filter(r=>r.ciclo===k).length;});
+    return o;
+  });
+  state.directoresMain=state.directoresMain||{sort:'nombre',dir:1,q:'',f:'all'};
+  const s=state.directoresMain;
+  agg.sort((a,b)=>{
+    if(s.sort==='nombre')return s.dir*a.nombre.localeCompare(b.nombre,'es');
+    return s.dir*((b[s.sort]||0)-(a[s.sort]||0));
+  });
+  // V86.324: mapa de calor de Participación -- cuartiles calculados por columna (A/O/T/N) sobre
+  // las tiendas actualmente visibles en "agg" (ya filtradas), de forma independiente entre
+  // columnas (cada ciclo de vida tiene un rango típico muy distinto -- un "bajo" de Básico no es
+  // comparable a un "bajo" de Testeo). Se resalta el cuartil inferior (rojo, participación baja --
+  // lo que pidió el usuario) y el superior (verde, de referencia); la mitad central queda neutra
+  // para no sobre-colorear la tabla.
+  const heatQ={};
+  ['A','O','T','N'].forEach(k=>{
+    const vals=agg.map(r=>r.total?r[k]/r.total*100:0).sort((a,b)=>a-b);
+    const n=vals.length;
+    const pick=p=>vals[Math.min(n-1,Math.max(0,Math.floor(p*(n-1))))];
+    heatQ[k]={q1:pick(0.25),q2:pick(0.5),q3:pick(0.75)};
+  });
+  function heatClass(k,pct){
+    const t=heatQ[k];
+    if(!t||t.q1===t.q3)return '';
+    if(pct<=t.q1)return 'dirHeatLow';
+    if(pct<=t.q2)return 'dirHeatMidLow';
+    if(pct>=t.q3)return 'dirHeatHigh';
+    return '';
+  }
+  const cols=[['Tienda','nombre',0],['SKUs','total',1],['Básico (A)','A',1],['Novedades (O)','O',1],['Testeos (T)','T',1],['Fuera surtido (N)','N',1]];
+  const body=agg.map(r=>{
+    return cols.map(c=>{
+      if(c[1]==='nombre')return `<b>${esc(r.nombre)}</b>`;
+      if(c[1]==='total')return fInt(r.total);
+      const k=c[1],active=DIRST.openCell&&DIRST.openCell.tienda===r.tienda&&DIRST.openCell.key===k;
+      const pct=r.total?(r[k]/r.total*100):0;
+      const hc=heatClass(k,pct);
+      return `<button class="dirCellBtn${active?' on':''}" data-tienda="${esc(r.tienda)}" data-key="${k}">${fInt(r[k])}<span class="dirCellPct${hc?' '+hc:''}">${pct.toFixed(1)}%</span></button>`;
+    });
+  });
+  return tableHTML('directoresMain',cols,body);
+}
+function dirAntAxisHtml(){
+  return DIR_AGE_ORDER.map(b=>`<div class="dirAxisCol" title="${esc(b)}"><div class="dirAxisLabel">${esc(DIR_AGE_SHORT[b])}</div></div>`).join('');
+}
+function dirAntBarsHtml(agg){
+  if(!agg.total)return '<span class="dash">—</span>';
+  return '<div class="dirBars">'+DIR_AGE_ORDER.map((b,i)=>{
+    const v=agg.total?Math.round(agg[b]/agg.total*1000)/10:0,active=DIRST.openAntCell&&DIRST.openAntCell.tienda===agg.tienda&&DIRST.openAntCell.bucket===b;
+    const info=v>0?`<b>${v}%</b><span>${fInt(agg[b])} u</span>`:'<b>&nbsp;</b><span>&nbsp;</span>';
+    return `<div class="dirBarCol${active?' active':''}" data-tienda="${esc(agg.tienda)}" data-bucket="${esc(b)}" title="${esc(b)}: ${v}% (${fInt(agg[b])} u) · click para ver productos">
+      <div class="dirBarTrackWrap"><div class="dirBarTrack"><div class="dirBarFill" style="height:${Math.max(v,v>0?2:0)}%;background:${DIR_AGE_COLOR[i]}"></div></div></div>
+      <div class="dirBarInfo">${info}</div></div>`;
+  }).join('')+'</div>';
+}
+function dirAntTableHtml(rows){
+  const stores=dirGeoStores();
+  const filtered=rows.filter(r=>!DIRST.antTab||r.ciclo===DIRST.antTab);
+  const agg=stores.map(sc=>{
+    const o={nombre:safeText(S[sc]&&S[sc].name,sc),tienda:sc,total:0};
+    DIR_AGE_ORDER.forEach(b=>{o[b]=0;});
+    filtered.filter(r=>r.tienda===sc).forEach(r=>{
+      r.lotes.forEach(l=>{o[l.rango]=(o[l.rango]||0)+l.unidades;o.total+=l.unidades;});
+    });
+    return o;
+  });
+  state.directoresAnt=state.directoresAnt||{sort:'nombre',dir:1,q:'',f:'all'};
+  const s=state.directoresAnt;
+  agg.sort((a,b)=>{
+    if(s.sort==='nombre')return s.dir*a.nombre.localeCompare(b.nombre,'es');
+    if(s.sort==='total')return s.dir*(b.total-a.total);
+    return 0;
+  });
+  const cols=[['Tienda','nombre',0],['Unidades','total',1],['Composición por rango de antigüedad','x',0]];
+  const body=agg.map(r=>[`<b>${esc(r.nombre)}</b>`,fInt(r.total),dirAntBarsHtml(r)]);
+  let html=tableHTML('directoresAnt',cols,body);
+  // El <th> de esta columna no es ordenable (cols[2]==='x'), asi que tableHTML() NO genera
+  // atributo data-sort -- el regex anterior exigia data-sort="x" literal y nunca hacia match,
+  // dejando el encabezado sin los rangos de edad (dirAntAxisHtml) insertados.
+  html=html.replace('<thead><tr>','<thead><tr class="dirAntHeadRow">').replace(/<th[^>]*>Composición por rango de antigüedad<\/th>/,`<th class="dirAntHead"><div>Composición por rango de antigüedad</div><div class="dirBars dirAxisRow">${dirAntAxisHtml()}</div></th>`);
+  return html;
+}
+function dirRenderDetail(rows){
+  const card=document.getElementById('dirDetailCard');
+  if(!DIRST.openCell&&!DIRST.openAntCell){card.hidden=true;return;}
+  card.hidden=false;
+  let prods,titleTxt;
+  if(DIRST.openCell){
+    prods=rows.filter(r=>r.tienda===DIRST.openCell.tienda&&r.ciclo===DIRST.openCell.key);
+    titleTxt=`${DIR_CICLO_LABEL[DIRST.openCell.key]} (${DIRST.openCell.key}) · ${safeText(S[DIRST.openCell.tienda]&&S[DIRST.openCell.tienda].name,DIRST.openCell.tienda)}`;
+  }else{
+    const b=DIRST.openAntCell.bucket;
+    prods=rows.filter(r=>{
+      if(r.tienda!==DIRST.openAntCell.tienda)return false;
+      if(DIRST.antTab&&r.ciclo!==DIRST.antTab)return false;
+      return r.lotes.some(l=>l.rango===b&&l.unidades>0);
+    });
+    titleTxt=`${b}${DIRST.antTab?' · '+DIR_CICLO_LABEL[DIRST.antTab]:''} · ${safeText(S[DIRST.openAntCell.tienda]&&S[DIRST.openAntCell.tienda].name,DIRST.openAntCell.tienda)}`;
+  }
+  document.getElementById('dirDetailTitle').textContent=titleTxt;
+  document.getElementById('dirDetailSub').textContent=`${fInt(prods.length)} producto(s)${dirFilterLabel()?' · filtro: '+dirFilterLabel():''}`;
+  DIR_DETAIL_ROWS=prods;
+  const cols=[['Imagen','x',0],['Código','x',0],['Nombre','x',0],['Categoría','x',0],['Línea','x',0],['Sub-línea','x',0],['Estilo','x',0],['Marca','x',0],
+    ['Antigüedad','x',0],['Estado','x',0],['Existencia','x',1],['Presencia','x',1],['En traslado','x',0],
+    ['Disp. CENDIS','x',1],['Precio lista','x',1],['Precio oferta','x',1],
+    ['Desc. oferta','x',1],['Desc. muestra','x',1],['Desc. sugerido','x',1],['Venta 3m','x',1]];
+  if(!prods.length){
+    document.getElementById('directoresDetail-tbl').innerHTML='<div class="empty">Sin productos para este filtro 🎉</div>';
+    return;
+  }
+  const body=prods.map((p,idx)=>[
+    imageThumb(p.cod,'sm'),
+    `<span class="code">${esc(p.cod)}</span>`,
+    `<button class="productOpen" onclick="openDirProduct(${idx})">${esc(p.nom)}</button>`,
+    esc(p.cat),esc(p.lin),esc(p.sub),
+    p.estilo?esc(p.estilo):'<span class="dash">—</span>',
+    p.marca?esc(p.marca):'<span class="dash">—</span>',
+    dirAgeBadgeHtml(p.lotes),
+    `<span class="badge ${p.estadoInv==='Rotación'?'warm':p.estadoInv==='Evacuación'?'hot':'mut'}">${esc(p.estadoInv)}</span>`,
+    fInt(p.existencia),fInt(p.presencia),
+    p.enTraslado?'<span class="badge cool">Sí</span>':'<span class="dash">—</span>',
+    fInt(p.dispCendis),
+    fMoneyCOP(p.precioLista),fMoneyCOP(p.precioOferta),
+    p.descuentoOferta!=null?p.descuentoOferta+'%':'<span class="dash">—</span>',
+    p.descuentoMuestra!=null?p.descuentoMuestra+'%':'<span class="dash">—</span>',
+    p.descuentoSugerido!=null?p.descuentoSugerido+'%':'<span class="dash">—</span>',
+    fInt(p.venta3m)
+  ]);
+  document.getElementById('directoresDetail-tbl').innerHTML=tableHTML('directoresDetail',cols,body);
+}
+function dirAgeBadgeHtml(lotes){
+  if(!lotes.length)return '<span class="dash">Sin dato</span>';
+  return lotes.map(l=>`<span class="tag" style="background:#eef2f9;color:var(--ink2)">${esc(DIR_AGE_SHORT[l.rango])}: ${fInt(l.unidades)}u</span>`).join(' ');
+}
+function openDirProduct(idx){
+  const p=DIR_DETAIL_ROWS[idx];if(!p)return;
+  document.getElementById('inventoryProductTitle').textContent=p.nom;
+  document.getElementById('inventoryProductSubtitle').textContent=`Código ${p.cod} · ${safeText(S[p.tienda]&&S[p.tienda].name,p.tienda)}`;
+  const item=(l,v)=>`<div class="detailItem"><label>${esc(l)}</label><b>${esc(safeText(v,'—'))}</b></div>`;
+  const lotesHtml=p.lotes.length?p.lotes.map(l=>`${esc(l.rango)}: <b>${fInt(l.unidades)} u</b>`).join('<br>'):(p.existencia>0?'Sin dato de antigüedad en el corte':'—');
+  const trHtml=p.enTraslado?p.trasladoLotes.map(l=>`<span class="badge cool">${esc(l.estado)}</span> ${fInt(l.unidades)} u${l.fechaEntrega?' · entrega '+esc(l.fechaEntrega):''}`).join('<br>'):'Sin traslado activo';
+  document.getElementById('inventoryProductBody').innerHTML=`
+    <div class="detailHero"><div><h3>${esc(p.nom)}</h3><p>${esc(p.cat)} · ${esc(p.lin)} · ${esc(p.sub)}</p></div></div>
+    <div class="detailSections">
+      <section class="detailSection"><div class="detailSectionTitle">Clasificación</div><div class="detailGrid">
+        ${item('Ciclo de vida',p.ciclo?DIR_CICLO_LABEL[p.ciclo]+' ('+p.ciclo+')':'Sin dato')}
+        ${item('Tipo de surtido',p.surtido||'Sin dato')}
+        ${item('Matriz BCG',p.matrizBcg||'Sin asignar')}
+        ${item('Clasificación SAP',p.cicloVidaSap||'—')}
+        ${item('Estilo',p.estilo||'—')}
+        ${item('Core / Complemento',p.cc||'—')}
+      </div></section>
+      <section class="detailSection"><div class="detailSectionTitle">Existencias</div><div class="detailGrid">
+        ${item('Existencia',fInt(p.existencia)+' u')}${item('Presencia',fInt(p.presencia)+' u')}
+        ${item('Disp. CENDIS',fInt(p.dispCendis)+' u')}${item('OC',p.oc?fInt(p.oc)+' u':'—')}
+        ${item('Entradas',p.entradas!=null?fInt(p.entradas)+' u':'—')}
+      </div></section>
+      <section class="detailSection full"><div class="detailSectionTitle">Antigüedad por lote</div><div class="detailGrid"><div class="detailItem" style="grid-column:1/-1"><div class="v" style="margin-top:0">${lotesHtml}</div></div></div></section>
+      <section class="detailSection"><div class="detailSectionTitle">Traslado</div><div class="detailGrid"><div class="detailItem" style="grid-column:1/-1"><div class="v" style="margin-top:0">${trHtml}</div></div></div></section>
+      <section class="detailSection"><div class="detailSectionTitle">Ventas</div><div class="detailGrid">
+        ${item('Venta en 3 meses',fInt(p.venta3m)+' u')}${item('Facturación 3 meses',fMoneyCOP(p.facturacion3m))}
+      </div></section>
+      <section class="detailSection"><div class="detailSectionTitle">Precios</div><div class="detailGrid">
+        ${item('Precio lista',fMoneyCOP(p.precioLista))}${item('Precio oferta',fMoneyCOP(p.precioOferta))}
+        ${item('Descuento oferta',p.descuentoOferta!=null?p.descuentoOferta+'%':'—')}
+        ${item('Descuento muestra',p.descuentoMuestra!=null?p.descuentoMuestra+'%':'—')}
+        ${item('Descuento sugerido',p.descuentoSugerido!=null?p.descuentoSugerido+'%':'—')}
+      </div></section>
+    </div>`;
+  document.getElementById('inventoryProductModal').classList.add('on');
+}
+function drawDirectores(){
+  if(!requireLeader())return;
+  dirRefreshCascade();
+  const sels={
+    dirFCategoria:[DIRST,'cat'],dirFLinea:[DIRST,'lin'],dirFCc:[DIRST,'cc'],
+    dirFSurtido:[DIRST,'surtido'],dirFExistencia:[DIRST,'existencia'],dirFPresencia:[DIRST,'presencia'],
+    dirFTraslado:[DIRST,'traslado'],dirFVenta:[DIRST,'venta'],dirFCendis:[DIRST,'cendis'],
+    dirFAntiguedad:[DIRST,'antiguedad'],dirFEstadoInv:[DIRST,'estadoInv']
+  };
+  const rows0=dirRows();
+  const catSel=document.getElementById('dirFCategoria');
+  if(catSel&&!catSel._dirInit){catSel._dirInit=true;dirFillSelect(catSel,uniq(rows0.map(r=>r.cat)).sort(),'Todas');}
+  const ccSel=document.getElementById('dirFCc');
+  if(ccSel&&!ccSel._dirInit){ccSel._dirInit=true;dirFillSelect(ccSel,uniq(rows0.map(r=>r.cc)).filter(Boolean).sort(),'Todos');}
+  const surtSel=document.getElementById('dirFSurtido');
+  if(surtSel&&!surtSel._dirInit){surtSel._dirInit=true;dirFillSelect(surtSel,uniq(rows0.map(r=>r.surtido)).filter(Boolean).sort(),'Todos');}
+  dirWireMsel('dirMSublinea');dirWireMsel('dirMCiclo');dirWireMsel('dirMTienda');dirWireMsel('dirMMarca');dirWireMsel('dirMEstilo');
+  Object.keys(sels).forEach(id=>{
+    const el=document.getElementById(id);if(!el||el._dirWired)return;el._dirWired=true;
+    el.addEventListener('change',()=>{sels[id][0][sels[id][1]]=el.value;if(id==='dirFCategoria'||id==='dirFLinea')DIRST.lin=(id==='dirFCategoria')?'':DIRST.lin;drawDirectores();});
+  });
+  const prodQ=document.getElementById('dirFCodigo');
+  if(prodQ&&!prodQ._dirWired){prodQ._dirWired=true;prodQ.addEventListener('input',()=>{DIRST.q=prodQ.value;drawDirectores();});}
+  const clearAll=document.getElementById('dirFClear');
+  if(clearAll&&!clearAll._dirWired){clearAll._dirWired=true;clearAll.addEventListener('click',()=>{
+    DIRST.cat='';DIRST.lin='';DIRST.cc='';DIRST.surtido='';DIRST.existencia='';DIRST.presencia='';
+    DIRST.traslado='';DIRST.venta='';DIRST.cendis='';DIRST.antiguedad='';DIRST.estadoInv='';DIRST.q='';
+    dirMselClear('dirMSublinea');dirMselClear('dirMCiclo');dirMselClear('dirMTienda');dirMselClear('dirMMarca');dirMselClear('dirMEstilo');
+    document.getElementById('dirFCodigo').value='';
+    drawDirectores();
+  });}
+  document.querySelectorAll('#dirAntTabs .dirAntTab').forEach(ch=>{
+    if(ch._dirWired)return;ch._dirWired=true;
+    ch.addEventListener('click',()=>{DIRST.antTab=ch.dataset.key;drawDirectores();});
+  });
+  const rows=dirFilteredRows();
+  document.getElementById('dirKpis').innerHTML=dirKpiHtml(rows);
+  document.getElementById('directoresMain-tbl').innerHTML=dirMainTableHtml(rows);
+  document.getElementById('directoresAnt-tbl').innerHTML=dirAntTableHtml(rows);
+  document.getElementById('dirFCount').textContent=`${fInt(rows.length)} de ${fInt(dirRows().length)} productos`;
+  wireTable('directoresMain',drawDirectores);
+  wireTable('directoresAnt',drawDirectores);
+  document.querySelectorAll('.dirCellBtn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const t=btn.dataset.tienda,k=btn.dataset.key;
+      if(DIRST.openCell&&DIRST.openCell.tienda===t&&DIRST.openCell.key===k){DIRST.openCell=null;}else{DIRST.openCell={tienda:t,key:k};DIRST.openAntCell=null;}
+      dirRenderDetail(dirFilteredRows());
+      document.querySelectorAll('.dirCellBtn').forEach(b=>b.classList.toggle('on',DIRST.openCell&&b.dataset.tienda===DIRST.openCell.tienda&&b.dataset.key===DIRST.openCell.key));
+      if(DIRST.openCell)document.getElementById('dirDetailCard').scrollIntoView({behavior:'smooth',block:'nearest'});
+    });
+  });
+  document.querySelectorAll('.dirBarCol').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const t=el.dataset.tienda,b=el.dataset.bucket;if(!t||!b)return;
+      if(DIRST.openAntCell&&DIRST.openAntCell.tienda===t&&DIRST.openAntCell.bucket===b){DIRST.openAntCell=null;}else{DIRST.openAntCell={tienda:t,bucket:b};DIRST.openCell=null;}
+      dirRenderDetail(dirFilteredRows());
+      if(DIRST.openAntCell)document.getElementById('dirDetailCard').scrollIntoView({behavior:'smooth',block:'nearest'});
+    });
+  });
+  const closeBtn=document.getElementById('dirDetailClose');
+  if(closeBtn&&!closeBtn._dirWired){closeBtn._dirWired=true;closeBtn.addEventListener('click',()=>{DIRST.openCell=null;DIRST.openAntCell=null;document.getElementById('dirDetailCard').hidden=true;});}
+  dirRenderDetail(rows);
+}
+
 function setView(v){
   if(!isAuthenticated())return;
   if(v==='dashboard'&&!IS_LEADER)v='resumen';
+  if(v==='directores'&&!IS_LEADER)v='resumen';
   VIEW=v;
   const st=S[CUR]||{name:'Tienda sin datos',kpi:{},rot:[],evac:[],ventas:[],ventasProducto:[],inventario:[],tr:[]};
   const c=document.getElementById('content');
   try{
     if(v==='dashboard')c.innerHTML=viewLeaderDashboard();
+    else if(v==='directores'){c.innerHTML=viewDirectores();drawDirectores();}
     else if(v==='resumen')c.innerHTML=summaryHtml82(st);
     else if(v==='inventario'){c.innerHTML=viewInventario(st);drawInventario();}
     else if(v==='prox'){c.innerHTML=viewProx(st);drawProx();}
@@ -5321,11 +5919,13 @@ setTimeout(function(){mark80();enhance80();},80);
   function directSetView82(v){
     if(typeof isAuthenticated==='function'&&!isAuthenticated())return;
     if(v==='dashboard'&&!IS_LEADER)v='resumen';
+    if(v==='directores'&&!IS_LEADER)v='resumen';
     if(IS_ADMIN&&['vta','cli','dashboard'].indexOf(v)>=0)v='inventario';
     VIEW=v;setActiveNav(v);
     var st=S[CUR]||{name:'Tienda sin datos',kpi:{},rot:[],evac:[],ventas:[],ventasProducto:[],inventario:[],tr:[]},c=document.getElementById('content'),seq=++renderSeq82;
     try{
       if(v==='dashboard')c.innerHTML=viewLeaderDashboard();
+      else if(v==='directores'){c.innerHTML=viewDirectores();drawDirectores();}
       else if(v==='resumen')c.innerHTML=summaryHtml82(st);
       else if(v==='inventario'){c.innerHTML=viewInventario(st);drawInventario();}
       else if(v==='prox'){c.innerHTML=viewProx(st);drawProx();}

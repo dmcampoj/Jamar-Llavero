@@ -4486,6 +4486,7 @@ body.admin-mode #nav a[data-v="cli"]{display:none!important}
 body.admin-mode #nav .navPanelLabel8670,
 body.admin-mode #nav .navInfoLabel8670{display:none!important}
 body.leader-mode #nav a[data-v="dashboard"]{display:flex!important}
+body.leader-mode #nav a[data-v="directores"]{display:flex!important}
 body.leader-mode #nav a[data-v="vta"],
 body.leader-mode #nav a[data-v="cli"]{display:flex!important}
 #nav a[data-v="dashboard"]{margin-bottom:3px}
