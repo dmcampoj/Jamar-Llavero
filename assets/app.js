@@ -834,7 +834,7 @@
     arr.sort(function(a,b){return (b.requestedDiscount>50)-(a.requestedDiscount>50)||b.value-a.value||a.name.localeCompare(b.name,'es');});return arr;
   }
   function totals(rs){rs=rs||records();var value=rs.reduce(function(a,r){return a+r.value;},0),units=rs.reduce(function(a,r){return a+r.stock;},0),impact=rs.reduce(function(a,r){var gap=Math.max(0,num(r.requestedDiscount)-num(r.currentDiscount));return a+(r.priceList!=null?num(r.priceList)*num(r.stock)*gap/100:num(r.value)*gap/100);},0),admin=rs.filter(function(r){return r.requestedDiscount<=50;}).length,leader=rs.length-admin;return {count:rs.length,value:value,units:units,impact:impact,admin:admin,leader:leader};}
-  function manageBarHtml(){return '<div class="v8623ManageBar" id="v8623ManageBar"><div class="v8623ManageInfo"><div class="v8623ManageIcon">✓</div><div><b>Lista de gestion Markdown</b><span>Selecciona productos para generar el Excel de cargue masivo o el expediente PDF para Administrador o Lider de Area.</span></div></div><div class="v8623ManageStats"><span class="v8623ManagePill" id="v8623SelCount">0 seleccionados</span><span class="v8623ManagePill admin" id="v8623AdminCount">0 Administrador</span><span class="v8623ManagePill leader" id="v8623LeaderCount">0 Lider</span></div><div class="v8623ManageActions"><button class="v8623ManageBtn" type="button" onclick="V8623.selectVisible(true)">Seleccionar visibles</button><button class="v8623ManageBtn" id="v8623ViewBtn" type="button" onclick="V8623.openManager()">Ver seleccion</button><button class="v8623ManageBtn primary" id="v8623ExcelBtn" type="button" onclick="V8623.downloadExcel()">Generar Excel</button><button class="v8623ManageBtn" id="v8623ManagementExcelBtn" type="button" onclick="V8623.downloadManagementExcel()">Excel de gestión</button><button class="v8623ManageBtn" id="v8623PdfBtn" type="button" onclick="V8623.downloadPdf()">Generar PDF</button><button class="v8623ManageBtn danger" id="v8623ClearBtn" type="button" onclick="V8623.clearAll()">Limpiar lista</button></div></div>';}
+  function manageBarHtml(){return '<div class="v8623ManageBar" id="v8623ManageBar"><div class="v8623ManageInfo"><div class="v8623ManageIcon">✓</div><div><b>Lista de gestion Markdown</b><span>Selecciona productos para generar el Excel de cargue masivo o el expediente PDF para Administrador o Lider de Area.</span></div></div><div class="v8623ManageStats"><span class="v8623ManagePill" id="v8623SelCount">0 seleccionados</span><span class="v8623ManagePill admin" id="v8623AdminCount">0 Administrador</span><span class="v8623ManagePill leader" id="v8623LeaderCount">0 Lider</span></div><div class="v8623ManageActions"><button class="v8623ManageBtn" type="button" onclick="V8623.selectVisible(true)">Seleccionar visibles</button><button class="v8623ManageBtn" id="v8623ViewBtn" type="button" onclick="V8623.openManager()">Ver seleccion</button><button class="v8623ManageBtn primary" id="v8623ManagementExcelBtn" type="button" onclick="V8623.downloadManagementExcel()">Generar Excel</button><button class="v8623ManageBtn" id="v8623PdfBtn" type="button" onclick="V8623.downloadPdf()">Generar PDF</button><button class="v8623ManageBtn danger" id="v8623ClearBtn" type="button" onclick="V8623.clearAll()">Limpiar lista</button></div></div>';}
   function updateBar(){var t=totals(),a=document.getElementById('v8623SelCount'),b=document.getElementById('v8623AdminCount'),c=document.getElementById('v8623LeaderCount');if(a)a.textContent=fInt(t.count)+' seleccionados · '+fInt(t.units)+' u';if(b)b.textContent=fInt(t.admin)+' Administrador';if(c)c.textContent=fInt(t.leader)+' Lider';['v8623ViewBtn','v8623ExcelBtn','v8623PdfBtn','v8623ClearBtn','v8623ModalExcelBtn','v8623ModalPdfBtn'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=!t.count;});}
   function enhanceTable(){
     var root=document.getElementById('markdown-table-8618');if(!root)return;var table=root.querySelector('table');if(!table)return;table.classList.add('v8623MarkdownTable');
@@ -865,7 +865,7 @@
     save();enhanceTable();renderManager();
   }
   function ensureManager(){
-    var modal=document.getElementById('v8623MarkdownManageModal');if(modal)return modal;var wrap=document.createElement('div');wrap.id='v8623MarkdownManageModal';wrap.className='modalBack';wrap.innerHTML='<div class="modal v8623ManageModal" role="dialog" aria-modal="true" aria-labelledby="v8623ManagerTitle"><div class="modalHead"><div><h3 id="v8623ManagerTitle">Lista de gestion Markdown</h3><p>Genera el cargue masivo en Excel con el descuento sugerido o el expediente PDF de gestion.</p></div><button class="modalClose" type="button" onclick="V8623.closeManager()">×</button></div><div class="modalBody v8623ManageModalBody" id="v8623ManagerBody"></div><div class="modalFoot"><span class="v8623PdfProgress" id="v8623PdfProgress">Preparando archivo...</span><button class="btn danger" type="button" onclick="V8623.clearAll()">Limpiar lista</button><button class="btn ghost" type="button" onclick="V8623.closeManager()">Cerrar</button><button class="btn primary" id="v8623ModalExcelBtn" type="button" onclick="V8623.downloadExcel()">Descargar Excel</button><button class="btn ghost" id="v8623ModalPdfBtn" type="button" onclick="V8623.downloadPdf()">Descargar PDF</button></div></div>';document.body.appendChild(wrap);wrap.addEventListener('click',function(e){if(e.target===wrap)closeManager();});return wrap;
+    var modal=document.getElementById('v8623MarkdownManageModal');if(modal)return modal;var wrap=document.createElement('div');wrap.id='v8623MarkdownManageModal';wrap.className='modalBack';wrap.innerHTML='<div class="modal v8623ManageModal" role="dialog" aria-modal="true" aria-labelledby="v8623ManagerTitle"><div class="modalHead"><div><h3 id="v8623ManagerTitle">Lista de gestion Markdown</h3><p>Genera el cargue masivo en Excel con el descuento sugerido o el expediente PDF de gestion.</p></div><button class="modalClose" type="button" onclick="V8623.closeManager()">×</button></div><div class="modalBody v8623ManageModalBody" id="v8623ManagerBody"></div><div class="modalFoot"><span class="v8623PdfProgress" id="v8623PdfProgress">Preparando archivo...</span><button class="btn danger" type="button" onclick="V8623.clearAll()">Limpiar lista</button><button class="btn ghost" type="button" onclick="V8623.closeManager()">Cerrar</button><button class="btn primary" id="v8623ModalExcelBtn" type="button" onclick="V8623.downloadManagementExcel()">Descargar Excel</button><button class="btn ghost" id="v8623ModalPdfBtn" type="button" onclick="V8623.downloadPdf()">Descargar PDF</button></div></div>';document.body.appendChild(wrap);wrap.addEventListener('click',function(e){if(e.target===wrap)closeManager();});return wrap;
   }
   function groupHtml(title,sub,rs,leader){if(!rs.length)return '';return '<div class="v8623GroupTitle"><h4>'+esc(title)+'</h4><span>'+esc(sub)+'</span></div><div class="v8623ProductList">'+rs.map(function(r){return productCard(r,leader);}).join('')+'</div>';}
   function discountOptions(r){var vals=STANDARD_DISCOUNTS.filter(function(x){return x>=num(r.suggested)-.049&&x>num(r.currentDiscount)+.049;});if(vals.indexOf(num(r.requestedDiscount))<0)vals.push(num(r.requestedDiscount));vals.sort(function(a,b){return a-b;});return vals.map(function(x){return '<option value="'+x+'"'+(x===num(r.requestedDiscount)?' selected':'')+'>'+x+'%</option>';}).join('');}
@@ -2218,54 +2218,58 @@ function toggle(code,on){setSelected(CUR,code,on);updateBar()}
 function visibleRows(){var table=document.querySelector('#markdown-table-8618 table.v8680MarkdownTable');if(!table)return[];return Array.from(table.querySelectorAll('tbody tr[data-md-product]')).map(function(tr){return{tr:tr,code:s(tr.dataset.mdProduct),cb:tr.querySelector('input[type=checkbox]')}})}
 function selectVisible(on){var m=readMem();visibleRows().forEach(function(x){if(!x.cb||x.cb.disabled)return;var r=rowBy(CUR,x.code);if(!r||r.statusKey!=='manage')return;var k=itemKey(CUR,x.code);if(on){var old=m.items[k]||{};m.items[k]={storeCode:CUR,code:s(x.code),requestedDiscount:n(old.requestedDiscount||r.discount),note:s(old.note||'')}}else delete m.items[k];x.cb.checked=on});writeMem(m)}
 function clearSelection(){writeMem({items:{}});visibleRows().forEach(function(x){if(x.cb)x.cb.checked=false});updateBar();renderManager()}
-function ensureManager(){var modal=document.getElementById('v8623MarkdownManageModal');if(modal)return modal;var wrap=document.createElement('div');wrap.id='v8623MarkdownManageModal';wrap.className='modalBack';wrap.innerHTML='<div class="modal v8623ManageModal" role="dialog" aria-modal="true"><div class="modalHead"><div><h3>Lista de gestión Markdown</h3><p>Productos seleccionados para la gestión.</p></div><button class="modalClose" type="button" onclick="V8623.closeManager()">×</button></div><div class="modalBody v8623ManageModalBody" id="v8623ManagerBody"></div><div class="modalFoot"><button class="btn danger" type="button" onclick="V8623.clearAll()">Limpiar lista</button><button class="btn ghost" type="button" onclick="V8623.closeManager()">Cerrar</button><button class="btn primary" id="v8623ModalExcelBtn" type="button" onclick="V8623.downloadExcel()">Descargar Excel</button><button class="btn ghost" id="v8623ModalPdfBtn" type="button" onclick="V8623.downloadPdf()">Descargar PDF</button></div></div>';document.body.appendChild(wrap);wrap.addEventListener('click',function(e){if(e.target===wrap)closeManager()});return wrap}
+function ensureManager(){var modal=document.getElementById('v8623MarkdownManageModal');if(modal)return modal;var wrap=document.createElement('div');wrap.id='v8623MarkdownManageModal';wrap.className='modalBack';wrap.innerHTML='<div class="modal v8623ManageModal" role="dialog" aria-modal="true"><div class="modalHead"><div><h3>Lista de gestión Markdown</h3><p>Productos seleccionados para la gestión.</p></div><button class="modalClose" type="button" onclick="V8623.closeManager()">×</button></div><div class="modalBody v8623ManageModalBody" id="v8623ManagerBody"></div><div class="modalFoot"><button class="btn danger" type="button" onclick="V8623.clearAll()">Limpiar lista</button><button class="btn ghost" type="button" onclick="V8623.closeManager()">Cerrar</button><button class="btn primary" id="v8623ModalExcelBtn" type="button" onclick="V8623.downloadManagementExcel()">Descargar Excel</button><button class="btn ghost" id="v8623ModalPdfBtn" type="button" onclick="V8623.downloadPdf()">Descargar PDF</button></div></div>';document.body.appendChild(wrap);wrap.addEventListener('click',function(e){if(e.target===wrap)closeManager()});return wrap}
 function renderManager(){var body=document.getElementById('v8623ManagerBody');if(!body)return;var rs=selectedRecords(),t=totals(rs);if(!rs.length){body.innerHTML='<div class="v8623Empty"><b>No hay productos en la lista de gestión.</b><div style="margin-top:5px">Selecciona productos desde la tabla de Markdown.</div></div>';return}body.innerHTML='<div class="v8686SelectedSummary"><div><label>Productos</label><b>'+fi(t.count)+'</b></div><div><label>Unidades</label><b>'+fi(t.units)+'</b></div><div><label>Administrador</label><b>'+fi(t.admin)+'</b></div><div><label>Líder</label><b>'+fi(t.leader)+'</b></div></div><div class="twrap"><table class="v8686SelectedTable"><thead><tr><th>Código</th><th>Producto</th><th>Responsable</th><th class="num">Sugerido</th><th>Acción</th></tr></thead><tbody>'+rs.map(function(r){return'<tr><td><span class="code">'+esc(r.code)+'</span></td><td><b>'+esc(r.name)+'</b></td><td>'+esc(r.responsible)+'</td><td class="num"><b>'+fi(r.requestedDiscount)+'%</b></td><td><button class="remove" data-export-skip="1" onclick="V8686Selection.remove('+JSON.stringify(r.storeCode)+','+JSON.stringify(r.code)+')">Quitar</button></td></tr>'}).join('')+'</tbody></table></div>'}
 function openManager(){var m=ensureManager();renderManager();m.classList.add('on');updateBar()}
 function closeManager(){var m=document.getElementById('v8623MarkdownManageModal');if(m)m.classList.remove('on')}
 function excelObservation(r){return 'Markdown · '+s(r.policyApplied||'')+' · '+s(r.ruleApplied||'')+' · muestra '+(r.currentDiscount==null?'—':r.currentDiscount+'%')+' · sugerido '+n(r.requestedDiscount)+'%'}
 function ensureXlsx(){return new Promise(function(resolve,reject){if(window.XLSX)return resolve(window.XLSX);var old=document.querySelector('script[data-v8623-xlsx]');if(old){var tries=0,t=setInterval(function(){tries++;if(window.XLSX){clearInterval(t);resolve(window.XLSX)}else if(tries>80){clearInterval(t);reject(new Error('Motor Excel no disponible'))}},100);return}var sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.async=true;sc.setAttribute('data-v8623-xlsx','1');sc.onload=function(){window.XLSX?resolve(window.XLSX):reject(new Error('Motor Excel no disponible'))};sc.onerror=function(){reject(new Error('No fue posible cargar el motor Excel'))};document.head.appendChild(sc)})}
 async function downloadExcel(){var rs=selectedRecords();if(!rs.length){if(typeof toast==='function')toast('Selecciona al menos un producto para generar el Excel.','err');return}try{var X=await ensureXlsx(),rows=[['AGENCIA','COD','DCTO_LISTA','OBSERVACION']];rs.forEach(function(r){rows.push([s(r.storeCode),s(r.code),Math.round(n(r.requestedDiscount)),excelObservation(r)])});var ws=X.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:13},{wch:16},{wch:14},{wch:95}];var wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'Plantilla');X.writeFile(wb,'plantilla_cargue_masivo_Markdown_'+new Date().toISOString().slice(0,10)+'.xlsx',{compression:true});if(typeof toast==='function')toast('Excel generado con '+rs.length+' producto(s).','ok')}catch(err){if(typeof toast==='function')toast('No fue posible generar el Excel.','err')}}
+function matriz8687(m){m=s(m).toUpperCase();if(m==='ESTRELLA')return 'Estrella';if(m==='INTERROGANTE')return 'Interrogante';if(m==='PROTECTOR DE TERRENO'||m==='PROTECTOR TERRENO')return 'Protector de terreno';if(m==='IMAGEN')return 'Imagen';return m||'—';}
+function tipoSurtido8687(raw){raw=raw||{};var up=function(v){return s(v).toUpperCase();},surt=up(raw.surtido),ciclo=up(raw.cicloVida),ab=up(raw.estadoAbastecimiento),tipos=[];if(ab==='T')tipos.push('Testeo');else if(ab==='O')tipos.push('Novedad');if(ciclo==='FUERA SURTIDO'||surt==='FUERA SURTIDO'||ab==='N')tipos.push('Fuera de surtido');if(surt==='FAMILIAR LÍDER'||surt==='FAMILIAR LIDER')tipos.push('Familiar líder');if(surt==='PROTECTOR DE TERRENO')tipos.push('Protector de terreno');if(surt==='IMAGEN')tipos.push('Imagen');return tipos.length?tipos.join(', '):(s(raw.surtido)||'—');}
+function pct8687(v){return typeof window.v297DiscountText==='function'?window.v297DiscountText(v):(v==null?'—':(Math.round(v*10)/10)+'%');}
 async function downloadManagementExcel(){
   var rs=selectedRecords();if(!rs.length){if(typeof toast==='function')toast('Selecciona al menos un producto para generar el Excel de gestión.','err');return}
   try{
     var X=await ensureXlsx();
-    var header=['Foto','Código','Nombre','Tienda','Categoría','Línea','Sublínea','Antigüedad','Clasificación','Precio lista','Precio oferta','Descuento oferta (%)','Descuento actual/muestra (%)','Descuento sugerido (%)','Estado','Acción'];
+    var header=['Tienda','Código','Nombre','CORE / Complemento','Matriz','Tipo de surtido','Categoría','Línea','Sublínea','Unidades','Antigüedad','Rotación / Evacuación','CENDIS','OC','Descuento oferta','Descuento actual','Descuento sugerido','Valor'];
     var aoa=[header];
     rs.forEach(function(r){
-      var d=null;try{d=typeof discountActual18==='function'?discountActual18(r.storeCode,r.code):null;}catch(_){}
+      var raw=r.row||{};
       aoa.push([
-        typeof productImageUrl==='function'?(productImageUrl(r.code)||''):'',
+        s(r.storeName||r.storeCode),
         s(r.code),
         s(r.name),
-        s(r.storeName||r.storeCode),
+        s(r.cc||'SIN CLASIFICACIÓN'),
+        matriz8687(r.matrix),
+        tipoSurtido8687(raw),
         s(r.category||'—'),
         s(r.line||'—'),
         s(r.subline||'—'),
+        Math.round(n(r.stock)),
         s(r.ageLabel||'—'),
-        s(r.cc||'—'),
-        r.priceList!=null?n(r.priceList):(d&&d.precioLista!=null?n(d.precioLista):null),
-        d&&d.precioOferta!=null?n(d.precioOferta):null,
-        r.systemOfferDiscount!=null?n(r.systemOfferDiscount)/100:(d&&d.descuentoOfertaSistema!=null?n(d.descuentoOfertaSistema)/100:null),
-        r.currentDiscount!=null?n(r.currentDiscount)/100:null,
-        n(r.requestedDiscount)/100,
-        s(r.statusLabel||'—'),
-        s(r.actionText||r.reason||'—')
+        s(r.policyApplied||'—'),
+        n(raw.dispCendis)>0?(fi(Math.round(n(raw.dispCendis)))+' u'):'Sin respaldo',
+        typeof window.v297OcText==='function'?window.v297OcText(raw):'—',
+        pct8687(r.systemOfferDiscount),
+        pct8687(r.currentDiscount),
+        pct8687(r.discount),
+        Math.round(n(r.value))
       ]);
     });
     var ws=X.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:12},{wch:14},{wch:38},{wch:18},{wch:16},{wch:16},{wch:16},{wch:14},{wch:18},{wch:13},{wch:13},{wch:14},{wch:16},{wch:14},{wch:20},{wch:44}];
+    ws['!cols']=[{wch:16},{wch:14},{wch:38},{wch:16},{wch:16},{wch:20},{wch:18},{wch:18},{wch:18},{wch:11},{wch:14},{wch:18},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14}];
     ws['!rows']=[{hpt:22}].concat(rs.map(function(){return{hpt:18};}));
-    var priceCols=[9,10],pctCols=[11,12,13];
+    var numCols=[9,17];
     for(var ri=1;ri<=rs.length;ri++){
-      priceCols.forEach(function(ci){var addr=X.utils.encode_cell({r:ri,c:ci}),cell=ws[addr];if(cell&&typeof cell.v==='number')cell.z='"$"#,##0';});
-      pctCols.forEach(function(ci){var addr=X.utils.encode_cell({r:ri,c:ci}),cell=ws[addr];if(cell&&typeof cell.v==='number')cell.z='0.0%';});
+      numCols.forEach(function(ci){var addr=X.utils.encode_cell({r:ri,c:ci}),cell=ws[addr];if(cell&&typeof cell.v==='number')cell.z='#,##0';});
     }
     var range=X.utils.decode_range(ws['!ref']);ws['!autofilter']={ref:X.utils.encode_range({s:{r:0,c:0},e:{r:0,c:range.e.c}})};
     ws['!freeze']={xSplit:0,ySplit:1,topLeftCell:'A2',activePane:'bottomLeft',state:'frozen'};
     if(!ws['!margins'])ws['!margins']={left:0.3,right:0.3,top:0.4,bottom:0.4,header:0.2,footer:0.2};
     var wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'Gestión Markdown');
     X.writeFile(wb,'Excel_gestion_Markdown_'+new Date().toISOString().slice(0,10)+'.xlsx',{compression:true});
-    if(typeof toast==='function')toast('Excel de gestión generado con '+rs.length+' producto(s). La columna Foto incluye el enlace a la imagen (esta versión de la librería no permite incrustar la imagen directamente en la celda).','ok');
+    if(typeof toast==='function')toast('Excel de gestión generado con '+rs.length+' producto(s).','ok');
   }catch(err){if(typeof toast==='function')toast('No fue posible generar el Excel de gestión.','err');console.error('Excel de gestión Markdown',err);}
 }
 function downloadPdf(){var rs=selectedRecords();if(!rs.length){if(typeof toast==='function')toast('Selecciona al menos un producto para generar el PDF.','err');return}var w=window.open('','_blank');if(!w){alert('Habilita ventanas emergentes para generar el PDF.');return}var t=totals(rs);w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Gestión Markdown</title><style>@page{size:A4;margin:12mm}body{font:12px Arial;color:#24364b}h1{color:#173b63}.sum{display:flex;gap:8px;margin:12px 0}.sum div{border:1px solid #ddd;border-radius:8px;padding:8px 12px}.p{border:1px solid #ddd;border-left:4px solid #159f70;border-radius:8px;padding:9px;margin:8px 0;break-inside:avoid}.p.leader{border-left-color:#d91515}.meta{color:#6d7886;font-size:11px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.grid span{background:#f5f7fb;padding:6px;border-radius:6px}</style></head><body><h1>Lista de gestión Markdown</h1><p>Corte '+esc(cutDate())+' · '+esc(storeName())+'</p><div class="sum"><div>Productos<br><b>'+fi(t.count)+'</b></div><div>Unidades<br><b>'+fi(t.units)+'</b></div><div>Administrador<br><b>'+fi(t.admin)+'</b></div><div>Líder<br><b>'+fi(t.leader)+'</b></div></div>'+rs.map(function(r){return'<section class="p '+(n(r.requestedDiscount)>50?'leader':'')+'"><b>'+esc(r.name)+'</b><div class="meta">'+esc(r.code)+' · '+esc(r.storeName)+'</div><div class="grid"><span>Stock<br><b>'+fi(r.stock)+'</b></span><span>Muestra<br><b>'+(r.currentDiscount==null?'—':r.currentDiscount+'%')+'</b></span><span>Sugerido<br><b>'+fi(r.requestedDiscount)+'%</b></span><span>Responsable<br><b>'+esc(r.responsible)+'</b></span></div></section>'}).join('')+'<script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body></html>');w.document.close()}
@@ -13657,50 +13661,99 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     if(rel==='sugerido')return s!=null&&(o!=null||a!=null)&&(o==null||s>o)&&(a==null||s>a);
     return false;
   };
-  window.v298RowAttrs=function(estadoLetter,ocUnits,oferta,actual,sugerido){
+  window.v298RowAttrs=function(estadoLetter,ocUnits,oferta,actual,sugerido,cat,lin,sub){
     var est=estadoLetter?String(estadoLetter).trim().toUpperCase():'';
     var oc=(n340(ocUnits)>0)?'1':'0';
     var rel=[];
     if(window.v298DiscRelMatch('oferta',oferta,actual,sugerido))rel.push('oferta');
     if(window.v298DiscRelMatch('muestra',oferta,actual,sugerido))rel.push('muestra');
     if(window.v298DiscRelMatch('sugerido',oferta,actual,sugerido))rel.push('sugerido');
-    return ' data-v298-estado="'+est+'" data-v298-oc="'+oc+'" data-v298-disc="'+rel.join(' ')+'"';
+    var esc298=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
+    return ' data-v298-estado="'+est+'" data-v298-oc="'+oc+'" data-v298-disc="'+rel.join(' ')+'" data-v298-cat="'+esc298(cat)+'" data-v298-lin="'+esc298(lin)+'" data-v298-sub="'+esc298(sub)+'"';
   };
   window.v298ToolbarHtml=function(){
     return '<div class="v298Filters" data-v298-toolbar>'
       +'<select data-v298-estado><option value="">Estado CENDIS: todos</option><option value="A">Activo</option><option value="O">Novedad</option><option value="T">Testeo</option><option value="N">Inactivo</option></select>'
       +'<select data-v298-oc><option value="">OC: todos</option><option value="con">Con OC</option><option value="sin">Sin OC</option></select>'
       +'<select data-v298-disc><option value="">Relación de descuento: todas</option><option value="oferta">Oferta ≥ sugerido</option><option value="muestra">Muestra ≥ sugerido</option><option value="sugerido">Sugerido supera oferta y muestra</option></select>'
+      +'<select data-v298-cat><option value="">Categoría: todas</option></select>'
+      +'<select data-v298-lin><option value="">Línea: todas</option></select>'
+      +'<select data-v298-sub><option value="">Sublínea: todas</option></select>'
       +'<button type="button" data-v298-clear>Limpiar</button><span class="v298Count" data-v298-count></span>'
+      +'<button type="button" class="v298ExportBtn" data-v298-export>⬇ Exportar Excel</button>'
       +'</div>';
   };
+  function v298CellText(cell){
+    var clon=cell.cloneNode(true);
+    Array.prototype.forEach.call(clon.querySelectorAll('button,.actionBtn,[data-export-skip]'),function(b){b.remove();});
+    Array.prototype.forEach.call(clon.querySelectorAll('br'),function(br){br.replaceWith(' ');});
+    (function sep(el){var kids=Array.prototype.filter.call(el.childNodes,function(nd){return nd.nodeType===1;});kids.forEach(function(k,i){if(i>0)k.before(' ');});kids.forEach(sep);})(clon);
+    return String(clon.textContent||'').replace(/\s+/g,' ').trim();
+  }
+  function v298Export(table){
+    var head=table.querySelector('thead tr'),ths=head?Array.from(head.querySelectorAll('th')):[];
+    var trs=Array.from(table.querySelectorAll('tbody tr')).filter(function(tr){return tr.style.display!=='none'&&!tr.classList.contains('v298Hidden');});
+    if(!trs.length){if(typeof toast==='function')toast('No hay filas visibles para exportar con este filtro.','err');return;}
+    var header=ths.map(function(th){return v298CellText(th)||'Columna';});
+    var rows=[header].concat(trs.map(function(tr){return Array.from(tr.querySelectorAll('td')).map(v298CellText);}));
+    if(typeof window.csvDownload==='function'){
+      window.csvDownload(rows,'Llavero_export_'+new Date().toISOString().slice(0,10)+'.csv');
+      if(typeof toast==='function')toast(trs.length+' filas exportadas según el filtro actual.','ok');
+    }
+  }
   window.v298WireToolbar=function(root){
     if(!root)return;
     var tb=root.querySelector('[data-v298-toolbar]');
     if(!tb)return;
     var table=root.querySelector('table');
     if(!table)return;
-    var estSel=tb.querySelector('[data-v298-estado]'),ocSel=tb.querySelector('[data-v298-oc]'),discSel=tb.querySelector('[data-v298-disc]');
+    var estSel=tb.querySelector('[data-v298-estado]'),ocSel=tb.querySelector('[data-v298-oc]'),discSel=tb.querySelector('[data-v298-disc]'),catSel=tb.querySelector('[data-v298-cat]'),linSel=tb.querySelector('[data-v298-lin]'),subSel=tb.querySelector('[data-v298-sub]');
     var rows=Array.from(table.querySelectorAll('tbody tr[data-v298-estado]'));
+    function fillOptions(sel,attr,label){
+      if(!sel)return;
+      var cur=sel.value,vals=Array.from(new Set(rows.map(function(tr){return tr.getAttribute(attr)||'';}).filter(Boolean))).sort(function(a,b){return a.localeCompare(b,'es');});
+      sel.innerHTML='<option value="">'+label+': todas</option>'+vals.map(function(v){return '<option value="'+v.replace(/"/g,'&quot;')+'">'+v+'</option>';}).join('');
+      if(vals.indexOf(cur)>=0)sel.value=cur;
+    }
+    fillOptions(catSel,'data-v298-cat','Categoría');
+    fillOptions(linSel,'data-v298-lin','Línea');
+    fillOptions(subSel,'data-v298-sub','Sublínea');
     function apply(){
-      var ev=estSel?estSel.value:'',ov=ocSel?ocSel.value:'',dv=discSel?discSel.value:'',shown=0;
+      /* V298: no se toca tr.style.display -- esa misma propiedad ya la
+         controla el filtro v127 (barra superior de Categoria/Linea/Sublinea
+         y demas, en Inventario/Rotacion/Evacuacion). Pisarla aqui deshacia el
+         filtro de esa barra apenas se tocaba un select de este toolbar
+         (bug analogo al ya documentado para V86.294). Las filas que no pasan
+         el filtro de este toolbar se ocultan con una clase propia; las que
+         si pasan se dejan tal como las dejo v127 (nunca se fuerza a visible). */
+      var ev=estSel?estSel.value:'',ov=ocSel?ocSel.value:'',dv=discSel?discSel.value:'',cv=catSel?catSel.value:'',lv=linSel?linSel.value:'',sv=subSel?subSel.value:'',shown=0,total=0;
       rows.forEach(function(tr){
+        if(tr.style.display==='none'){tr.classList.remove('v298Hidden');return;}
+        total++;
         var ok=true;
         if(ev&&tr.getAttribute('data-v298-estado')!==ev)ok=false;
         if(ov==='con'&&tr.getAttribute('data-v298-oc')!=='1')ok=false;
         if(ov==='sin'&&tr.getAttribute('data-v298-oc')!=='0')ok=false;
         if(dv&&(' '+(tr.getAttribute('data-v298-disc')||'')+' ').indexOf(' '+dv+' ')<0)ok=false;
-        tr.style.display=ok?'':'none';
+        if(cv&&tr.getAttribute('data-v298-cat')!==cv)ok=false;
+        if(lv&&tr.getAttribute('data-v298-lin')!==lv)ok=false;
+        if(sv&&tr.getAttribute('data-v298-sub')!==sv)ok=false;
+        tr.classList.toggle('v298Hidden',!ok);
         if(ok)shown++;
       });
       var cnt=tb.querySelector('[data-v298-count]');
-      if(cnt)cnt.textContent=shown+' de '+rows.length;
+      if(cnt)cnt.textContent=shown+' de '+total;
     }
     if(estSel)estSel.onchange=apply;
     if(ocSel)ocSel.onchange=apply;
     if(discSel)discSel.onchange=apply;
+    if(catSel)catSel.onchange=apply;
+    if(linSel)linSel.onchange=apply;
+    if(subSel)subSel.onchange=apply;
     var clr=tb.querySelector('[data-v298-clear]');
-    if(clr)clr.onclick=function(){if(estSel)estSel.value='';if(ocSel)ocSel.value='';if(discSel)discSel.value='';apply();};
+    if(clr)clr.onclick=function(){if(estSel)estSel.value='';if(ocSel)ocSel.value='';if(discSel)discSel.value='';if(catSel)catSel.value='';if(linSel)linSel.value='';if(subSel)subSel.value='';apply();};
+    var exportBtn=tb.querySelector('[data-v298-export]');
+    if(exportBtn)exportBtn.onclick=function(){v298Export(table);};
     apply();
   };
 })();
