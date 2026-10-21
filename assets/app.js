@@ -554,7 +554,34 @@
     var pathLabel=dashboardPath8649().join(' › '),period=periodDef8656().label;
     return '<div class="v8650TrendWrap v8657TrendWrap"><svg class="v8650TrendSvg v8657TrendSvg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">'+grid+zero+'<path d="'+path(k1)+'" fill="none" stroke="var(--rot)" stroke-width="4" stroke-linecap="round"/>'+pts(k1,'var(--rot)',true,'rot')+'<path d="'+path(k2)+'" fill="none" stroke="var(--evac)" stroke-width="4" stroke-linecap="round"/>'+pts(k2,'var(--evac)',false,'evac')+labels+'</svg></div><div class="v8650TrendLegend"><span><i style="background:var(--rot)"></i>'+(exposure?'Rotación':'Mejora Rotación')+'</span><span><i style="background:var(--evac)"></i>'+(exposure?'Evacuación':'Mejora Evacuación')+'</span></div><div class="v8650TrendContext"><span><b>Filtro:</b> '+esc(pathLabel)+'</span><span><b>Periodo:</b> '+esc(period)+' · '+int(data.length)+' cortes</span></div><div class="dashboardNote">Presiona cualquier punto para consultar el detalle del corte dentro del territorio filtrado.</div>';
   }
-  function filteredLeaderMetrics8649(codes){var allow=new Set(codes),rows=[];try{rows=window.__LLAVERO_ORIG_LEADER_METRICS_8649?window.__LLAVERO_ORIG_LEADER_METRICS_8649():leaderStoreMetrics();}catch(_){rows=[];}return rows.filter(function(r){return allow.has(r.code);});}
+  function filteredLeaderMetrics8649(codes){
+    var allow=new Set(codes),rows=[];
+    try{rows=window.__LLAVERO_ORIG_LEADER_METRICS_8649?window.__LLAVERO_ORIG_LEADER_METRICS_8649():leaderStoreMetrics();}catch(_){rows=[];}
+    rows=rows.filter(function(r){return allow.has(r.code);});
+    /* V86.342: las tarjetas del Dashboard general (Productos gestionados, Nuevos
+       criticos, Persistentes, Indice promedio) comparaban siempre el ultimo
+       corte contra el anterior, sin importar el control de Seguimiento
+       (Diario/Semanal/Mensual/Trimestral) ni el Rango de cortes de arriba. Se
+       recalculan aqui con el mismo periodo que ya usan los graficos de
+       tendencia y el analisis territorial (periodHistory/aggregateSnapshot),
+       sumando el movimiento critico de cada corte del periodo por tienda. */
+    var ph=periodHistory();
+    if(!ph.length)return rows;
+    return rows.map(function(r){
+      var aggs=ph.map(function(x){return aggregateSnapshot(x,[r.code]);}),activity=aggs.length>1?aggs.slice(1):aggs,latest=aggs[aggs.length-1]||{};
+      function s(fn){return sum(activity,fn);}
+      return Object.assign({},r,{
+        score:latest.score==null?null:latest.score,
+        hasPrevious:aggs.length>1,
+        recovered:s(function(x){return x.managed;}),
+        recoveredVal:s(function(x){return x.managedValue;}),
+        newCritical:s(function(x){return x.newCritical;}),
+        newCriticalVal:s(function(x){return x.newValue;}),
+        persistent:latest.persistent||0,
+        persistentVal:latest.persistentValue||0
+      });
+    });
+  }
   function originalDashboardFiltered8649(codes){
     if(!window.__LLAVERO_ORIG_LEADER_METRICS_8649)window.__LLAVERO_ORIG_LEADER_METRICS_8649=leaderStoreMetrics;
     if(!window.__LLAVERO_ORIG_NETWORK_TREND_8649)window.__LLAVERO_ORIG_NETWORK_TREND_8649=networkTrendData;
@@ -2551,7 +2578,10 @@ function headerKey(v){var h=cleanHeader(v);if(h==='SEL.'||h==='SEL'||h.indexOf('
 function decorateTable(table){if(!table||table.dataset.ux104Table==='1')return;table.dataset.ux104Table='1';table.classList.add('ux104DetailTable');var wrap=table.parentElement;if(wrap&&!wrap.classList.contains('ux104DetailTableWrap'))wrap.classList.add('ux104DetailTableWrap');var ths=Array.prototype.slice.call(table.querySelectorAll('thead th'));var keys=[];ths.forEach(function(th,i){var k=headerKey(th.textContent);keys[i]=k;if(k)th.classList.add('ux104-col-'+k)});visibleRows(table).forEach(function(tr){Array.prototype.slice.call(tr.cells).forEach(function(td,i){var k=keys[i];if(k)td.classList.add('ux104-col-'+k)});var c=tr.querySelector('.ux104-col-clasificacion');if(c){var v=norm(c.textContent);c.classList.toggle('ux104-core',v==='CORE');c.classList.toggle('ux104-comp',v.indexOf('COMPLEMENT')>=0);c.classList.toggle('ux104-none',v.indexOf('SIN CLASIFIC')>=0)}});var first=keys.slice(0,4).join('|');if(first==='imagen|codigo|producto|')table.classList.add('ux104Sticky3');else if(keys[0]==='imagen'&&keys[1]==='codigo'&&keys[2]==='producto')table.classList.add('ux104Sticky3');else if(keys[0]==='seleccion'&&keys[1]==='imagen'&&keys[2]==='codigo'&&keys[3]==='producto')table.classList.add('ux104Sticky4')}
 function optionsFor(table,idx){var set=new Set;visibleRows(table).forEach(function(r){var c=r.cells[idx],v=s(c&&c.textContent).replace(/\s+/g,' ').trim();if(v&&v!=='—')set.add(v)});return Array.from(set).sort(function(a,b){return a.localeCompare(b,'es')})}
 function filterAllowed(key){return ['clasificacion','estado','politica','categoria','linea','sublinea','cendis','responsable','antiguedad'].indexOf(key)>=0}
-function needsGenericFilters(body,table){if(!body||!table)return false;if(table.querySelector('input[type=checkbox]'))return false;if(body.querySelector('.ux104Filters,[data-v866-filters],.v866ListFilters,.v8664DetailTools,.v8692MdDetailFilters,.v8695MdFilters,.v80Filters,.v8623ManageTools,.guideKpiFilters65'))return false;var rows=visibleRows(table);if(rows.length<10)return false;return true}
+function needsGenericFilters(body,table){if(!body||!table)return false;if(table.querySelector('input[type=checkbox]'))return false;/* .v350Bar: el detalle de obsequios ya trae su propia barra de filtros; sin
+   esto, ux104 le montaba encima una segunda barra genérica (filtros
+   duplicados). */
+if(body.querySelector('.ux104Filters,[data-v866-filters],.v866ListFilters,.v8664DetailTools,.v8692MdDetailFilters,.v8695MdFilters,.v80Filters,.v8623ManageTools,.guideKpiFilters65,.v350Bar'))return false;var rows=visibleRows(table);if(rows.length<10)return false;return true}
 function addGenericFilters(modal,body,table){if(!needsGenericFilters(body,table))return;var ths=Array.prototype.slice.call(table.querySelectorAll('thead th')),title=norm(modalTitle(modal)),fields=[];ths.forEach(function(th,i){var key=headerKey(th.textContent);if(!filterAllowed(key))return;var vals=optionsFor(table,i);if(vals.length<2||vals.length>24)return;if(key==='antiguedad'&&/(0.?60|61.?90|91.?120|91.?150|121.?150|151.?180|181.?210|211.?240|241.?360|\+?360)/.test(title))return;if(key==='clasificacion'&&(title.indexOf('CORE')>=0||title.indexOf('COMPLEMENTO')>=0||title.indexOf('SIN CLASIFIC')>=0))return;fields.push({key:key,idx:i,label:s(th.textContent).trim(),values:vals})});
  var box=document.createElement('div');box.className='ux104Filters';box.dataset.ux104Filters='1';box.innerHTML='<div class="ux104Field"><label>Búsqueda rápida</label><input type="search" data-ux104-q placeholder="Código, producto o texto visible..."></div>'+fields.map(function(f){return'<div class="ux104Field"><label>'+esc(f.label)+'</label><select data-ux104-filter="'+f.idx+'"><option value="">Todos</option>'+f.values.map(function(v){return'<option value="'+esc(norm(v))+'">'+esc(v)+'</option>'}).join('')+'</select></div>'}).join('')+'<div class="ux104Field"><label>Acción</label><button type="button" data-ux104-clear>Limpiar filtros</button></div><div class="ux104FilterCount" data-ux104-count></div>';
  var anchor=table.closest('.ux104DetailTableWrap')||table.parentElement||table;anchor.parentNode.insertBefore(box,anchor);
@@ -2739,7 +2769,10 @@ function headerInfo(table){return Array.from(table.querySelectorAll('thead th'))
 function isMarkdownTable(table){var h=headerInfo(table).map(function(x){return x.t}).join('|');return /SUGERIDO|DESCUENTO|OFERTA|POLITICA|RESPONSABLE/.test(h)}
 function isTransferOrderTable(table){var h=headerInfo(table).map(function(x){return x.t}).join('|');return /ORDEN/.test(h)&&/ESTADO/.test(h)&&!(/CODIGO/.test(h)&&/PRODUCTO/.test(h))}
 function addImageIfNeeded(table){if(!table||isMarkdownTable(table)||isTransferOrderTable(table))return;var hs=headerInfo(table),ci=hs.find(function(x){return x.t==='CODIGO'});if(!ci||hs.some(function(x){return x.t==='IMAGEN'}))return;var th=document.createElement('th');th.textContent='Imagen';table.tHead.rows[0].insertBefore(th,table.tHead.rows[0].cells[ci.i]||null);Array.from(table.tBodies&&table.tBodies[0]?table.tBodies[0].rows:[]).forEach(function(tr){var c=codeFromRow(tr),td=document.createElement('td');try{td.innerHTML=typeof imageThumb==='function'?imageThumb(c,'sm'):''}catch(_){td.innerHTML=''}tr.insertBefore(td,tr.cells[ci.i]||null)})}
-function unifyHierarchy(table){if(!table||table.dataset.v118Hierarchy==='1'||isMarkdownTable(table)||table.closest('#guideDetailBodyV49,#guideDetailBodyV48'))return;var hs=headerInfo(table),cat=hs.find(function(x){return x.t==='CATEGORIA'}),lin=hs.find(function(x){return x.t==='LINEA'}),sub=hs.find(function(x){return x.t==='SUBLINEA'});if(!cat||!lin||!sub)return;var inds=[cat.i,lin.i,sub.i].sort(function(a,b){return a-b}),keep=inds[0],drop=inds.slice(1).sort(function(a,b){return b-a});cat=hs.find(function(x){return x.i===keep});cat.th.textContent='Categoría / Línea / Sublínea';Array.from(table.tBodies&&table.tBodies[0]?table.tBodies[0].rows:[]).forEach(function(tr){var vals=inds.map(function(i){return tr.cells[i]?s(tr.cells[i].textContent).trim():''}),cell=tr.cells[keep];if(cell){cell.classList.add('v118HierarchyCell');cell.innerHTML='<b>'+esc(vals[0]||'—')+'</b><small>'+esc([vals[1],vals[2]].filter(Boolean).join(' · ')||'—')+'</small>'}drop.forEach(function(i){if(tr.cells[i])tr.deleteCell(i)})});drop.forEach(function(i){if(table.tHead.rows[0].cells[i])table.tHead.rows[0].deleteCell(i)});table.dataset.v118Hierarchy='1'}
+/* .v350Tabla queda fuera: en el detalle de obsequios se pidieron categoría,
+   línea y sublínea como columnas separadas, y esta función las fundía en una
+   sola dejando huecos donde estaban las otras dos. */
+function unifyHierarchy(table){if(!table||table.dataset.v118Hierarchy==='1'||table.classList.contains('v350Tabla')||isMarkdownTable(table)||table.closest('#guideDetailBodyV49,#guideDetailBodyV48'))return;var hs=headerInfo(table),cat=hs.find(function(x){return x.t==='CATEGORIA'}),lin=hs.find(function(x){return x.t==='LINEA'}),sub=hs.find(function(x){return x.t==='SUBLINEA'});if(!cat||!lin||!sub)return;var inds=[cat.i,lin.i,sub.i].sort(function(a,b){return a-b}),keep=inds[0],drop=inds.slice(1).sort(function(a,b){return b-a});cat=hs.find(function(x){return x.i===keep});cat.th.textContent='Categoría / Línea / Sublínea';Array.from(table.tBodies&&table.tBodies[0]?table.tBodies[0].rows:[]).forEach(function(tr){var vals=inds.map(function(i){return tr.cells[i]?s(tr.cells[i].textContent).trim():''}),cell=tr.cells[keep];if(cell){cell.classList.add('v118HierarchyCell');cell.innerHTML='<b>'+esc(vals[0]||'—')+'</b><small>'+esc([vals[1],vals[2]].filter(Boolean).join(' · ')||'—')+'</small>'}drop.forEach(function(i){if(tr.cells[i])tr.deleteCell(i)})});drop.forEach(function(i){if(table.tHead.rows[0].cells[i])table.tHead.rows[0].deleteCell(i)});table.dataset.v118Hierarchy='1'}
 function removeNovelDuplicates(body){if(!body)return;var has=Array.from(body.querySelectorAll('label')).some(function(l){return norm(l.textContent)==='ESTADO NOVEDAD'});if(!has)return;body.querySelectorAll('.v8680NovelToggle').forEach(function(x){x.remove()});body.querySelectorAll('button,.chip').forEach(function(x){var t=norm(x.textContent);if(t==='SOLO O'||t==='SOLO T')x.remove()})}
 function filterBars(body){if(!body)return[];return Array.from(body.querySelectorAll('.v8695MdFilters,.v8698ClassFilters,.v8664DetailTools,.v866Filters,.v866ListFilters,.v80Filters,.v108HierarchyFilters,.ux104Filters,.v8664MixFilters,.v8692NovelFilters')).filter(function(b){return !b.closest('#guideDetailBodyV49,#guideDetailBodyV48')&&!b.classList.contains('v118UnifiedFilters')})}
 function fieldKey(ctrl,wrap){var label=wrap&&wrap.querySelector&&wrap.querySelector('label');var t=norm(label&&label.textContent||'');if(t==='ACCION')return 'ACCION';if(t)return t;if(ctrl.matches('input[type="search"]')||/BUSCAR|CODIGO|PRODUCTO/.test(norm(ctrl.placeholder)))return'BUSQUEDA';return norm(ctrl.name||ctrl.id||ctrl.getAttribute('data-v108-gfilter')||ctrl.tagName)}
@@ -2846,6 +2879,10 @@ function oldestLabel(raw,onlyOld){var es=Object.keys((raw&&raw.rangos)||{}).filt
 function salesMap(st){var m={};try{if(typeof normalizeProductSalesRows==='function')(normalizeProductSalesRows(st)||[]).forEach(function(r){m[code(r.c)]={units:n(r.u),value:n(r.v)};});}catch(_){}rawInventory(st).forEach(function(r){var c=code(r.codigo);if(!m[c])m[c]={units:n(r.unidadesFacUlt3Meses),value:n(r.facturacionUlt3Meses)};});return m;}
 function normalizedInventory(st){return rawInventory(st).map(function(raw){var c=code(raw.codigo||raw.c),p=prod(c,raw);return Object.assign({},raw,{c:c,p:p,stock:n(raw.stock),valorInventario:n(raw.valorInventario),valorUnitarioPromedio:n(raw.valorUnitarioPromedio),dispCendis:n(raw.dispCendis),entradas:n(raw.entradas),rangos:(raw.rangos&&typeof raw.rangos==='object')?raw.rangos:{}});});}
 var GIFT_RX_V298=/\b(OBSEQ\w*|REGALO|BONO)\b/i;
+/* V86.350: el criterio de obsequio pasa a ser la SUBLINEA (ver nota larga en
+   index.html junto a esObsequio86350). Fallback local por si este archivo se
+   cargara sin index.html delante. */
+var esObsequio350=window.esObsequio86350||function(c,row){var sub=row&&(row.sublinea||row.sub)||'';return String(sub).toUpperCase().indexOf('OBSEQUI')>=0;};
 function calc(st){
   st=st||{};var se=sets(st),rows=normalizedInventory(st),im=invMap(st),sm=salesMap(st),healthy=[],prox=[],aged=[],rotRowsRaw=[],evRowsRaw=[];
   /* V86.266: sano estricto. Antes bastaba con no estar en las listas oficiales
@@ -2863,8 +2900,8 @@ function calc(st){
     healthy.push(r);
     if(proxUnits(r)>0)prox.push(r);
   });
-  (Array.isArray(st.rot)?st.rot:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);if(GIFT_RX_V298.test(p.n))return;rotRowsRaw.push({c:c,u:n(a&&a[1]),aux:n(a&&a[2]),age:typeof ageRankFromLabel==='function'?ageRankFromLabel(a&&a[5]):-1,val:n(a&&a[3]),price:n(a&&a[4]),ageLabel:s(a&&a[5])||oldestLabel(raw,true),m1:n(a&&a[6]),m2:n(a&&a[7]),m3:n(a&&a[8]),sales3m:n(a&&a[6])+n(a&&a[7])+n(a&&a[8]),p:p,row:Object.assign({},raw,{c:c,p:p})});});
-  (Array.isArray(st.evac)?st.evac:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);if(GIFT_RX_V298.test(p.n))return;evRowsRaw.push({c:c,u:n(a&&a[1]),v:n(a&&a[2]),cendis:n(a&&a[3]),sales1:n(a&&a[4]),sales2:n(a&&a[5]),edad:s(a&&a[6])||oldestLabel(raw,false),p:p,active:true,row:Object.assign({},raw,{c:c,p:p}),sales3m:n(a&&a[4])+n(a&&a[5])});});
+  (Array.isArray(st.rot)?st.rot:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);if(esObsequio350(c,raw.sublinea?raw:p))return;rotRowsRaw.push({c:c,u:n(a&&a[1]),aux:n(a&&a[2]),age:typeof ageRankFromLabel==='function'?ageRankFromLabel(a&&a[5]):-1,val:n(a&&a[3]),price:n(a&&a[4]),ageLabel:s(a&&a[5])||oldestLabel(raw,true),m1:n(a&&a[6]),m2:n(a&&a[7]),m3:n(a&&a[8]),sales3m:n(a&&a[6])+n(a&&a[7])+n(a&&a[8]),p:p,row:Object.assign({},raw,{c:c,p:p})});});
+  (Array.isArray(st.evac)?st.evac:[]).forEach(function(a){var c=code(a&&a[0]),raw=im[c]||{},p=prod(c,raw);if(esObsequio350(c,raw.sublinea?raw:p))return;evRowsRaw.push({c:c,u:n(a&&a[1]),v:n(a&&a[2]),cendis:n(a&&a[3]),sales1:n(a&&a[4]),sales2:n(a&&a[5]),edad:s(a&&a[6])||oldestLabel(raw,false),p:p,active:true,row:Object.assign({},raw,{c:c,p:p}),sales3m:n(a&&a[4])+n(a&&a[5])});});
   return {rows:rows,healthy:healthy,prox:prox,aged:aged,rotRows:rotRowsRaw,evRows:evRowsRaw,se:se,sm:sm};
 }
 window.normalizeInventoryRows=function(st){return normalizedInventory(st||((typeof S!=='undefined'&&S&&S[CUR])||{}));};
@@ -3010,19 +3047,24 @@ function patchLeaderAction(){if((typeof VIEW!=='undefined'?VIEW:'')!=='markdown'
 
 /* 15. Mismo lenguaje visual de filtros, campos según el módulo. */
 var filterCfg={
- inventario:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cond','Condición','condition'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['cendis','CENDIS','cendis']],
+ inventario:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cond','Condición','condition'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['cendis','CENDIS','cendis'],['estado','Estado CENDIS','estado298'],['oc','OC','oc298'],['disc','Relación de descuento','disc298']],
  prox:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']],
- rot:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']],
- evac:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales']]
+ rot:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales'],['estado','Estado CENDIS','estado298'],['oc','OC','oc298'],['disc','Relación de descuento','disc298']],
+ evac:[['q','Búsqueda rápida','search'],['cc','Clasificación','select'],['cat','Categoría','select'],['lin','Línea','select'],['sub','Sublínea','select'],['surt','Tipo de surtido','surt'],['age','Antigüedad','age'],['cendis','CENDIS','cendis'],['sales','Venta 3 meses','sales'],['estado','Estado CENDIS','estado298'],['oc','OC','oc298'],['disc','Relación de descuento','disc298']]
 };
 function tableRowsFor(module){var root=document.getElementById(module==='inventario'?'inventario-tbl':module==='prox'?'prox-tbl':module+'-tbl'),table=root&&root.querySelector('table');return table&&table.tBodies&&table.tBodies[0]?Array.from(table.tBodies[0].rows).filter(function(tr){return !!(tr.querySelector('.code'))}):[]}
 function rowCode(tr){var x=tr.querySelector('.code');return s(x&&x.textContent).trim()}
-function filterHtml(type,key){if(type==='search')return'<input type="search" data-v127-f="'+key+'" placeholder="Código o producto...">';if(type==='condition')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="Sanos">Sanos</option><option value="Próximos a rotar">Próximos a rotar</option><option value="Rotación">Rotación</option><option value="Evacuación">Evacuación</option></select>';if(type==='cendis')return'<select data-v127-f="'+key+'"><option value="">Todos</option><option value="with">Con respaldo</option><option value="without">Sin respaldo</option></select>';if(type==='sales')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="with">Con venta</option><option value="without">Sin venta</option></select>';if(type==='age')return'<select data-v127-f="'+key+'"><option value="">Todos los rangos</option><option value="0-60">0–60</option><option value="61-90">61–90</option><option value="91-150">91–150</option><option value="151-180">151–180</option><option value="181-210">181–210</option><option value="211-240">211–240</option><option value="241-360">241–360</option><option value="360+">+360</option></select>';if(type==='surt')return'<select data-v127-f="'+key+'"><option value="">Todo tipo de surtido</option><option value="ESTRELLA">Estrella</option><option value="NOVEDAD">Novedad</option><option value="FUERA SURTIDO">Fuera de surtido</option><option value="FAMILIAR LÍDER">Familiar líder</option><option value="PROTECTOR DE TERRENO">Protector de terreno</option><option value="IMAGEN">Imagen</option><option value="PANAMA">Panamá</option><option value="SIN FAMILIA">Sin familia</option></select>';return'<select data-v127-f="'+key+'"></select>'}
+function filterHtml(type,key){if(type==='search')return'<input type="search" data-v127-f="'+key+'" placeholder="Código o producto...">';if(type==='condition')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="Sanos">Sanos</option><option value="Próximos a rotar">Próximos a rotar</option><option value="Rotación">Rotación</option><option value="Evacuación">Evacuación</option></select>';if(type==='cendis')return'<select data-v127-f="'+key+'"><option value="">Todos</option><option value="with">Con respaldo</option><option value="without">Sin respaldo</option></select>';if(type==='sales')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="with">Con venta</option><option value="without">Sin venta</option></select>';if(type==='age')return'<select data-v127-f="'+key+'"><option value="">Todos los rangos</option><option value="0-60">0–60</option><option value="61-90">61–90</option><option value="91-150">91–150</option><option value="151-180">151–180</option><option value="181-210">181–210</option><option value="211-240">211–240</option><option value="241-360">241–360</option><option value="360+">+360</option></select>';if(type==='surt')return'<select data-v127-f="'+key+'"><option value="">Todo tipo de surtido</option><option value="ESTRELLA">Estrella</option><option value="NOVEDAD">Novedad</option><option value="FUERA SURTIDO">Fuera de surtido</option><option value="FAMILIAR LÍDER">Familiar líder</option><option value="PROTECTOR DE TERRENO">Protector de terreno</option><option value="IMAGEN">Imagen</option><option value="PANAMA">Panamá</option><option value="SIN FAMILIA">Sin familia</option></select>';if(type==='estado298')return'<select data-v127-f="'+key+'"><option value="">Todos</option><option value="A">Activo</option><option value="O">Novedad</option><option value="T">Testeo</option><option value="N">Inactivo</option></select>';if(type==='oc298')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="con">Con OC</option><option value="sin">Sin OC</option></select>';if(type==='disc298')return'<select data-v127-f="'+key+'"><option value="">Todas</option><option value="oferta">Oferta ≥ sugerido</option><option value="muestra">Muestra ≥ sugerido</option><option value="sugerido">Sugerido supera oferta y muestra</option></select>';return'<select data-v127-f="'+key+'"></select>'}
 function selectOptions(vals,label){var u=Array.from(new Set(vals.filter(Boolean))).sort(function(a,b){return s(a).localeCompare(s(b),'es')});return'<option value="">'+esc(label||'Todos')+'</option>'+u.map(function(v){return'<option value="'+esc(v)+'">'+esc(v)+'</option>'}).join('')}
 function dataForCode(code){code=s(code);var c=v127EnsureCache();if(c.data[code])return c.data[code];var r=invMap()[code]||{},p=prod(code),d={code:code,p:p,cc:norm(p.cc||'SIN CLASIFICACIÓN').replace('SIN CLASIFICACION','SIN CLASIFICACIÓN'),cat:s(p.cat||r.categoria),lin:s(p.lin||r.linea),sub:s(p.sub||r.sublinea),cendis:n(r.dispCendis!=null?r.dispCendis:p.dispCendis),sales:n(r.unidadesFacUlt3Meses),cond:conditionOf(code),ages:ageBuckets(r),surt:norm(r.surtido||p.surtido)};c.data[code]=d;return d}
 function populate127(module,bar){var rows=tableRowsFor(module).map(function(tr){return dataForCode(rowCode(tr))}),cc=bar.querySelector('[data-v127-f="cc"]'),cat=bar.querySelector('[data-v127-f="cat"]'),lin=bar.querySelector('[data-v127-f="lin"]'),sub=bar.querySelector('[data-v127-f="sub"]');function reset(sel,vals){if(!sel)return;var cur=sel.value;sel.innerHTML=selectOptions(vals);if(Array.from(sel.options).some(function(o){return o.value===cur}))sel.value=cur}reset(cc,rows.map(function(x){return x.cc}));var cv=cc&&cc.value,byCc=rows.filter(function(x){return !cv||x.cc===cv});reset(cat,byCc.map(function(x){return x.cat}));var av=cat&&cat.value,byCat=byCc.filter(function(x){return !av||x.cat===av});reset(lin,byCat.map(function(x){return x.lin}));var lv=lin&&lin.value,byLin=byCat.filter(function(x){return !lv||x.lin===lv});reset(sub,byLin.map(function(x){return x.sub}))}
-function apply127(module,bar){var v={};bar.querySelectorAll('[data-v127-f]').forEach(function(x){v[x.dataset.v127F]=x.value});var rows=tableRowsFor(module),shown=0;rows.forEach(function(tr){var d=dataForCode(rowCode(tr)),ok=!v.q||norm([d.code,d.p.n,d.cat,d.lin,d.sub].join(' ')).indexOf(norm(v.q))>=0;if(ok&&v.cc&&d.cc!==v.cc)ok=false;if(ok&&v.cat&&d.cat!==v.cat)ok=false;if(ok&&v.lin&&d.lin!==v.lin)ok=false;if(ok&&v.sub&&d.sub!==v.sub)ok=false;if(ok&&v.cond&&d.cond!==v.cond)ok=false;if(ok&&v.cendis==='with'&&d.cendis<=0)ok=false;if(ok&&v.cendis==='without'&&d.cendis>0)ok=false;if(ok&&v.sales==='with'&&d.sales<=0)ok=false;if(ok&&v.sales==='without'&&d.sales>0)ok=false;if(ok&&v.age&&d.ages.indexOf(v.age)<0)ok=false;if(ok&&v.surt&&d.surt!==v.surt)ok=false;tr.style.display=ok?'':'none';if(ok)shown++});var ct=bar.querySelector('.v127FilterCount');if(ct)ct.textContent=fi(shown)+' de '+fi(rows.length)+' productos'}
-function patchModuleFilters(){var module=(typeof VIEW!=='undefined'?VIEW:'');if(!filterCfg[module])return;var rows=tableRowsFor(module);if(!rows.length)return;var old=document.querySelector('.v118ModuleFilters[data-module="'+module+'"]'),root=document.getElementById(module==='inventario'?'inventario-tbl':module==='prox'?'prox-tbl':module+'-tbl');if(!root)return;var bar=old||document.createElement('div');bar.className='v118ModuleFilters v127ContextFilters';bar.dataset.module=module;if(bar.dataset.v127Ready!==module){bar.innerHTML=filterCfg[module].map(function(f){return'<div class="v118ModuleField"><label>'+esc(f[1])+'</label>'+filterHtml(f[2],f[0])+'</div>'}).join('')+'<button type="button" class="v118ModuleClear">Limpiar filtros</button><span class="v127FilterCount"></span>';bar.dataset.v127Ready=module;if(!old)root.parentNode.insertBefore(bar,root);var timer=0;bar.querySelectorAll('input,select').forEach(function(x){var ev=x.tagName==='INPUT'?'input':'change';x.addEventListener(ev,function(){if(['cc','cat','lin'].indexOf(x.dataset.v127F)>=0)populate127(module,bar);if(ev==='input'){clearTimeout(timer);timer=setTimeout(function(){apply127(module,bar)},60)}else apply127(module,bar)})});bar.querySelector('.v118ModuleClear').onclick=function(){bar.querySelectorAll('input').forEach(function(x){x.value=''});bar.querySelectorAll('select').forEach(function(x){x.value=''});populate127(module,bar);apply127(module,bar)}}populate127(module,bar);apply127(module,bar)}
+/* V86.350: la busqueda exigia que lo escrito apareciera tal cual, seguido. Al
+   escribir "base roma" no salia nada aunque el producto se llame "BASE COMEDOR
+   6PTO ROMA": el espacio parecia romper el buscador. Ahora cada palabra se
+   busca por separado y deben estar todas (Y), en cualquier orden. */
+function matchQ127(texto,q){var ts=norm(q).split(/\s+/).filter(Boolean);if(!ts.length)return true;var h=norm(texto);return ts.every(function(t){return h.indexOf(t)>=0})}
+function apply127(module,bar){var v={};bar.querySelectorAll('[data-v127-f]').forEach(function(x){v[x.dataset.v127F]=x.value});var rows=tableRowsFor(module),shown=0;rows.forEach(function(tr){var d=dataForCode(rowCode(tr)),ok=!v.q||matchQ127([d.code,d.p.n,d.cat,d.lin,d.sub].join(' '),v.q);if(ok&&v.cc&&d.cc!==v.cc)ok=false;if(ok&&v.cat&&d.cat!==v.cat)ok=false;if(ok&&v.lin&&d.lin!==v.lin)ok=false;if(ok&&v.sub&&d.sub!==v.sub)ok=false;if(ok&&v.cond&&d.cond!==v.cond)ok=false;if(ok&&v.cendis==='with'&&d.cendis<=0)ok=false;if(ok&&v.cendis==='without'&&d.cendis>0)ok=false;if(ok&&v.sales==='with'&&d.sales<=0)ok=false;if(ok&&v.sales==='without'&&d.sales>0)ok=false;if(ok&&v.age&&d.ages.indexOf(v.age)<0)ok=false;if(ok&&v.surt&&d.surt!==v.surt)ok=false;if(ok&&v.estado&&tr.getAttribute('data-v298-estado')!==v.estado)ok=false;if(ok&&v.oc==='con'&&tr.getAttribute('data-v298-oc')!=='1')ok=false;if(ok&&v.oc==='sin'&&tr.getAttribute('data-v298-oc')!=='0')ok=false;if(ok&&v.disc&&(' '+(tr.getAttribute('data-v298-disc')||'')+' ').indexOf(' '+v.disc+' ')<0)ok=false;tr.style.display=ok?'':'none';if(ok)shown++});var ct=bar.querySelector('.v127FilterCount');if(ct)ct.textContent=fi(shown)+' de '+fi(rows.length)+' productos'}
+function patchModuleFilters(){var module=(typeof VIEW!=='undefined'?VIEW:'');if(!filterCfg[module])return;var rows=tableRowsFor(module);if(!rows.length)return;var old=document.querySelector('.v118ModuleFilters[data-module="'+module+'"]'),root=document.getElementById(module==='inventario'?'inventario-tbl':module==='prox'?'prox-tbl':module+'-tbl');if(!root)return;var bar=old||document.createElement('div');bar.className='v118ModuleFilters v127ContextFilters';bar.dataset.module=module;if(bar.dataset.v127Ready!==module){bar.innerHTML=filterCfg[module].map(function(f){return'<div class="v118ModuleField"><label>'+esc(f[1])+'</label>'+filterHtml(f[2],f[0])+'</div>'}).join('')+'<button type="button" class="v118ModuleClear">Limpiar filtros</button><span class="v127FilterCount"></span>';bar.dataset.v127Ready=module;if(!old)root.parentNode.insertBefore(bar,root);var timer=0;bar.querySelectorAll('input,select').forEach(function(x){var ev=x.tagName==='INPUT'?'input':'change';x.addEventListener(ev,function(){if(['cc','cat','lin'].indexOf(x.dataset.v127F)>=0)populate127(module,bar);if(ev==='input'){clearTimeout(timer);timer=setTimeout(function(){apply127(module,bar)},60)}else apply127(module,bar)})});bar.querySelector('.v118ModuleClear').onclick=function(){bar.querySelectorAll('input').forEach(function(x){x.value=''});bar.querySelectorAll('select').forEach(function(x){x.value=''});populate127(module,bar);apply127(module,bar)}}populate127(module,bar);apply127(module,bar);if(['inventario','rot','evac'].indexOf(module)>=0){var expBtn=bar.querySelector('.v127ExportBtn');if(!expBtn){expBtn=document.createElement('button');expBtn.type='button';expBtn.className='v127ExportBtn';expBtn.textContent='⬇ Exportar Excel';bar.appendChild(expBtn)}expBtn.onclick=function(){var t=root.querySelector('table');if(t&&typeof window.v298Export==='function')window.v298Export(t)}}}
 
 function mark(){try{window.LLAVERO_BUILD=VERSION;document.documentElement.setAttribute('data-llavero-build',VERSION);document.documentElement.setAttribute('data-llavero-app-version',VERSION);var b=document.querySelector('.appVersionChip b');if(b)b.textContent='18/08/2026 · '+VERSION;document.title='Llavero · Inventarios Jamar · 18/08/2026 · '+VERSION}catch(_){} }
 function patchAll(){removeSalesClients();patchUnknownWarning();patchTransferImpact();patchDeletedOrders();patchMarkdownLabels();patchRuleCards();patchMarkdownSelection();patchLeaderAction();patchModuleFilters();patchNoise();patchMarkdownModalHeaders();mark()}
@@ -4431,7 +4473,7 @@ async function exportAmbienteMissingCendisPdf(){
   var leaderScope=typeof IS_LEADER!=='undefined'&&IS_LEADER;
   var rows=ambienteMissingCendisExportRows();
   if(!rows.length){if(typeof toast==='function')toast('No hay productos faltantes con disponibilidad en CENDIS para exportar.','err');return;}
-  var scopeLabel=leaderScope?'la red de 21 tiendas':s((st()&&st().name)||CUR);
+  var scopeLabel=leaderScope?'la red de '+Object.keys(S||{}).length+' tiendas':s((st()&&st().name)||CUR);
   var fileScope=leaderScope?'Red_21_tiendas':scopeLabel.replace(/[^A-Za-z0-9_-]+/g,'_');
   var fecha=s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'corte');
   var name='Faltantes_Ambientes_CENDIS_'+fileScope+'_'+fecha;
@@ -4480,9 +4522,9 @@ function ensureAmbienteExportButton(){
     pdfBtn.onclick=function(e){e.preventDefault();e.stopPropagation();exportAmbienteMissingCendisPdf();};
   }
   var leaderScope=typeof IS_LEADER!=='undefined'&&IS_LEADER;
-  btn.textContent=leaderScope?'⬇ Exportar faltantes CENDIS (21 tiendas)':'⬇ Exportar faltantes CENDIS';
+  btn.textContent=leaderScope?'⬇ Exportar faltantes CENDIS ('+Object.keys(S||{}).length+' tiendas)':'⬇ Exportar faltantes CENDIS';
   btn.title='Genera un Excel con los productos que las guías de exhibición necesitan y que aún no tienes, pero sí están disponibles para pedir en CENDIS.';
-  pdfBtn.textContent=leaderScope?'🖼 PDF con imágenes (21 tiendas)':'🖼 PDF con imágenes';
+  pdfBtn.textContent=leaderScope?'🖼 PDF con imágenes ('+Object.keys(S||{}).length+' tiendas)':'🖼 PDF con imágenes';
   pdfBtn.title='Genera un PDF gráfico de los mismos faltantes, con la imagen de cada producto y su ambiente.';
 }
 function patchAmbientImpact(){
@@ -8536,7 +8578,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
    manipularla puede saltarse el login igual que ahora. Cambiar eso también
    requiere servidor. */
 (function(){
-  var TABLA = {"iter": 120000, "users": {"ADM18": {"salt": "j8boSrDwWx9ZRZ/dhfLbww==", "hash": "Wz0TFCoQuIgJ/Ax3CGpB2UE55n7Nt+Q6h3WxPXtLiUs=", "role": "admin", "store": "18", "name": "Bucaramanga"}, "ADMCV": {"salt": "BBjD0/0KM4QFvRBwqiGCXA==", "hash": "TwJTNo7RdsG1PvCfufwlU0wDeYPKwHvrI8s2W0MxMX4=", "role": "admin", "store": "CV", "name": "Cuatro Vientos"}, "ADMH1": {"salt": "6KtWW5iLmxmIlHgw7lcbYw==", "hash": "uIU2P7Iaokiu0ZzSIu/a8tsJIg5ywXUGZltYA7588tk=", "role": "admin", "store": "H1", "name": "El Eden"}, "ADMF8": {"salt": "hYu3RqxME0QMYo/4MH9Riw==", "hash": "ykYq0o5iZWOAtBhy4cH0j3hQWOJP99d8o/qljfx6Szc=", "role": "admin", "store": "F8", "name": "Fabricato"}, "ADMF6": {"salt": "PJutID9Ryuh0ndbMpkEl6Q==", "hash": "JNw/SkIxRldcOWV4eYdXxtnj7zATiHsarUgM5pUAZ0o=", "role": "admin", "store": "F6", "name": "Florida CC"}, "ADM24": {"salt": "fGaYK+o7bzwdO50fM6wlFA==", "hash": "xrMn5wHr3Sj31/AjBU/22KnmhVEvqLEjK16pb2NZUEA=", "role": "admin", "store": "24", "name": "Hiper Jamar"}, "ADMH4": {"salt": "rW+1nXjQDlJ7Zpvfvp2ZJg==", "hash": "Y7VgvhmRbfGninBhoYT9q061yGtGITxImJFt0uZ0ius=", "role": "admin", "store": "H4", "name": "Jamar Cra 30"}, "ADM84": {"salt": "oqvt+/6cwoohVata8wHShw==", "hash": "SaEzNZpcyn0UwNdD4oDmtcab44N+GTeDcHne4CMfBqw=", "role": "admin", "store": "84", "name": "La Plazuela"}, "ADMB9": {"salt": "mMduGJd6i7s0E+heKWl+Ug==", "hash": "9xM7x+WRdhe9jCfAfwuoPPJnp8/Wkh60IiCc+Cq4yCI=", "role": "admin", "store": "B9", "name": "Las Americas"}, "ADMB8": {"salt": "9ED7kjOGeMATythpRnZn8w==", "hash": "gdkVPa3N0otJtJo/wzDi7W0WaJotOGwJ/Scpcb2uviM=", "role": "admin", "store": "B8", "name": "Mayorca"}, "ADMC6": {"salt": "YaD9eGV8Ekrre1GMGNUyJQ==", "hash": "f3wptfDNRc97qjhWhdq/LiMJqBwsIt/m+OQUxuEofFU=", "role": "admin", "store": "C6", "name": "Molinos"}, "ADM55": {"salt": "6V12S23UikZRPYzv6FK5QQ==", "hash": "I1QpNVMMIlIigmzzDWb8Q9JpuOUY1JsJ6o4lIow/d9o=", "role": "admin", "store": "55", "name": "Monteria"}, "ADM95": {"salt": "uJw3Ms6GWl1WLho6476GBQ==", "hash": "u5U7SHMxd9KUdk0YhMP+/VvdlxZkwIlYS6QNt4eDslM=", "role": "admin", "store": "95", "name": "Norte"}, "ADMF7": {"salt": "v+0pm5auxKy0ySW4ZI0XoA==", "hash": "FX3WdOBtLshYf3d5FUrosIG/08Xv6x71IVejRtIFG38=", "role": "admin", "store": "F7", "name": "Norte Bogota"}, "ADM01": {"salt": "k6tsDhExJT9bGO2uk9oxig==", "hash": "boOO4SAw5Ww7ErqFhQJfsJnRoOkB60q/cara7SpeKQE=", "role": "admin", "store": "01", "name": "Principal"}, "ADM39": {"salt": "kIUcCEXl+JuZZa4J/sfiNw==", "hash": "IgBRP3alUZXxAIg0xRwzhMjYKOsKZL6pLopsiqv88R4=", "role": "admin", "store": "39", "name": "Riohacha"}, "ADM67": {"salt": "uryFRjcUe7KXhvPWx5sKAw==", "hash": "ngegyr06zS/8KFZDEI4WXvT5nODYVYrvmOjlGCHRuWM=", "role": "admin", "store": "67", "name": "San Felipe"}, "ADM85": {"salt": "gEMRTwnRM/G/YYBqwW2Tpw==", "hash": "NvgUIPYdCO2xuChpmMdYnXFC81t/IyifW3WIbDQ2spM=", "role": "admin", "store": "85", "name": "Santa Marta"}, "ADM65": {"salt": "ZVr/izEs/9GBap8Yb9LBhQ==", "hash": "iXQWHVpOGvxmQvjwrvoAQy7o5Cyf976XO+04DpY96H8=", "role": "admin", "store": "65", "name": "Sincelejo"}, "ADM29": {"salt": "3s1/bBKMtsv9gtslczPdKQ==", "hash": "+4fSITGeM/jKFRkbqs6AO+qZtGTEEkzBTapRWwANcf8=", "role": "admin", "store": "29", "name": "Trinitarias"}, "ADM45": {"salt": "Q7gl0v8AsvJGP7erAHGnEw==", "hash": "WLA2kUAl9GCq6xxuTlu7pr//URDQ7YnYMJgWnwrGxwA=", "role": "admin", "store": "45", "name": "Valledupar"}, "LIDER": {"salt": "6pGoSj4X9ZgakX/aa5m9DA==", "hash": "re1j3Pld7Nsh4vw5PeTEJEMMWI3J1Ce2/ewVxF77K5w=", "role": "leader"}, "DEV": {"salt": "T8IxnsOjTv6LJ4eg6y216w==", "hash": "Z37LzGBVYlSZkGjZC+mCa0x1V0zLmMh2g/cFGxMMkuo=", "role": "dev"}}};
+  var TABLA = {"iter": 120000, "users": {"ADM18": {"salt": "j8boSrDwWx9ZRZ/dhfLbww==", "hash": "Wz0TFCoQuIgJ/Ax3CGpB2UE55n7Nt+Q6h3WxPXtLiUs=", "role": "admin", "store": "18", "name": "Bucaramanga"}, "ADMCV": {"salt": "BBjD0/0KM4QFvRBwqiGCXA==", "hash": "TwJTNo7RdsG1PvCfufwlU0wDeYPKwHvrI8s2W0MxMX4=", "role": "admin", "store": "CV", "name": "Cuatro Vientos"}, "ADMH1": {"salt": "6KtWW5iLmxmIlHgw7lcbYw==", "hash": "uIU2P7Iaokiu0ZzSIu/a8tsJIg5ywXUGZltYA7588tk=", "role": "admin", "store": "H1", "name": "El Eden"}, "ADMF8": {"salt": "hYu3RqxME0QMYo/4MH9Riw==", "hash": "ykYq0o5iZWOAtBhy4cH0j3hQWOJP99d8o/qljfx6Szc=", "role": "admin", "store": "F8", "name": "Fabricato"}, "ADMF6": {"salt": "PJutID9Ryuh0ndbMpkEl6Q==", "hash": "JNw/SkIxRldcOWV4eYdXxtnj7zATiHsarUgM5pUAZ0o=", "role": "admin", "store": "F6", "name": "Florida CC"}, "ADM24": {"salt": "fGaYK+o7bzwdO50fM6wlFA==", "hash": "xrMn5wHr3Sj31/AjBU/22KnmhVEvqLEjK16pb2NZUEA=", "role": "admin", "store": "24", "name": "Hiper Jamar"}, "ADMH4": {"salt": "rW+1nXjQDlJ7Zpvfvp2ZJg==", "hash": "Y7VgvhmRbfGninBhoYT9q061yGtGITxImJFt0uZ0ius=", "role": "admin", "store": "H4", "name": "Jamar Cra 30"}, "ADMH9": {"salt": "as68SyxbnvvIyP2VKfaGnQ==", "hash": "o5Ljy3smA3C7eV35X9PaaMv/a30CoFFKbATMBZ7hmAg=", "role": "admin", "store": "H9", "name": "Santa Bárbara"}, "ADM84": {"salt": "oqvt+/6cwoohVata8wHShw==", "hash": "SaEzNZpcyn0UwNdD4oDmtcab44N+GTeDcHne4CMfBqw=", "role": "admin", "store": "84", "name": "La Plazuela"}, "ADMB9": {"salt": "mMduGJd6i7s0E+heKWl+Ug==", "hash": "9xM7x+WRdhe9jCfAfwuoPPJnp8/Wkh60IiCc+Cq4yCI=", "role": "admin", "store": "B9", "name": "Las Americas"}, "ADMB8": {"salt": "9ED7kjOGeMATythpRnZn8w==", "hash": "gdkVPa3N0otJtJo/wzDi7W0WaJotOGwJ/Scpcb2uviM=", "role": "admin", "store": "B8", "name": "Mayorca"}, "ADMC6": {"salt": "YaD9eGV8Ekrre1GMGNUyJQ==", "hash": "f3wptfDNRc97qjhWhdq/LiMJqBwsIt/m+OQUxuEofFU=", "role": "admin", "store": "C6", "name": "Molinos"}, "ADM55": {"salt": "6V12S23UikZRPYzv6FK5QQ==", "hash": "I1QpNVMMIlIigmzzDWb8Q9JpuOUY1JsJ6o4lIow/d9o=", "role": "admin", "store": "55", "name": "Monteria"}, "ADM95": {"salt": "uJw3Ms6GWl1WLho6476GBQ==", "hash": "u5U7SHMxd9KUdk0YhMP+/VvdlxZkwIlYS6QNt4eDslM=", "role": "admin", "store": "95", "name": "Norte"}, "ADMF7": {"salt": "v+0pm5auxKy0ySW4ZI0XoA==", "hash": "FX3WdOBtLshYf3d5FUrosIG/08Xv6x71IVejRtIFG38=", "role": "admin", "store": "F7", "name": "Norte Bogota"}, "ADM01": {"salt": "k6tsDhExJT9bGO2uk9oxig==", "hash": "boOO4SAw5Ww7ErqFhQJfsJnRoOkB60q/cara7SpeKQE=", "role": "admin", "store": "01", "name": "Principal"}, "ADM39": {"salt": "kIUcCEXl+JuZZa4J/sfiNw==", "hash": "IgBRP3alUZXxAIg0xRwzhMjYKOsKZL6pLopsiqv88R4=", "role": "admin", "store": "39", "name": "Riohacha"}, "ADM67": {"salt": "uryFRjcUe7KXhvPWx5sKAw==", "hash": "ngegyr06zS/8KFZDEI4WXvT5nODYVYrvmOjlGCHRuWM=", "role": "admin", "store": "67", "name": "San Felipe"}, "ADM85": {"salt": "gEMRTwnRM/G/YYBqwW2Tpw==", "hash": "NvgUIPYdCO2xuChpmMdYnXFC81t/IyifW3WIbDQ2spM=", "role": "admin", "store": "85", "name": "Santa Marta"}, "ADM65": {"salt": "ZVr/izEs/9GBap8Yb9LBhQ==", "hash": "iXQWHVpOGvxmQvjwrvoAQy7o5Cyf976XO+04DpY96H8=", "role": "admin", "store": "65", "name": "Sincelejo"}, "ADM29": {"salt": "3s1/bBKMtsv9gtslczPdKQ==", "hash": "+4fSITGeM/jKFRkbqs6AO+qZtGTEEkzBTapRWwANcf8=", "role": "admin", "store": "29", "name": "Trinitarias"}, "ADM45": {"salt": "Q7gl0v8AsvJGP7erAHGnEw==", "hash": "WLA2kUAl9GCq6xxuTlu7pr//URDQ7YnYMJgWnwrGxwA=", "role": "admin", "store": "45", "name": "Valledupar"}, "LIDER": {"salt": "6pGoSj4X9ZgakX/aa5m9DA==", "hash": "re1j3Pld7Nsh4vw5PeTEJEMMWI3J1Ce2/ewVxF77K5w=", "role": "leader"}, "DEV": {"salt": "T8IxnsOjTv6LJ4eg6y216w==", "hash": "Z37LzGBVYlSZkGjZC+mCa0x1V0zLmMh2g/cFGxMMkuo=", "role": "dev"}}};
 
   function b64aBytes(b64){
     var bin=atob(b64),a=new Uint8Array(bin.length);
@@ -10703,18 +10745,13 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
 
   /* ---------------- entrada en el menú ---------------- */
   function nav(){
-    if(!esDev()){
-      var v=document.getElementById('navDev');if(v)v.remove();
-      return;
-    }
-    if(document.getElementById('navDev'))return;
-    var nav=document.querySelector('.nav');if(!nav)return;
-    var sep=document.createElement('div');
-    sep.className='navSep';sep.id='navDevSep';sep.textContent='DESARROLLO';
-    var a=document.createElement('a');
-    a.id='navDev';a.href='#';a.innerHTML='<span class="ic">⚙</span> Desarrollador';
-    a.onclick=function(e){e.preventDefault();abrir()};
-    nav.appendChild(sep);nav.appendChild(a);
+    /* V86.343: a pedido del usuario, la sección "DESARROLLO" deja de
+       mostrarse en el menú lateral, tanto para quien entra como líder de
+       área como para quien entra con el usuario DEV. El panel sigue
+       disponible para quien lo necesite (ver abrir()); solo se retira la
+       entrada del menú. */
+    var v=document.getElementById('navDev');if(v)v.remove();
+    var sp=document.getElementById('navDevSep');if(sp)sp.remove();
   }
 
   /* ---------------- panel ----------------
@@ -12000,7 +12037,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   var F={q:'',cat:'',pres:'',exis:'',estado:'',venta:''}, SEL=Object.create(null), tope=TOPE;
   function clave(r){return r.sc+'|'+r.c}
   function filtradas(){
-    var q=F.q.toUpperCase();
+    var q=F.q.toUpperCase().split(/\s+/).filter(Boolean);
     return filas().filter(function(r){
       if(!VER_FUERA&&excluida(r))return false;
       if(F.pres==='con'&&!(r.min>0))return false;
@@ -12020,9 +12057,11 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       if(F.estado==='sano'&&r.estados.length)return false;
       if(F.venta==='sin'&&r.ventaU>0)return false;
       if(F.venta==='con'&&!(r.ventaU>0))return false;
-      if(q){
+      if(q.length){
+        /* V86.350: palabra por palabra y todas presentes, en cualquier orden --
+           antes "base roma" no encontraba "BASE COMEDOR 6PTO ROMA". */
         var t=(r.c+' '+r.nom+' '+r.cat+' '+r.lin+' '+r.amb.join(' ')+' '+r.tienda).toUpperCase();
-        if(t.indexOf(q)<0)return false;
+        for(var i=0;i<q.length;i++)if(t.indexOf(q[i])<0)return false;
       }
       return true;
     });
@@ -12061,6 +12100,45 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     return '<span class="ccBadge68 '+cl+'">'+esc(cc)+'</span>';
   }
 
+  /* V86.348: fila extraida de html() para poder repintar SOLO el cuerpo de la
+     tabla (actualizarListado) sin reconstruir toda la tarjeta -- ver nota ahi. */
+  function filaHtml(r){
+    var k=clave(r);
+    var rangoTop='',rangoU=0;
+    Object.keys(r.rangos||{}).forEach(function(rk){var u=n(r.rangos[rk]);if(u>rangoU){rangoU=u;rangoTop=rk;}});
+    /* V86.313: pedido en la reunion con Hainer -- avisar cuando un
+       producto tiene presencia (CAN MIN o CAN SUM > 0) pero esta en
+       rotacion y sin venta en 3 meses. El checkbox de esta misma fila ya
+       marca "QUITAR PRESENCIA" en el reporte (linea 12057 de este mismo
+       archivo), asi que la accion ya existia -- solo faltaba el aviso
+       para encontrar estos casos sin tener que buscarlos a mano. */
+    var avisoQuitar=(r.min>0||r.sum>0)&&r.rot&&!(r.ventaU>0);
+    return '<tr class="v257Fila'+(SEL[k]?' marcada':'')+(avisoQuitar?' v257Aviso':'')+'" data-k="'+esc(k)+'">'+
+      '<td class="v257Chk"><input type="checkbox" data-v257-chk="'+esc(k)+'"'+(SEL[k]?' checked':'')+'></td>'+
+      (multi()?'<td><b>'+esc(r.tienda)+'</b><div class="v255Mut">'+esc(r.sc)+'</div></td>':'')+
+      '<td><span class="code">'+esc(r.c)+'</span></td>'+
+      '<td><b class="v257Nom" data-v257-cod="'+esc(r.c)+'">'+esc(r.nom)+'</b>'+
+        '<div class="v255Mut">'+esc(r.cat)+' · '+esc(r.lin)+' · '+esc(r.sub)+'</div></td>'+
+      '<td>'+clasifBadge(r)+'</td>'+
+      '<td>'+esc(r.ciclo)+'</td>'+
+      '<td>'+esc(r.estilo)+'</td>'+
+      '<td><div class="v257Ests">'+badges(r)+(avisoQuitar?'<span class="v257AvisoTag" title="Tiene presencia, esta en rotacion y no ha tenido venta en 3 meses -- candidato a quitar presencia">! Sin venta</span>':'')+'</div>'+
+        (r.amb.length?'<div class="v255Mut v257AmbNom">'+esc(r.amb[0])+(r.amb.length>1?' +'+(r.amb.length-1):'')+'</div>':'')+'</td>'+
+      '<td>'+esc(r.estadoAbast)+'</td>'+
+      '<td class="num'+(r.min>0?'':' v257Cero')+'">'+fint(r.min)+'</td>'+
+      '<td class="num'+(r.sum>0?'':' v257Cero')+(r.sum>0&&!(r.stock>0)?' v257Descuadre':'')+'"'+
+        (r.sum>0&&!(r.stock>0)?' title="El archivo de presencias reporta '+fint(r.sum)+' pero el inventario de Llavero no le registra existencia"':'')+
+        '>'+fint(r.sum)+'</td>'+
+      '<td class="num">'+(r.disponible==null?'—':fint(r.disponible))+'</td>'+
+      '<td class="num">'+(r.cendis>0?'<span class="tag cr">'+fint(r.cendis)+' u</span>':(r.cendis===0?'<span class="tag sr">0 u</span>':'—'))+'</td>'+
+      '<td class="num">'+(r.oc>0?fint(r.oc):'—')+'</td>'+
+      '<td>'+(rangoU>0?'<b>'+fint(rangoU)+' u</b><div class="v255Mut">'+esc(rangoTop)+'</div>':'—')+'</td>'+
+      '<td class="num">'+(r.ird>0?r.ird.toFixed(1):'—')+'</td>'+
+      '<td class="num">'+(r.ventaU>0
+          ? '<b>'+fint(r.ventaU)+' u</b><div class="v255Mut">'+money(r.ventaV)+'</div>'
+          : '<span class="v257Sin">Sin venta</span>')+'</td></tr>';
+  }
+
   function html(){
     var fs=filtradas(),marcados=fs.filter(function(r){return SEL[clave(r)]}).length;
     var vis=fs.slice(0,tope),todas=filas().length;
@@ -12068,42 +12146,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     /* el archivo dice que hay existencia y el inventario no la registra */
     var descuadre=filas().filter(function(r){return !excluida(r)&&r.sum>0&&!(r.stock>0)}).length;
     var cats=[['','Todas']].concat(opciones().map(function(c){return [c,c]}));
-    var cuerpo=vis.map(function(r){
-      var k=clave(r);
-      var rangoTop='',rangoU=0;
-      Object.keys(r.rangos||{}).forEach(function(rk){var u=n(r.rangos[rk]);if(u>rangoU){rangoU=u;rangoTop=rk;}});
-      /* V86.313: pedido en la reunion con Hainer -- avisar cuando un
-         producto tiene presencia (CAN MIN o CAN SUM > 0) pero esta en
-         rotacion y sin venta en 3 meses. El checkbox de esta misma fila ya
-         marca "QUITAR PRESENCIA" en el reporte (linea 12057 de este mismo
-         archivo), asi que la accion ya existia -- solo faltaba el aviso
-         para encontrar estos casos sin tener que buscarlos a mano. */
-      var avisoQuitar=(r.min>0||r.sum>0)&&r.rot&&!(r.ventaU>0);
-      return '<tr class="v257Fila'+(SEL[k]?' marcada':'')+(avisoQuitar?' v257Aviso':'')+'" data-k="'+esc(k)+'">'+
-        '<td class="v257Chk"><input type="checkbox" data-v257-chk="'+esc(k)+'"'+(SEL[k]?' checked':'')+'></td>'+
-        (multi()?'<td><b>'+esc(r.tienda)+'</b><div class="v255Mut">'+esc(r.sc)+'</div></td>':'')+
-        '<td><span class="code">'+esc(r.c)+'</span></td>'+
-        '<td><b class="v257Nom" data-v257-cod="'+esc(r.c)+'">'+esc(r.nom)+'</b>'+
-          '<div class="v255Mut">'+esc(r.cat)+' · '+esc(r.lin)+' · '+esc(r.sub)+'</div></td>'+
-        '<td>'+clasifBadge(r)+'</td>'+
-        '<td>'+esc(r.ciclo)+'</td>'+
-        '<td>'+esc(r.estilo)+'</td>'+
-        '<td><div class="v257Ests">'+badges(r)+(avisoQuitar?'<span class="v257AvisoTag" title="Tiene presencia, esta en rotacion y no ha tenido venta en 3 meses -- candidato a quitar presencia">! Sin venta</span>':'')+'</div>'+
-          (r.amb.length?'<div class="v255Mut v257AmbNom">'+esc(r.amb[0])+(r.amb.length>1?' +'+(r.amb.length-1):'')+'</div>':'')+'</td>'+
-        '<td>'+esc(r.estadoAbast)+'</td>'+
-        '<td class="num'+(r.min>0?'':' v257Cero')+'">'+fint(r.min)+'</td>'+
-        '<td class="num'+(r.sum>0?'':' v257Cero')+(r.sum>0&&!(r.stock>0)?' v257Descuadre':'')+'"'+
-          (r.sum>0&&!(r.stock>0)?' title="El archivo de presencias reporta '+fint(r.sum)+' pero el inventario de Llavero no le registra existencia"':'')+
-          '>'+fint(r.sum)+'</td>'+
-        '<td class="num">'+(r.disponible==null?'—':fint(r.disponible))+'</td>'+
-        '<td class="num">'+(r.cendis>0?'<span class="tag cr">'+fint(r.cendis)+' u</span>':(r.cendis===0?'<span class="tag sr">0 u</span>':'—'))+'</td>'+
-        '<td class="num">'+(r.oc>0?fint(r.oc):'—')+'</td>'+
-        '<td>'+(rangoU>0?'<b>'+fint(rangoU)+' u</b><div class="v255Mut">'+esc(rangoTop)+'</div>':'—')+'</td>'+
-        '<td class="num">'+(r.ird>0?r.ird.toFixed(1):'—')+'</td>'+
-        '<td class="num">'+(r.ventaU>0
-            ? '<b>'+fint(r.ventaU)+' u</b><div class="v255Mut">'+money(r.ventaV)+'</div>'
-            : '<span class="v257Sin">Sin venta</span>')+'</td></tr>';
-    }).join('');
+    var cuerpo=vis.map(filaHtml).join('');
     return '<div class="card v257Card" id="v257Card"><div class="chead"><div class="cnum n6">▤</div>'+
       '<div><div class="tt">Inventario de presencias</div>'+
       '<div class="ds">Todo el universo de la tienda: con presencia y sin ella, con existencia y sin ella, y a qué le pega cada producto.</div></div>'+
@@ -12147,6 +12190,36 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
          botón sigue permitiendo auditar los excluidos y las celdas de CAN SUM
          sin respaldo del inventario siguen marcadas en la tabla. */
       '</div></div>';
+  }
+
+  /* V86.348: actualizacion liviana para la busqueda -- NO reconstruye la
+     tarjeta (ni su barra de filtros ni el input), solo el cuerpo de la tabla
+     y los contadores. Antes, cada tecla en "Buscar" reconstruia TODA la
+     tarjeta por outerHTML (ver repintar()), lo que le quitaba el foco al
+     campo en cada tecla -- a veces de lleno con la tecla de espacio, que el
+     usuario tiende a soltar justo cuando el redibujado dispara. Al no tocar
+     el input, el foco y el cursor nunca se pierden. */
+  function actualizarListado(){
+    var card=document.getElementById('v257Card');if(!card)return;
+    var fs=filtradas(),marcados=fs.filter(function(r){return SEL[clave(r)]}).length;
+    var vis=fs.slice(0,tope),todas=filas().length;
+    var tbody=card.querySelector('.v257Tabla tbody');
+    if(tbody)tbody.innerHTML=vis.map(filaHtml).join('');
+    var badge=card.querySelector('.chead .badge');
+    if(badge)badge.textContent=fint(fs.length)+(fs.length!==todas?' de '+fint(todas):'')+' productos';
+    var cuenta=card.querySelector('.v257Cuenta');
+    if(cuenta)cuenta.innerHTML='<b id="v257Marcados">'+fint(marcados)+'</b> marcados para quitar presencia · '+fint(fs.length-marcados)+' se conservan';
+    var masWrap=card.querySelector('.v257Mas');
+    if(fs.length>vis.length){
+      var masHtml='<button class="v250Btn sec" id="v257Mas" type="button">Mostrar 300 más</button>'+
+        '<span class="v255Mut">'+fint(vis.length)+' de '+fint(fs.length)+'</span>';
+      if(masWrap)masWrap.innerHTML=masHtml;
+      else{
+        var twrap=card.querySelector('.twrap');
+        if(twrap)twrap.insertAdjacentHTML('afterend','<div class="v257Mas">'+masHtml+'</div>');
+      }
+    }else if(masWrap)masWrap.remove();
+    enganchar();
   }
 
   /* ---------- Excel ---------- */
@@ -12197,7 +12270,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var c=document.getElementById('v257Card');if(!c)return;
     var q=document.getElementById('v257Q');
     if(q&&!q.__l){q.__l=true;var t=null;
-      q.oninput=function(){clearTimeout(t);t=setTimeout(function(){F.q=q.value;tope=TOPE;repintar(true)},180)};}
+      q.oninput=function(){clearTimeout(t);t=setTimeout(function(){F.q=q.value;tope=TOPE;actualizarListado()},90)};}
     [['v257Pres','pres'],['v257Exis','exis'],['v257Estado','estado'],['v257Cat','cat'],['v257Venta','venta']]
       .forEach(function(par){
         var el=document.getElementById(par[0]);
@@ -12242,11 +12315,28 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var ya=document.getElementById('v257Card');
     if(ya&&!forzar&&ya.dataset.firma===firma)return;
     if(ya&&ya.dataset.firma!==firma){FILAS=null;SEL=Object.create(null);tope=TOPE}
+    /* V86.347: outerHTML reconstruye toda la tarjeta -- incluido el input de
+       busqueda -- en cada tecla (el oninput de v257Q llama repintar(true)).
+       Eso le quitaba el foco al campo con cada letra: parecia que habia que
+       hacer clic de nuevo para que cada tecla contara ("escribe letra por
+       letra"). Se guarda que campo tenia el foco y su cursor antes de
+       redibujar, y se restituyen despues. */
+    var foco=null,activo=document.activeElement;
+    if(ya&&activo&&ya.contains(activo)&&activo.id){
+      foco={id:activo.id,start:activo.selectionStart,end:activo.selectionEnd};
+    }
     var h=html();
     if(ya)ya.outerHTML=h; else root.insertAdjacentHTML('beforeend',h);
     var c=document.getElementById('v257Card');
     if(c)c.dataset.firma=firma;
     enganchar();
+    if(foco){
+      var el=document.getElementById(foco.id);
+      if(el){
+        el.focus();
+        if(typeof foco.start==='number'&&el.setSelectionRange){try{el.setSelectionRange(foco.start,foco.end)}catch(_){}}
+      }
+    }
   }
 
   function install(){
@@ -13156,110 +13246,108 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
    rendimiento de la paginacion cuando se esta navegando sin filtrar. */
 (function(){
   'use strict';
+  /* ===== V86.350 · Los buscadores vuelven a escribirse fluido =====
+
+     Lo anterior (V86.300/301/302) peleaba contra los redibujados tardíos a
+     fuerza bruta: por CADA tecla programaba 50 reintentos de apply127()
+     repartidos hasta los 14,7 segundos, redibujaba la tabla entera sin
+     esperar a que el usuario dejara de escribir, y además mantenía un
+     setInterval global cada 400 ms reaplicando el filtro de todas las barras
+     para siempre. Escribir "roma" dejaba 200 reintentos encolados sobre una
+     tabla de miles de filas: de ahí el teclado trabado y la tabla que no
+     seguía lo que se escribía.
+
+     Ahora: el redibujado pesado espera 160 ms a que pare el tecleo (el filtro
+     sobre las filas ya pintadas sigue corriendo a 60 ms, así que la tabla sí
+     responde letra por letra), y en lugar de reintentos a ciegas se observa
+     el contenedor: cuando otra capa repinta la tabla, el MutationObserver
+     reaplica el filtro en ese mismo instante. Sin ráfagas ni intervalos. */
+
   var CAMPOS={'q-inventario':'inventario','q-prox':'prox','q-rot':'rot','q-evac':'evac'};
-  function ajustar(input){
-    var modulo=CAMPOS[input.id];if(!modulo)return;
+  var DRAW={inventario:'drawInventario',prox:'drawProx',rot:'drawRot',evac:'drawEvac'};
+
+  function redibujar(modulo){try{var fn=window[DRAW[modulo]];if(typeof fn==='function')fn()}catch(_){}}
+  function aplicar(modulo,bar){
     try{
-      var st=window.state&&window.state[modulo];if(!st)return;
-      var conTexto=!!String(input.value||'').trim();
-      st.limit=conTexto?999999:300;
+      if(typeof window.apply127==='function')window.apply127(modulo,bar);
+      else if(typeof apply127==='function')apply127(modulo,bar);
     }catch(_){}
   }
+  function conFiltro(bar){
+    var activo=false;
+    bar.querySelectorAll('[data-v127-f]').forEach(function(x){if(String(x.value||'').trim())activo=true});
+    return activo;
+  }
+
+  /* El límite de paginado se sube mientras haya texto: si no, el corte de 300
+     filas se aplica DESPUÉS de filtrar y esconde coincidencias reales. */
+  function ajustarLimite(modulo,valor){
+    try{
+      var st=(window.state&&window.state[modulo])||((typeof state!=='undefined'&&state)?state[modulo]:null);
+      if(st)st.limit=String(valor||'').trim()?999999:300;
+    }catch(_){}
+  }
+
+  var pendiente={};
+  function programar(modulo,bar){
+    clearTimeout(pendiente[modulo]);
+    pendiente[modulo]=setTimeout(function(){
+      redibujar(modulo);
+      if(bar)aplicar(modulo,bar);
+    },160);
+  }
+
   function onInput(e){
-    var el=e.target;
-    if(el&&el.id&&CAMPOS[el.id]){
-      ajustar(el);
-      /* el oninput inline ya dispara el redibujado con el texto nuevo; aqui solo
-         se ajusta el limite ANTES de que ese redibujado lea state.X.limit. Si el
-         oninput inline corre primero (mismo evento, distinto listener), se
-         repinta una vez mas para que el limite nuevo quede aplicado. */
-      setTimeout(function(){
-        try{
-          var fn={'inventario':window.drawInventario,'prox':window.drawProx,
-                  'rot':window.drawRot,'evac':window.drawEvac}[CAMPOS[el.id]];
-          if(typeof fn==='function')fn();
-        }catch(_){}
-      },0);
+    var el=e.target;if(!el)return;
+    if(el.id&&CAMPOS[el.id]){
+      var m=CAMPOS[el.id];
+      ajustarLimite(m,el.value);
+      programar(m,document.querySelector('.v118ModuleFilters[data-module="'+m+'"]'));
       return;
     }
-    /* V86.299: el mismo problema, en otro buscador. El sistema de filtros
-       "v127" (Clasificacion/Condicion/Categoria/Linea/Sublinea/CENDIS que se
-       ve debajo del encabezado de Inventario) tiene SU PROPIO campo de
-       busqueda -- data-v127-f="q" -- que es un input totalmente distinto de
-       #q-inventario, sin id, y por eso el arreglo de arriba no lo cubria.
-       apply127() solo revisa las filas YA PINTADAS en el DOM (tableRowsFor),
-       asi que si la tabla esta topada en 300 filas, este buscador nunca ve
-       lo que hay mas alla -- exactamente lo mismo que pasaba antes con la
-       busqueda de #q-inventario, en un lugar distinto del codigo. */
-    var campoV127=el&&el.getAttribute('data-v127-f');if(!el||!campoV127)return;
+    if(!el.getAttribute||!el.getAttribute('data-v127-f'))return;
     var bar=el.closest('.v118ModuleFilters,.v127ContextFilters');
-    var modulo=bar&&bar.dataset&&bar.dataset.module;
-    if(!modulo)return;
-    try{
-      var st=(typeof state!=='undefined'&&state)?state[modulo]:null;if(!st)return;
-      var conTexto=!!String(el.value||'').trim();
-      st.limit=conTexto?999999:300;
-      var fn={'inventario':window.drawInventario,'prox':window.drawProx,
-              'rot':window.drawRot,'evac':window.drawEvac}[modulo];
-      if(typeof fn==='function')fn();
-      /* al repintar, la barra de filtros y sus valores elegidos se conservan
-         (patchModuleFilters reutiliza el bar si ya existe), pero apply127 hay
-         que volver a llamarlo para que filtre sobre las filas nuevas, recien
-         pintadas con el limite ya ampliado.
-
-         V86.300: un solo intento a los 30ms no bastaba. Se comprobo con el
-         profiler que entre los 50ms y los 150ms algo mas -- otra de las
-         capas del proyecto, sin identificar con certeza -- vuelve a
-         redibujar la tabla completa (todas las filas quedan visibles otra
-         vez), sin reaplicar el filtro. En vez de perseguir esa causa exacta,
-         se reaplica el filtro varias veces despues de cada tecla, hasta
-         ganarle a cualquier redibujado tardio que compita por la misma
-         tabla. */
-      var intentar=function(){
-        try{if(typeof window.apply127==='function')window.apply127(modulo,bar);
-            else if(typeof apply127==='function')apply127(modulo,bar);}catch(_){}
-      };
-      [30,330,630,930,1230,1530,1830,2130,2430,2730,3030,3330,3630,3930,4230,4530,4830,5130,5430,5730,6030,6330,6630,6930,7230,7530,7830,8130,8430,8730,9030,9330,9630,9930,10230,10530,10830,11130,11430,11730,12030,12330,12630,12930,13230,13530,13830,14130,14430,14730].forEach(function(ms){setTimeout(intentar,ms);});
-      /* V86.301: 1400ms no bastaba -- lo que redibuja la tabla y borra el
-         filtro sigue corriendo en un intervalo propio, indefinidamente, asi
-         que una lista finita de reintentos siempre termina perdiendo tarde o
-         temprano. En vez de perseguir esa otra capa (nunca se identifico con
-         certeza cual es), se deja un reintento continuo mientras el texto
-         siga siendo el mismo en el campo: gana la pelea sin importar cuantas
-         veces la otra capa vuelva a intentarlo. Se apaga solo si el texto
-         cambia o el campo se vacia. */
-      var elRef=el,valorAlEscribir=el.value;
-      /* V86.302: el setInterval de V86.301 se apagaba solo, sin pasar por
-         ninguna de sus dos condiciones de salida -- algo externo lo estaba
-         cancelando. En vez de pelear con un temporizador que pueden matar
-         sin avisar, se observa DIRECTAMENTE la tabla: cada vez que sus filas
-         cambian (que es exactamente el momento en que algo mas la vuelve a
-         pintar completa), se reaplica el filtro de inmediato. Esto no
-         depende de ningun intervalo que puedan cancelar por fuera. */
-    }catch(_){}
+    var modulo=bar&&bar.dataset&&bar.dataset.module;if(!modulo)return;
+    var q=bar.querySelector('[data-v127-f="q"]');
+    ajustarLimite(modulo,q?q.value:'');
+    programar(modulo,bar);
   }
-  document.addEventListener('input',onInput,true);document.addEventListener('change',onInput,true);
+  document.addEventListener('input',onInput,true);
+  document.addEventListener('change',onInput,true);
 
-  /* V86.300: la rafaga de reintentos (30ms a 1400ms) no bastaba -- algo mas
-     sigue redibujando la tabla despues de esa ventana, sin identificarse con
-     certeza cual de las tantas capas del proyecto es. En vez de perseguir esa
-     causa exacta, se mantiene un reaplicado continuo mientras el campo de
-     busqueda v127 tenga texto: gana cualquier redibujado tardio que compita
-     por la misma tabla, sin limite de tiempo. Se detiene solo (deja de
-     reaplicar, no de correr el intervalo) en cuanto el campo queda vacio. */
-  setInterval(function(){
+  /* Un único observador sobre el área de contenido. Cuando otra capa repinta
+     una tabla (cambian sus filas), se reaplica el filtro de esa barra de
+     inmediato. Se ignoran las mutaciones que ocurren DENTRO de una barra de
+     filtros -- populate127 reescribe las opciones de los selects -- para no
+     reaccionar a nuestro propio trabajo. */
+  var reaplicando=false,cola=0;
+  function reaplicar(){
+    cola=0;reaplicando=true;
     try{
       document.querySelectorAll('.v118ModuleFilters,.v127ContextFilters').forEach(function(bar){
-        var q=bar.querySelector('[data-v127-f="q"]');
-        if(!q||!String(q.value||'').trim())return;
-        var modulo=bar.dataset&&bar.dataset.module;if(!modulo)return;
-        if(typeof window.apply127==='function')window.apply127(modulo,bar);
-        else if(typeof apply127==='function')apply127(modulo,bar);
+        var modulo=bar.dataset&&bar.dataset.module;
+        if(modulo&&conFiltro(bar))aplicar(modulo,bar);
       });
-    }catch(_){}
-  },400);
+    }finally{reaplicando=false}
+  }
+  function observar(){
+    var raiz=document.getElementById('content')||document.body;if(!raiz||raiz.__v350Obs)return;
+    raiz.__v350Obs=true;
+    new MutationObserver(function(muts){
+      if(reaplicando||cola)return;
+      for(var i=0;i<muts.length;i++){
+        var t=muts[i].target;
+        if(t&&t.closest&&t.closest('.v118ModuleFilters,.v127ContextFilters'))continue;
+        cola=setTimeout(reaplicar,60);
+        return;
+      }
+    }).observe(raiz,{childList:true,subtree:true});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',observar,{once:true});
+  else observar();
+  window.addEventListener('llavero:bootstrapped',observar);
 
-  console.info('LLAVERO V86.293/299/300 · la busqueda ya no depende del paginado ni se pierde por redibujados tardios');
+  console.info('LLAVERO V86.350 · buscadores fluidos: redibujado con debounce y reaplicado por observador');
 })();
 
 
@@ -13672,16 +13760,11 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     return ' data-v298-estado="'+est+'" data-v298-oc="'+oc+'" data-v298-disc="'+rel.join(' ')+'" data-v298-cat="'+esc298(cat)+'" data-v298-lin="'+esc298(lin)+'" data-v298-sub="'+esc298(sub)+'"';
   };
   window.v298ToolbarHtml=function(){
-    return '<div class="v298Filters" data-v298-toolbar>'
-      +'<select data-v298-estado><option value="">Estado CENDIS: todos</option><option value="A">Activo</option><option value="O">Novedad</option><option value="T">Testeo</option><option value="N">Inactivo</option></select>'
-      +'<select data-v298-oc><option value="">OC: todos</option><option value="con">Con OC</option><option value="sin">Sin OC</option></select>'
-      +'<select data-v298-disc><option value="">Relación de descuento: todas</option><option value="oferta">Oferta ≥ sugerido</option><option value="muestra">Muestra ≥ sugerido</option><option value="sugerido">Sugerido supera oferta y muestra</option></select>'
-      +'<select data-v298-cat><option value="">Categoría: todas</option></select>'
-      +'<select data-v298-lin><option value="">Línea: todas</option></select>'
-      +'<select data-v298-sub><option value="">Sublínea: todas</option></select>'
-      +'<button type="button" data-v298-clear>Limpiar</button><span class="v298Count" data-v298-count></span>'
-      +'<button type="button" class="v298ExportBtn" data-v298-export>⬇ Exportar Excel</button>'
-      +'</div>';
+    /* V86.341: Estado CENDIS / OC / Relación de descuento se unieron a la barra
+       superior "Búsqueda rápida" (v127ContextFilters) y el boton de exportar
+       se movio a esa misma barra (ver patchModuleFilters en el bloque V86.127).
+       Esta barra inferior, duplicada, ya no se dibuja. */
+    return '';
   };
   function v298CellText(cell){
     var clon=cell.cloneNode(true);
@@ -13701,6 +13784,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       if(typeof toast==='function')toast(trs.length+' filas exportadas según el filtro actual.','ok');
     }
   }
+  window.v298Export=v298Export;
   window.v298WireToolbar=function(root){
     if(!root)return;
     var tb=root.querySelector('[data-v298-toolbar]');
@@ -13756,4 +13840,264 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     if(exportBtn)exportBtn.onclick=function(){v298Export(table);};
     apply();
   };
+})();
+
+/* ===== V86.350 · Obsequios: tarjeta + detalle en el módulo de Inventario =====
+   Los obsequios dejaron de contar en Rotación y Evacuación (el filtro por
+   sublínea vive en esObsequio86350, index.html). Sacarlos de esos índices sin
+   más los dejaba invisibles, así que aquí reaparecen con su propia tarjeta en
+   Inventario y un detalle completo: unidades por rango de antigüedad, disponible
+   en CENDIS y órdenes de compra. */
+(function(){
+  if(window.__v350Obsequios)return;window.__v350Obsequios=true;
+  function s(v){return v==null?'':String(v)}
+  function n(v){var x=Number(v);return isFinite(x)?x:0}
+  function fint(v){try{return Number(v||0).toLocaleString('es-CO')}catch(_){return String(v||0)}}
+  function esc(v){return s(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function view(){try{return (typeof VIEW!=='undefined'?VIEW:'')}catch(_){return ''}}
+  function tienda(){try{return (typeof S!=='undefined'&&S&&typeof CUR!=='undefined')?S[CUR]:null}catch(_){return null}}
+
+  /* orden natural de los rangos: "0 - 30", "31 - 60", ..., "360 - Más" */
+  function desde(k){var m=String(k).match(/\d+/);return m?parseInt(m[0],10):0}
+
+  function filas(){
+    var st=tienda();if(!st||!Array.isArray(st.inventario))return [];
+    return st.inventario.filter(function(r){
+      return s(r.sublinea).toUpperCase().indexOf('OBSEQUI')>=0;
+    });
+  }
+
+  function tarjeta(){
+    if(view()!=='inventario')return;
+    var grid=document.querySelector('#content .inventoryKpis, #content .v8662Kpis');
+    if(!grid){var c=document.querySelector('#content .inventoryKpi');grid=c?c.parentElement:null}
+    if(!grid)return;
+    var rows=filas(),ya=document.getElementById('v350Obseq');
+    if(!rows.length){if(ya)ya.remove();return}
+    var u=rows.reduce(function(a,r){return a+n(r.stock)},0),
+        val=fint(rows.length),meta=fint(u)+' unidades · no cuentan en Rotación ni Evacuación';
+    /* Si ya está, se tocan solo los textos: otras capas le agregan cosas a las
+       .inventoryKpi (el enlace "Ver detalle", por ejemplo) y reescribir la
+       tarjeta entera cada 900 ms las borraría una y otra vez. */
+    if(ya){
+      var v=ya.querySelector('.ikValue'),m=ya.querySelector('.ikMeta');
+      if(v&&v.textContent!==val)v.textContent=val;
+      if(m&&m.textContent!==meta)m.textContent=meta;
+      return;
+    }
+    grid.insertAdjacentHTML('beforeend',
+      '<div class="inventoryKpi clickableKpi" id="v350Obseq" onclick="window.abrirObsequios350()">'+
+      '<div class="ikLabel">Obsequios</div>'+
+      '<div class="ikValue">'+val+'</div>'+
+      '<div class="ikMeta">'+meta+'</div></div>');
+  }
+
+  var ORDEN={k:'stock',desc:true};
+
+  function ordenadas(rows){
+    var k=ORDEN.k,sg=ORDEN.desc?-1:1;
+    return rows.slice().sort(function(a,b){
+      var x=k==='producto'?s(a.producto):n(a[k]),y=k==='producto'?s(b.producto):n(b[k]);
+      return (x<y?-1:x>y?1:0)*sg;
+    });
+  }
+
+  /* "031 - 060" -> "31–60", "360 - Más" -> "+360": el mismo texto que usan las
+     tablas de Rotación y Evacuación (AGE80), para que se lea igual. */
+  function etiquetaRango(k){
+    var t=s(k).replace(/\s+/g,' ').trim();
+    if(/m[aá]s/i.test(t))return '+'+String(parseInt(t,10)||0);
+    var p=t.split('-');
+    if(p.length===2)return String(parseInt(p[0],10)||0)+'–'+String(parseInt(p[1],10)||0);
+    return t;
+  }
+  /* Unidades y, al lado, el rango de edad en el que están -- como en las demás
+     vistas: <span class="v79RangeChip">N u · 31–60</span>. */
+  function chipsRango(r){
+    var rg=r.rangos||{};
+    var h=Object.keys(rg).filter(function(k){return n(rg[k])>0})
+      .sort(function(a,b){return desde(a)-desde(b)})
+      .map(function(k){return '<span class="v79RangeChip">'+fint(rg[k])+' u · '+esc(etiquetaRango(k))+'</span>'}).join('');
+    /* 3 de los 27 obsequios de Norte traen stock pero el archivo no les manda
+       desglose por antigüedad; decir "sin unidades" sería falso. */
+    return h||'<span class="v71AgeEmpty">Sin desglose de antigüedad</span>';
+  }
+  function chipEstado(r){
+    var lt='';
+    try{lt=(typeof window.v297EstadoLetter==='function')?window.v297EstadoLetter(r):s(r.estadoAbastecimiento)}
+    catch(_){lt=s(r.estadoAbastecimiento)}
+    lt=s(lt).trim().toUpperCase();
+    if(!lt)return '<span class="mdStatus31 none">Sin estado</span>';
+    var txt=lt;
+    try{if(typeof window.v297EstadoText==='function')txt=window.v297EstadoText(lt)}catch(_){}
+    var cls=lt==='A'?'good':lt==='N'?'bad':lt==='T'?'warn':'none';
+    return '<span class="mdStatus31 '+cls+'">'+esc(txt)+'</span>';
+  }
+
+  function letraEstado(r){
+    var lt='';
+    try{lt=(typeof window.v297EstadoLetter==='function')?window.v297EstadoLetter(r):s(r.estadoAbastecimiento)}
+    catch(_){lt=s(r.estadoAbastecimiento)}
+    return s(lt).trim().toUpperCase();
+  }
+  function rangosDe(r){
+    var rg=r.rangos||{};
+    return Object.keys(rg).filter(function(k){return n(rg[k])>0});
+  }
+
+  /* Mismos filtros que ofrecen Inventario/Rotación/Evacuación: categoría, línea
+     y sublínea encadenadas, más estado, antigüedad y respaldo en CENDIS. */
+  var F350={q:'',cat:'',lin:'',sub:'',est:'',age:'',cendis:''};
+  function pasa(r,omitir){
+    function act(k){return omitir!==k&&F350[k]}
+    if(act('cat')&&s(r.categoria)!==F350.cat)return false;
+    if(act('lin')&&s(r.linea)!==F350.lin)return false;
+    if(act('sub')&&s(r.sublinea)!==F350.sub)return false;
+    if(act('est')&&(letraEstado(r)||'—')!==F350.est)return false;
+    if(act('age')&&rangosDe(r).indexOf(F350.age)<0)return false;
+    if(act('cendis')==='con'&&!(n(r.dispCendis)>0))return false;
+    if(act('cendis')==='sin'&&n(r.dispCendis)>0)return false;
+    if(omitir!=='q'&&F350.q){
+      var ts=F350.q.toUpperCase().split(/\s+/).filter(Boolean);
+      var t=(s(r.producto)+' '+s(r.codigo)+' '+s(r.categoria)+' '+s(r.linea)+' '+s(r.sublinea)).toUpperCase();
+      for(var i=0;i<ts.length;i++)if(t.indexOf(ts[i])<0)return false;
+    }
+    return true;
+  }
+
+  var COLS=8;
+  function cuerpo(rows){
+    var vis=ordenadas(rows).filter(function(r){return pasa(r)});
+    var tb=vis.map(function(r){
+      return '<tr><td class="v350Prod"><b>'+esc(r.producto)+'</b><div class="muted">'+esc(r.codigo)+'</div></td>'+
+        '<td class="v350Txt">'+esc(r.categoria)+'</td>'+
+        '<td class="v350Txt">'+esc(r.linea)+'</td>'+
+        '<td class="v350Txt">'+esc(r.sublinea)+'</td>'+
+        '<td class="num">'+fint(r.stock)+'</td>'+
+        '<td class="v350Edad">'+chipsRango(r)+'</td>'+
+        '<td class="v350Txt">'+chipEstado(r)+'</td>'+
+        '<td class="num">'+fint(r.dispCendis)+'</td></tr>';
+    }).join('');
+    return {html:tb||'<tr><td colspan="'+COLS+'" class="muted">Ningún obsequio coincide con estos filtros.</td></tr>',vis:vis};
+  }
+
+  /* Cada select se llena con lo que queda al aplicar TODOS los demás filtros
+     menos el suyo, igual que populate127: así nunca ofrece una opción que daría
+     cero resultados, pero tampoco se vacía a sí mismo. */
+  function opciones(rows,campo,valores,etiqueta){
+    var vals={};
+    rows.filter(function(r){return pasa(r,campo)}).forEach(function(r){
+      valores(r).forEach(function(v){if(v)vals[v]=1});
+    });
+    var ks=Object.keys(vals);
+    if(campo==='age')ks.sort(function(a,b){return desde(a)-desde(b)});
+    else ks.sort(function(a,b){return s(a).localeCompare(s(b),'es')});
+    return '<option value="">'+esc(etiqueta)+'</option>'+ks.map(function(v){
+      var txt=campo==='age'?etiquetaRango(v):campo==='est'?nombreEstado(v):v;
+      return '<option value="'+esc(v)+'"'+(F350[campo]===v?' selected':'')+'>'+esc(txt)+'</option>';
+    }).join('');
+  }
+  function nombreEstado(lt){
+    if(lt==='—')return 'Sin estado';
+    try{if(typeof window.v297EstadoText==='function')return window.v297EstadoText(lt)}catch(_){}
+    return lt;
+  }
+
+  window.abrirObsequios350=function(){
+    var rows=filas();if(!rows.length)return;
+    var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),
+        tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');
+    if(!modal||!body)return;
+    var u=rows.reduce(function(a,r){return a+n(r.stock)},0),
+        cen=rows.reduce(function(a,r){return a+n(r.dispCendis)},0);
+    if(tt)tt.textContent='Obsequios en inventario';
+    if(ss)ss.textContent=fint(rows.length)+' referencias · '+fint(u)+' unidades · '+
+      fint(cen)+' disponibles en CENDIS. Están fuera de los índices de Rotación y Evacuación.';
+    F350={q:'',cat:'',lin:'',sub:'',est:'',age:'',cendis:''};
+    body.innerHTML=
+      '<div class="v118ModuleFilters v350Bar">'+
+        '<div class="v118ModuleField"><label>Búsqueda rápida</label>'+
+          '<input id="v350Q" type="search" data-f350="q" placeholder="Código o producto..." autocomplete="off"></div>'+
+        '<div class="v118ModuleField"><label>Categoría</label><select data-f350="cat"></select></div>'+
+        '<div class="v118ModuleField"><label>Línea</label><select data-f350="lin"></select></div>'+
+        '<div class="v118ModuleField"><label>Sublínea</label><select data-f350="sub"></select></div>'+
+        '<div class="v118ModuleField"><label>Estado</label><select data-f350="est"></select></div>'+
+        '<div class="v118ModuleField"><label>Antigüedad</label><select data-f350="age"></select></div>'+
+        '<div class="v118ModuleField"><label>CENDIS</label><select data-f350="cendis">'+
+          '<option value="">Todos</option><option value="con">Con respaldo</option><option value="sin">Sin respaldo</option></select></div>'+
+        '<button type="button" class="v118ModuleClear" id="v350Limpiar">Limpiar filtros</button>'+
+        '<span class="v127FilterCount" id="v350Cuenta">'+fint(rows.length)+' referencias</span>'+
+      '</div>'+
+      '<div class="twrap"><table class="v8618Table v350Tabla"><thead><tr>'+
+        '<th data-k="producto">Producto</th>'+
+        '<th>Categoría</th><th>Línea</th><th>Sublínea</th>'+
+        '<th class="num" data-k="stock">Uds.</th>'+
+        '<th>Rangos de antigüedad</th>'+
+        '<th>Estado</th>'+
+        '<th class="num" data-k="dispCendis">Disp. CENDIS</th>'+
+      '</tr></thead><tbody id="v350Body"></tbody></table></div>';
+
+    /* La barra se crea una sola vez y escribir solo reescribe el <tbody> y las
+       opciones de los selects: si se reconstruyera el contenedor, el input
+       perdería el foco en cada letra. */
+    function llenarSelects(){
+      var defs=[
+        ['cat',function(r){return [s(r.categoria)]},'Todas'],
+        ['lin',function(r){return [s(r.linea)]},'Todas'],
+        ['sub',function(r){return [s(r.sublinea)]},'Todas'],
+        ['est',function(r){return [letraEstado(r)||'—']},'Todos'],
+        ['age',rangosDe,'Todos los rangos']
+      ];
+      defs.forEach(function(d){
+        var sel=body.querySelector('[data-f350="'+d[0]+'"]');if(!sel)return;
+        sel.innerHTML=opciones(rows,d[0],d[1],d[2]);
+        sel.value=F350[d[0]];
+        if(sel.value!==F350[d[0]]){F350[d[0]]='';sel.value=''}
+      });
+      var cen=body.querySelector('[data-f350="cendis"]');if(cen)cen.value=F350.cendis;
+    }
+    function pintar(){
+      var r=cuerpo(rows),tb=document.getElementById('v350Body');
+      if(tb)tb.innerHTML=r.html;
+      var c=document.getElementById('v350Cuenta');
+      if(c)c.textContent=fint(r.vis.length)+' de '+fint(rows.length)+' obsequios';
+    }
+    llenarSelects();pintar();
+    var t;
+    Array.prototype.forEach.call(body.querySelectorAll('[data-f350]'),function(el){
+      var k=el.getAttribute('data-f350');
+      if(el.tagName==='INPUT'){
+        el.oninput=function(){clearTimeout(t);t=setTimeout(function(){F350.q=el.value;llenarSelects();pintar()},90)};
+      }else{
+        el.onchange=function(){F350[k]=el.value;llenarSelects();pintar()};
+      }
+    });
+    var limpiar=document.getElementById('v350Limpiar');
+    if(limpiar)limpiar.onclick=function(){
+      F350={q:'',cat:'',lin:'',sub:'',est:'',age:'',cendis:''};
+      var qi=document.getElementById('v350Q');if(qi)qi.value='';
+      llenarSelects();pintar();
+    };
+    Array.prototype.forEach.call(body.querySelectorAll('th[data-k]'),function(th){
+      th.style.cursor='pointer';
+      th.onclick=function(){
+        var k=th.getAttribute('data-k');
+        if(ORDEN.k===k)ORDEN.desc=!ORDEN.desc;else{ORDEN.k=k;ORDEN.desc=k!=='producto'}
+        pintar();
+      };
+    });
+    /* El "⬇ Exportar Excel" lo pone la capa v296 sobre la tabla del modal; no
+       hace falta un segundo botón propio. */
+    modal.classList.add('on');
+  };
+
+  function tick(){try{tarjeta()}catch(e){}}
+  function install(){
+    tick();
+    if(!window.__v350Tick)window.__v350Tick=setInterval(tick,900);
+    console.info('LLAVERO V86.350 · Obsequios fuera de Rotación/Evacuación, con detalle en Inventario');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2100)},{once:true});
+  else setTimeout(install,2100);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,2000)});
 })();

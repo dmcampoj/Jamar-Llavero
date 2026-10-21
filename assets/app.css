@@ -721,6 +721,35 @@ body.dark thead th,body.dark .mk,body.dark .tsearch,body.dark .field input,body.
 .side::-webkit-scrollbar{width:6px}
 .side::-webkit-scrollbar-thumb{background:#d8dde3;border-radius:8px}
 .main{margin-left:252px;width:calc(100% - 252px);min-height:calc(100vh - 68px)}
+
+/* ===== V86.346 · Ocultar/mostrar menú lateral =====
+   El botón vive anclado al propio borde del sidebar (como un "handle" de
+   colapso), no suelto entre los botones de la barra superior -- es la
+   posición donde este tipo de control aparece en el resto del sistema de
+   paneles con menú lateral fijo. */
+.side,.main{transition:width .18s ease,margin-left .18s ease}
+/* position:fixed (no ancestor con transform de por medio) para que el boton
+   escape del overflow-x:hidden del sidebar -- con position:absolute quedaba
+   recortado por ese overflow y no se veia (reportado por el usuario). */
+.sideCollapseBtn{position:fixed;top:86px;left:239px;width:26px;height:26px;border-radius:50%;
+  background:#fff;border:1px solid #dfe3e8;color:var(--ink,#132043);display:grid;place-items:center;
+  padding:0;cursor:pointer;font-size:14px;line-height:1;box-shadow:0 2px 6px rgba(20,45,72,.16);
+  z-index:130;transition:left .18s ease}
+.sideCollapseBtn:hover{background:#f6f8fa;border-color:#cfd5dc;color:var(--brand)}
+.sideCollapseBtn .topActionIcon{display:inline-block;transition:transform .18s ease}
+body.navCollapsed .side{width:68px;padding-left:10px;padding-right:10px}
+body.navCollapsed .main{margin-left:68px;width:calc(100% - 68px)}
+body.navCollapsed .sideCollapseBtn{left:55px}
+body.navCollapsed .side .nlab,body.navCollapsed .side .foot{display:none}
+/* !important: hay un ".nav a{font-size:12.2px!important;...}" mas abajo en la
+   cascada (seccion de refinamiento compacto) que si no, gana por !important
+   aunque este selector tenga mayor especificidad. */
+body.navCollapsed .nav a{font-size:0!important;gap:0!important;justify-content:center;padding-left:0!important;padding-right:0!important}
+body.navCollapsed .nav a .ic{font-size:17px!important}
+body.navCollapsed .nav a .cnt{display:none!important}
+body.dark .sideCollapseBtn{background:#172231;border-color:#334151;color:#e8edf3}
+body.dark .sideCollapseBtn:hover{background:#213044;border-color:#425469;color:#fff}
+@media(max-width:760px){.sideCollapseBtn{display:none}}
 .nav{gap:2px;margin-top:0}
 .nlab{font-size:8.5px;padding:10px 11px 5px;letter-spacing:1.05px}
 .nav a{min-height:39px;padding:8px 10px;border-radius:7px;font-size:11.5px;gap:10px}
@@ -2772,6 +2801,10 @@ body.dark .guideQuickBtnV48.on{background:var(--amb)!important;color:#fff!import
 .proxNativeToolbar,.guideNativeToolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .proxNativeToolbar .tsearch,.guideNativeToolbar .tsearch{flex:1;min-width:240px}
 .proxNativeToolbar .chip,.guideNativeToolbar .chip{flex:0 0 auto}
+.proxNativeToolbar .proxNativeSelect{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--line2,#ddd);background:var(--card,#fff);color:var(--ink,#222);flex:0 0 auto}
+.proxNativeToolbar .proxExportBtn{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--brand,#2f6bff);background:var(--brand,#2f6bff);color:#fff;cursor:pointer;margin-left:auto;flex:0 0 auto}
+.vtaFilterSelect{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--line2,#ddd);background:var(--card,#fff);color:var(--ink,#222)}
+.vtaExportBtn{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--brand,#2f6bff);background:var(--brand,#2f6bff);color:#fff;cursor:pointer}
 @media(max-width:900px){.proxNativeToolbar .tsearch,.guideNativeToolbar .tsearch{flex-basis:100%;width:100%}}
 
 /* ===== llavero-v56-prox-click-standard-style ===== */
@@ -3731,6 +3764,8 @@ body.dark .guideSalesScope78 span{background:#343b46;border-color:#4a5260}
 .v298Filters select{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--line2,#ddd);background:var(--card,#fff);color:var(--ink,#222)}
 .v298Filters button[data-v298-clear]{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--line2,#ddd);background:transparent;cursor:pointer}
 .v298Filters .v298Count{font-size:11px;color:var(--mut,#888);margin-left:4px}
+.v298Filters .v298ExportBtn{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--brand,#2f6bff);background:var(--brand,#2f6bff);color:#fff;cursor:pointer;margin-left:auto}
+tr.v298Hidden{display:none!important}
 #rot-tbl .rotEvProxTable861 .v79RangeChip,
 #evac-tbl .rotEvProxTable861 .v79RangeChip{font-size:8px!important;padding:3px 5px!important;margin:1px!important;white-space:nowrap!important}
 #rot-tbl .rotEvProxTable861 .productThumb.sm,
@@ -5706,6 +5741,7 @@ body.dark #content table tbody tr:hover,body.dark .modalBack table tbody tr:hove
 .v127ContextFilters input:focus,.v127ContextFilters select:focus{border-color:#8ca4c2;box-shadow:0 0 0 2px rgba(66,97,137,.08)}
 .v127ContextFilters .v118ModuleClear{height:34px;border:1px solid #d7dee8;border-radius:8px;background:#f8fafc;color:#445269;font-weight:700;padding:0 10px;cursor:pointer}
 .v127ContextFilters .v127FilterCount{font-size:9px;color:var(--muted,#64748b);align-self:center;white-space:nowrap}
+.v127ContextFilters .v127ExportBtn{height:34px;border:none;border-radius:8px;background:var(--brand);color:#fff;font-weight:800;font-size:9.5px;padding:0 14px;cursor:pointer;margin-left:auto}
 /* Eliminar fondos decorativos fuertes; se conservan pills, bordes y estados semánticos. */
 .v127NeutralCard{box-shadow:none!important}
 .v127NeutralCard:not(.bad):not(.hot):not(.warn):not(.good){background:var(--card,#fff)!important}
@@ -7466,3 +7502,35 @@ body[data-v8620-view="dashboard"] .v8657TrendSvg{
 .v315Ico{font-size:26px;color:#e53232;line-height:1;margin-bottom:4px}
 .v315FlyerSlide b{font-size:15px;color:#173b63;margin:0}
 .v315FlyerSlide span{font-size:11.5px;color:#8a94a3;margin-top:2px}
+
+/* V86.355 · Detalle de obsequios: las columnas cortas (categoría, línea,
+   sublínea, estado) se partían en varias líneas -- "COLCHONES" salía como
+   "COL-/CHO-/NES" -- y los chips de antigüedad quedaban pegados. Se les deja
+   su ancho natural y la tabla desborda a scroll horizontal, que es lo que ya
+   hacen Rotación y Evacuación con muchas columnas. */
+#rangeModalBody .v350Tabla{width:100%;table-layout:fixed}
+#rangeModalBody .v350Tabla thead th{white-space:nowrap!important;max-width:none!important;padding:10px 12px}
+/* table-layout:fixed + estos anchos: las 8 columnas caben en el modal sin
+   scroll horizontal y sin que se parta ninguna palabra. */
+#rangeModalBody .v350Tabla th:nth-child(1){width:23%}
+#rangeModalBody .v350Tabla th:nth-child(2){width:11%}
+#rangeModalBody .v350Tabla th:nth-child(3){width:11%}
+#rangeModalBody .v350Tabla th:nth-child(4){width:12%}
+#rangeModalBody .v350Tabla th:nth-child(5){width:6%}
+#rangeModalBody .v350Tabla th:nth-child(6){width:18%}
+#rangeModalBody .v350Tabla th:nth-child(7){width:9%}
+#rangeModalBody .v350Tabla th:nth-child(8){width:10%}
+#rangeModalBody .v350Tabla th,#rangeModalBody .v350Tabla td{padding:11px 14px;vertical-align:middle}
+/* !important y max-width:none: ".twrap tbody td" fija max-width:0 con
+   overflow-wrap:anywhere y white-space:normal!important, y es lo que partía
+   "COLCHONES" en "COL-/CHO-/NES". */
+#rangeModalBody .v350Tabla td.v350Txt{white-space:nowrap!important;max-width:none!important;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal!important;hyphens:none!important}
+#rangeModalBody .v350Tabla td.v350Prod{max-width:none!important;line-height:1.35;hyphens:none!important;white-space:normal!important;overflow-wrap:normal!important}
+#rangeModalBody .v350Tabla td.v350Prod .muted{margin-top:3px}
+#rangeModalBody .v350Tabla td.v350Edad{max-width:none!important;white-space:normal!important}
+#rangeModalBody .v350Tabla td.num{white-space:nowrap!important;max-width:none!important}
+#rangeModalBody .v350Tabla .v79RangeChip{margin:2px 5px 2px 0;padding:4px 8px;font-size:9.5px}
+#rangeModalBody .v350Bar{margin-bottom:16px}
+#rangeModalBody .v350Bar .v118ModuleField{min-width:150px}
+#rangeModalBody .v350Bar .v118ModuleField:first-child{min-width:210px;flex:1}
+#rangeModalBody .v350Bar .v127FilterCount{margin-left:auto;align-self:center}
