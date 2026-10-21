@@ -2910,7 +2910,7 @@ window.normalizeEvacRows=function(st){return calc(st||((typeof S!=='undefined'&&
 window.rotationDetailedRows=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});return window.normalizeRotRows(st).map(function(x){var r=x.row||{};return Object.assign({},r,{c:x.c,p:x.p,entries:Object.entries(r.rangos||{}).filter(function(e){return n(e[1])>0&&rangeLow(e[0])>=91;}).sort(function(a,b){return rangeLow(b[0])-rangeLow(a[0]);}),u:x.u,age:x.age,val:x.val,sales3m:x.sales3m,dispCendis:n(r.dispCendis)});});};
 window.evacuationDetailedRows=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});return window.normalizeEvacRows(st).map(function(x){var r=x.row||{};return Object.assign({},r,{c:x.c,p:x.p,entries:Object.entries(r.rangos||{}).filter(function(e){return n(e[1])>0;}).sort(function(a,b){return rangeLow(b[0])-rangeLow(a[0]);}),u:x.u,v:x.v,cendis:x.cendis,sales3m:x.sales3m});});};
 window.upcomingRotationRows=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});var x=calc(st);return x.prox.map(function(r){var u=proxUnits(r),sl=x.sm[r.c]||{};return {c:r.c,p:r.p,units:u,stock:n(r.stock),share:n(r.stock)>0?u/n(r.stock)*100:0,value:n(r.stock)>0?n(r.valorInventario)*u/n(r.stock):0,cendis:n(r.dispCendis),salesUnits:n(sl.units),salesValue:n(sl.value),rangos:r.rangos,row:r};});};
-window.inventorySummary=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});var x=calc(st),rows=x.rows,rotCodes=x.se.rot,evCodes=x.se.ev;var rotRows=rows.filter(function(r){return rotCodes.has(r.c);}),evRows=rows.filter(function(r){return evCodes.has(r.c);});return {rows:rows,refs:rows.length,units:rows.reduce(function(a,r){return a+n(r.stock);},0),value:rows.reduce(function(a,r){return a+n(r.valorInventario);},0),critical:rows.filter(function(r){return Object.keys(r.rangos||{}).some(function(k){return rangeLow(k)>=360&&n(r.rangos[k])>0;});}).length,supported:rows.filter(function(r){return n(r.dispCendis)>0;}).length,healthy:x.healthy.length,prox:x.prox.length,aged:(x.aged||[]).length,rotation:x.rotRows.length,evacuation:x.evRows.length,healthyRows:x.healthy,proxRows:x.prox,agedRows:(x.aged||[]),rotationRows:rotRows,evacuationRows:evRows};};
+window.inventorySummary=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});var x=calc(st),rows=x.rows,rotCodes=x.se.rot,evCodes=x.se.ev;/* V86.365: estas dos listas se armaban cruzando el inventario contra los codigos CRUDOS de st.rot/st.evac, sin pasar por el filtro de obsequios que si aplica calc(). Resultado: la tarjeta "Rotacion pendiente" decia 277 (filtrado) y el badge de "Rotacion por antiguedad" justo debajo decia 285 (sin filtrar), en la MISMA pantalla. Mismo criterio que en calc(). */var rotRows=rows.filter(function(r){return rotCodes.has(r.c)&&!esObsequio350(r.c,r);}),evRows=rows.filter(function(r){return evCodes.has(r.c)&&!esObsequio350(r.c,r);});return {rows:rows,refs:rows.length,units:rows.reduce(function(a,r){return a+n(r.stock);},0),value:rows.reduce(function(a,r){return a+n(r.valorInventario);},0),critical:rows.filter(function(r){return Object.keys(r.rangos||{}).some(function(k){return rangeLow(k)>=360&&n(r.rangos[k])>0;});}).length,supported:rows.filter(function(r){return n(r.dispCendis)>0;}).length,healthy:x.healthy.length,prox:x.prox.length,aged:(x.aged||[]).length,rotation:x.rotRows.length,evacuation:x.evRows.length,healthyRows:x.healthy,proxRows:x.prox,agedRows:(x.aged||[]),rotationRows:rotRows,evacuationRows:evRows};};
 window.inventoryStateRows=function(st,name){var x=window.inventorySummary(st);if(name==='Rotación')return x.rotationRows.slice();if(name==='Evacuación')return x.evacuationRows.slice();if(name==='Próximo a rotar'||name==='Próximos a rotar')return x.proxRows.slice();if(name==='Sano'||name==='Sanos')return x.healthyRows.slice();if(name==='Vencidos'||name==='Con unidades vencidas')return (x.agedRows||[]).slice();return x.rows.slice();};
 window.recalcOperationalKpis=function(st){st=st||((typeof S!=='undefined'&&S&&S[CUR])||{});var x=calc(st),k=st.kpi||(st.kpi={});var rotU=x.rotRows.reduce(function(a,r){return a+n(r.u);},0),rotVal=x.rotRows.reduce(function(a,r){return a+n(r.val);},0),evU=x.evRows.reduce(function(a,r){return a+n(r.u);},0),evVal=x.evRows.reduce(function(a,r){return a+n(r.v);},0);Object.assign(k,{stockRefs:x.rows.length,rotN:x.rotRows.length,rotU:rotU,rotVal:rotVal,rotSin:x.rotRows.filter(function(r){return n(r.sales3m)<=0;}).length,evacN:x.evRows.length,evacU:evU,evacVal:evVal,evacSR:x.evRows.filter(function(r){return n(r.cendis)<=0;}).length});return k;};
 try{normalizeInventoryRows=window.normalizeInventoryRows;normalizeRotRows=window.normalizeRotRows;normalizeEvacRows=window.normalizeEvacRows;rotationDetailedRows=window.rotationDetailedRows;evacuationDetailedRows=window.evacuationDetailedRows;upcomingRotationRows=window.upcomingRotationRows;inventorySummary=window.inventorySummary;inventoryStateRows=window.inventoryStateRows;recalcOperationalKpis=window.recalcOperationalKpis;}catch(_){}
@@ -2981,7 +2981,7 @@ function transferStatus(r){var e=norm(r&&r.estatus);if(e.indexOf('ENTREG')>=0)re
 function pendingTransferRows(){return (Array.isArray(st().trDetalle)?st().trDetalle:[]).filter(function(r){return transferStatus(r)!=='Entregado'})}
 function openRange(title,sub,html){var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return false;if(tt)tt.textContent=title;if(ss)ss.textContent=sub||'';body.innerHTML=html;modal.classList.add('on');document.body.style.overflow='hidden';return true}
 function conditionSets(){var c=v127EnsureCache();if(c.sets)return c.sets;var store=st(),rot=new Set(),evac=new Set(),prox=new Set();(Array.isArray(store.rot)?store.rot:[]).forEach(function(r){rot.add(s(r&&r[0]))});(Array.isArray(store.evac)?store.evac:[]).forEach(function(r){evac.add(s(r&&r[0]))});try{(typeof upcomingRotationRows==='function'?upcomingRotationRows(store):[]).forEach(function(r){prox.add(s(r.c))})}catch(_){}c.sets={rot:rot,evac:evac,prox:prox};return c.sets}
-function conditionOf(code){var x=conditionSets();if(x.evac.has(code))return'Evacuación';if(x.rot.has(code))return'Rotación';if(x.prox.has(code))return'Próximos a rotar';return'Sanos'}
+function conditionOf(code){/* V86.365: el obsequio manda sobre las demas condiciones; si no, un obsequio aparecia como 'Rotacion' en la columna de condicion mientras las listas y las tarjetas ya lo excluian. */try{if(window.esObsequio86350&&window.esObsequio86350(code,{sub:(typeof prod==='function'?prod(code).sub:'')}))return'Obsequio'}catch(_){}var x=conditionSets();if(x.evac.has(code))return'Evacuación';if(x.rot.has(code))return'Rotación';if(x.prox.has(code))return'Próximos a rotar';return'Sanos'}
 
 /* 1. Advertencia de estados no reconocidos: conservarla solo si abre el detalle. */
 function unknownRows(){return rawInventory().filter(function(r){return n(r.stock)>0&&['A','O','T','N'].indexOf(norm(r.estadoAbastecimiento))<0})}
@@ -12102,10 +12102,19 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
 
   /* V86.348: fila extraida de html() para poder repintar SOLO el cuerpo de la
      tabla (actualizarListado) sin reconstruir toda la tarjeta -- ver nota ahi. */
+  /* El rango se ordena por su limite inferior: "360 - Mas" no es comparable
+     como cadena contra "061 - 090". */
+  function desde367(k){var m=String(k).match(/\d+/);return m?parseInt(m[0],10):-1;}
   function filaHtml(r){
     var k=clave(r);
-    var rangoTop='',rangoU=0;
-    Object.keys(r.rangos||{}).forEach(function(rk){var u=n(r.rangos[rk]);if(u>rangoU){rangoU=u;rangoTop=rk;}});
+    /* V86.367: la celda mostraba un unico rango -- el de mas unidades -- asi
+       que un producto con 1 u en "241 - 360" y 1 u en "360 - Mas" se leia como
+       si todo su stock fuera de 241 a 360. Ahora se listan todos los rangos
+       con unidades, del mas viejo al mas nuevo, que es el orden en que
+       importan. Con un solo rango (la gran mayoria) se ve igual que antes. */
+    var rangos367=Object.keys(r.rangos||{}).filter(function(rk){return n(r.rangos[rk])>0;})
+      .sort(function(a,b){return desde367(b)-desde367(a);});
+    var rangoU=rangos367.reduce(function(a,rk){return a+n(r.rangos[rk]);},0);
     /* V86.313: pedido en la reunion con Hainer -- avisar cuando un
        producto tiene presencia (CAN MIN o CAN SUM > 0) pero esta en
        rotacion y sin venta en 3 meses. El checkbox de esta misma fila ya
@@ -12132,7 +12141,9 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       '<td class="num">'+(r.disponible==null?'—':fint(r.disponible))+'</td>'+
       '<td class="num">'+(r.cendis>0?'<span class="tag cr">'+fint(r.cendis)+' u</span>':(r.cendis===0?'<span class="tag sr">0 u</span>':'—'))+'</td>'+
       '<td class="num">'+(r.oc>0?fint(r.oc):'—')+'</td>'+
-      '<td>'+(rangoU>0?'<b>'+fint(rangoU)+' u</b><div class="v255Mut">'+esc(rangoTop)+'</div>':'—')+'</td>'+
+      '<td>'+(rangos367.length?rangos367.map(function(rk){
+        return '<div class="v367Rango"><b>'+fint(n(r.rangos[rk]))+' u</b><span class="v255Mut">'+esc(rk)+'</span></div>';
+      }).join(''):'—')+'</td>'+
       '<td class="num">'+(r.ird>0?r.ird.toFixed(1):'—')+'</td>'+
       '<td class="num">'+(r.ventaU>0
           ? '<b>'+fint(r.ventaU)+' u</b><div class="v255Mut">'+money(r.ventaV)+'</div>'
@@ -14100,4 +14111,161 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(install,2100)},{once:true});
   else setTimeout(install,2100);
   window.addEventListener('llavero:bootstrapped',function(){setTimeout(install,2000)});
+})();
+
+
+/* ===== V86.365 · Las listas del resumen tambien excluyen obsequios =====
+   Sintoma: en la MISMA pantalla de Resumen de tienda, la tarjeta "Rotacion
+   pendiente" decia 277 y el badge de "Rotacion por antiguedad" justo debajo
+   decia 285 (Norte); en evacuacion, 172 contra 190. Pasaba en 21 de 22 tiendas:
+   +67 referencias en rotacion y +370 en evacuacion sobre el total de la RED.
+
+   Causa: inventorySummary devuelve DOS cosas distintas. Los contadores
+   (rotation/evacuation) salen de calc(), que si filtra obsequios desde V86.350,
+   pero las LISTAS (rotationRows/evacuationRows) se arman cruzando el inventario
+   contra los codigos crudos de st.rot/st.evac, sin pasar por ese filtro. De esas
+   listas comen inventoryStateRows, los badges "N productos", rangeChartHtml y
+   summaryProductList.
+
+   Por que un envoltorio y no un arreglo en la definicion: hay cinco definiciones
+   de inventorySummary (una aqui y cuatro en index.html, inyectadas en runtime) y
+   encima V86.xx las memoiza, asi que arreglar una sola no sirve -- se comprobo
+   midiendo: el parche en la de este archivo no cambio ni un numero. Esto envuelve
+   a la que acabe ganando y se reinstala si otra capa la pisa. */
+(function(){
+  if(window.__v365Obsequios)return;window.__v365Obsequios=true;
+  function esObs(c,row){
+    try{return typeof window.esObsequio86350==='function'?!!window.esObsequio86350(c,row):false}catch(_){return false}
+  }
+  function limpia(arr){
+    return Array.isArray(arr)?arr.filter(function(r){return !esObs(r&&r.c,(r&&r.row)||r)}):arr;
+  }
+  function envolver(){
+    var f=window.inventorySummary;
+    if(typeof f!=='function'||f.__v365)return false;
+    var g=function(){
+      var x=f.apply(this,arguments);
+      if(!x||typeof x!=='object')return x;
+      var y=Object.assign({},x);
+      /* Los obsequios salen de TODAS las clasificaciones operativas y pasan a la
+         suya. Si solo se quitaran de Rotacion y Evacuacion, las referencias que
+         hoy estan en esas listas no quedarian en ninguna parte y la suma de
+         clasificaciones dejaria de cerrar contra el inventario (26 referencias en
+         Norte: 8 de rotacion + 18 de evacuacion). El principio de que la suma
+         cierre y no desaparezca nada viene de V86.266, en calc(). */
+      y.rotationRows=limpia(x.rotationRows);
+      y.evacuationRows=limpia(x.evacuationRows);
+      y.healthyRows=limpia(x.healthyRows);
+      y.proxRows=limpia(x.proxRows);
+      y.agedRows=limpia(x.agedRows);
+      y.obsequioRows=Array.isArray(x.rows)?x.rows.filter(function(r){return esObs(r&&r.c,(r&&r.row)||r)}):[];
+      if(Array.isArray(y.rotationRows))y.rotation=y.rotationRows.length;
+      if(Array.isArray(y.evacuationRows))y.evacuation=y.evacuationRows.length;
+      if(Array.isArray(y.healthyRows))y.healthy=y.healthyRows.length;
+      if(Array.isArray(y.proxRows))y.prox=y.proxRows.length;
+      if(Array.isArray(y.agedRows))y.aged=y.agedRows.length;
+      y.obsequios=y.obsequioRows.length;
+      return y;
+    };
+    g.__v365=true;
+    window.inventorySummary=g;
+    try{inventorySummary=g}catch(_){}
+    return true;
+  }
+  /* Hay que envolver TAMBIEN inventoryStateRows, no solo inventorySummary: se
+     comprobo midiendo que la version activa de inventoryStateRows no llama a
+     window.inventorySummary sino a una referencia propia capturada (la memoizacion
+     de V86.xx la envuelve), asi que arreglar solo inventorySummary dejaba los
+     contadores bien y las listas igual de mal. Esta es la funcion de la que comen
+     los badges "N productos", rangeChartHtml y summaryProductList. */
+  function envolverRows(){
+    var f=window.inventoryStateRows;
+    if(typeof f!=='function'||f.__v365)return false;
+    var g=function(st,name){
+      /* "Obsequio" es una clasificacion nueva: la funcion original no la conoce y
+         devolveria el inventario entero, asi que se resuelve aqui antes de llamarla. */
+      if(name==='Obsequio'||name==='Obsequios'){
+        var x=window.inventorySummary(st);
+        return ((x&&x.obsequioRows)||[]).slice();
+      }
+      var out=f.apply(this,arguments);
+      return ['Rotación','Evacuación','Sano','Sanos','Próximo a rotar','Próximos a rotar','Vencidos','Con unidades vencidas'].indexOf(name)>=0?limpia(out):out;
+    };
+    g.__v365=true;
+    window.inventoryStateRows=g;
+    try{inventoryStateRows=g}catch(_){}
+    return true;
+  }
+  function envolverTodo(){var a=envolver(),b=envolverRows();return a||b}
+  envolverTodo();
+  /* Las capas de index.html se inyectan despues que este archivo, asi que hay que
+     volver a envolver cuando alguna reemplace las funciones. Se vigila un rato y
+     luego se deja de mirar: pasado el arranque ya nadie las cambia. */
+  var n=0,t=setInterval(function(){envolverTodo();if(++n>40)clearInterval(t)},250);
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(envolverTodo,0);setTimeout(envolverTodo,800)});
+  console.info('LLAVERO V86.365 · listas del resumen sin obsequios');
+})();
+
+/* ===== V86.366 · Los obsequios salen de rot/evac en el propio dato =====
+   El JSON trae los obsequios DENTRO de st.rot y st.evac; el legacy los
+   descartaba solo al pintar (normalizeRotRows/normalizeEvacRows). Por eso las
+   tarjetas del resumen de tienda, que leen esas listas crudas
+   (buildStoreDailySummary, v170ProductDiff, los consolidados por producto),
+   seguian contandolos y no cuadraban con los modulos de Rotacion y Evacuacion.
+   Aqui se limpian las listas una sola vez, en el dato: el bloque kpi del JSON
+   ya venia sin obsequios, asi que esto alinea todo en lugar de cambiarlo. */
+(function(){
+  if(window.__v366Crudos)return;window.__v366Crudos=true;
+  function esObs(c){
+    try{return typeof window.esObsequio86350==='function'?!!window.esObsequio86350(c,null):false}
+    catch(_){return false}
+  }
+  function limpiar(st){
+    if(!st||typeof st!=='object'||st.__v366)return 0;
+    var quitadas=0;
+    ['rot','evac'].forEach(function(k){
+      var a=st[k];if(!Array.isArray(a)||!a.length||!Array.isArray(a[0]))return;
+      var b=a.filter(function(r){return !esObs(r&&r[0])});
+      if(b.length!==a.length){quitadas+=a.length-b.length;st[k]=b}
+    });
+    try{Object.defineProperty(st,'__v366',{value:true,enumerable:false,configurable:true})}catch(_){st.__v366=true}
+    return quitadas;
+  }
+  /* Barrido acotado: S, DB y el historico guardan las mismas tiendas en sitios
+     distintos (S[codigo], hist.details[].stores[], hist.daily[].stores[]), y
+     recorrerlos por nombre se rompe en cuanto alguien agrega otro cache. */
+  function barrer(raiz,prof,vistos){
+    if(!raiz||typeof raiz!=='object'||prof>6)return 0;
+    if(vistos.has(raiz))return 0;
+    vistos.add(raiz);
+    var n=limpiar(raiz);
+    if(Array.isArray(raiz)){
+      for(var i=0;i<raiz.length&&i<400;i++)n+=barrer(raiz[i],prof+1,vistos);
+      return n;
+    }
+    Object.keys(raiz).forEach(function(k){
+      if(k==='inventario'||k==='ventas'||k==='trDetalle'||k==='__v366')return;
+      n+=barrer(raiz[k],prof+1,vistos);
+    });
+    return n;
+  }
+  function pasada(){
+    if(typeof window.esObsequio86350!=='function')return false;
+    var vistos=new WeakSet(),n=0;
+    /* S y DB se declaran con let en index.html: son globales de script, no
+       propiedades de window, asi que hay que nombrarlas directamente. */
+    [function(){return S},function(){return DB},function(){return window.S},
+     function(){return window.DB},function(){return HIST},function(){return window.HIST}]
+    .forEach(function(f){var r=null;try{r=f()}catch(_){}
+      if(r){try{n+=barrer(r,0,vistos)}catch(_){}}});
+    if(n)console.info('LLAVERO V86.366 · '+n+' filas de obsequio fuera de rot/evac');
+    return true;
+  }
+  function reintentar(){
+    var i=0,t=setInterval(function(){if(pasada()||++i>40)clearInterval(t)},250);
+    pasada();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',reintentar,{once:true});
+  else reintentar();
+  window.addEventListener('llavero:bootstrapped',function(){setTimeout(pasada,0);setTimeout(pasada,900)});
 })();

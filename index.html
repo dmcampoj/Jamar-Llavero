@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAVCAMAAACeyVWkAAAAJGVYSWZJSSoACAAAAAEAPAECAAkAAAAaAAAAAAAAAGltYWdlcnk0AAAnPYy6AAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAABdUExURaoKIKsKI6oKIZwSKqcMJagMIq4IJaoLJKoKKakMI6oKH6oLI6oKJaQNJakJLKoLJKgLJagLIqMOKKoLI6sKJqEPKasLIqIPJawKJaoKIqsKJZsTKqgMJa4JJUdwTP3NasUAAAAfdFJOU///+jtS///x/weF8ZL/eWqwVBLt2BpAKKWB4CDCwQCdTiltAAAAh0lEQVQY073RSQ7DIAwFUJsEl1BSWsjYgfsfs7bUiCTyun+Fniz8JUOpmVfv/TryC3baGgC4NCd9iF7/qVbpgIhaM9RmrVVV+SECEOX5pEH0+TpqM4Dt+3fatL1xwoCiofy0u/MW5xy3xTxVRQBBIgrdQVHULGPZqcTkT0ylalwCXyxOaavzBdpII9OfwsDmAAAAAElFTkSuQmCC">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- LLAVERO_BUILD_V69_2026-07-30 -->
-<link rel="stylesheet" href="assets/app.css?v=86359">
+<link rel="stylesheet" href="assets/app.css?v=86367">
 <!-- LLAVERO_V86_20_VIEWS_CSS_START -->
 <style>
 /* ==== Dashboard Directores (vista general de surtido) · módulo del líder ====
@@ -9090,7 +9090,7 @@ window.__LLAVERO_BOOTSTRAPPED__=true;window.__LLAVERO_STABLE_RENDER__=true;windo
   }).catch(function(error){fail('No fue posible cargar los datos externos (data/llavero.json.gz / data/historial.json.gz). '+(error&&error.message?error.message:''),error);});
 })();
 </script>
-<script src="assets/app.js?v=86361"></script>
+<script src="assets/app.js?v=86372"></script>
 
 <!-- LLAVERO_V86_20_VIEWS_JS_START -->
 
@@ -9210,7 +9210,7 @@ function pinfo(code){try{return typeof productInfo==='function'?productInfo(code
 function age6090(ranges){var total=0;Object.entries(ranges||{}).forEach(function(e){var label=t(e[0]).toUpperCase();if(label.indexOf('061')===0||label.indexOf('61')===0)total+=n(e[1]);});return total;}
 function stateSets(st){var rot=new Set(),evac=new Set();(Array.isArray(st&&st.rot)?st.rot:[]).forEach(function(r){var x=c(r&&r[0]);if(x)rot.add(x);});(Array.isArray(st&&st.evac)?st.evac:[]).forEach(function(r){var x=c(r&&r[0]);if(x&&(n(r&&r[1])>0||n(r&&r[2])>0))evac.add(x);});return {rot:rot,evac:evac};}
 function rawInvMap(st){var m={};(Array.isArray(st&&st.inventario)?st.inventario:[]).forEach(function(r){var x=c(r&&r.codigo);if(x)m[x]=r;});return m;}
-function conditionFor(st,code,row,sets){sets=sets||stateSets(st);code=c(code);if(sets.evac.has(code))return 'Evacuación';if(sets.rot.has(code))return 'Rotación';var rr=(row&&row.rangos)||{};if(age6090(rr)>0)return 'Próximo a rotar';return 'Sano';}
+function conditionFor(st,code,row,sets){sets=sets||stateSets(st);code=c(code);/* V86.365: ver nota en conditionOf (app.js). El obsequio es su propia clasificacion. */try{if(window.esObsequio86350&&window.esObsequio86350(code,row))return 'Obsequio'}catch(_){}if(sets.evac.has(code))return 'Evacuación';if(sets.rot.has(code))return 'Rotación';var rr=(row&&row.rangos)||{};if(age6090(rr)>0)return 'Próximo a rotar';return 'Sano';}
 
 var prevInv=window.normalizeInventoryRows;
 if(typeof prevInv==='function'&&!prevInv.__v86121){

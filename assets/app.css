@@ -7534,3 +7534,9 @@ body[data-v8620-view="dashboard"] .v8657TrendSvg{
 #rangeModalBody .v350Bar .v118ModuleField{min-width:150px}
 #rangeModalBody .v350Bar .v118ModuleField:first-child{min-width:210px;flex:1}
 #rangeModalBody .v350Bar .v127FilterCount{margin-left:auto;align-self:center}
+
+/* V86.367: un renglon por rango de antiguedad en la celda de la tabla de
+   inventario; con un solo rango se ve igual que antes. */
+.v367Rango{display:flex;align-items:baseline;gap:6px;white-space:nowrap;line-height:1.35}
+.v367Rango+.v367Rango{margin-top:2px}
+.v367Rango .v255Mut{font-size:.86em}
