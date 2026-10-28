@@ -10745,13 +10745,24 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
 
   /* ---------------- entrada en el menú ---------------- */
   function nav(){
-    /* V86.343: a pedido del usuario, la sección "DESARROLLO" deja de
-       mostrarse en el menú lateral, tanto para quien entra como líder de
-       área como para quien entra con el usuario DEV. El panel sigue
-       disponible para quien lo necesite (ver abrir()); solo se retira la
-       entrada del menú. */
-    var v=document.getElementById('navDev');if(v)v.remove();
+    /* V86.344 (2026-10-28): vuelve la entrada del menu, SOLO para el rol dev.
+       En V86.343 se retiro entera, pero fue un malentendido: lo que el usuario habia
+       pedido quitar era el rotulo "DESARROLLO" que encabezaba la seccion, no el acceso
+       al modulo. De ahi que vuelva el enlace y NO vuelva el separador; se sigue
+       retirando navDevSep por si quedo pintado por una version anterior.
+       El filtro por rol es el mismo que tenia antes de V86.343: esDev(). Un lider de
+       area no ve esta entrada. */
     var sp=document.getElementById('navDevSep');if(sp)sp.remove();
+    if(!esDev()){
+      var v=document.getElementById('navDev');if(v)v.remove();
+      return;
+    }
+    if(document.getElementById('navDev'))return;
+    var menu=document.querySelector('.nav');if(!menu)return;
+    var a=document.createElement('a');
+    a.id='navDev';a.href='#';a.innerHTML='<span class="ic">⚙</span> Desarrollador';
+    a.onclick=function(e){e.preventDefault();abrir()};
+    menu.appendChild(a);
   }
 
   /* ---------------- panel ----------------
