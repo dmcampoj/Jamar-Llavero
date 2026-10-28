@@ -7450,7 +7450,7 @@ setTimeout(function(){mark80();enhance80();},80);
     var head=modal.querySelector('.modalHead,.v80ModalHead');
     if(!head)return;
     var old=head.querySelector('.hierBackV862');
-    if(old)old.hidden=true;
+    if(old&&!old.hidden)old.hidden=true;
     var btn=head.querySelector('.hierBackV8610'),needed=!!frameForChild8610(modal);
     if(needed&&!btn){
       btn=document.createElement('button');
@@ -7461,19 +7461,30 @@ setTimeout(function(){mark80();enhance80();},80);
       btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();back8610();},true);
       head.insertBefore(btn,head.firstChild);
     }
-    if(btn)btn.hidden=!needed;
+    if(btn&&btn.hidden!==!needed)btn.hidden=!needed;
   }
   function sync8610(){
     document.querySelectorAll(SELECTOR8610).forEach(ensureBack8610);
     var product=document.getElementById('inventoryProductModal'),foot=product&&footer8610(product),frame=frameForChild8610(product);
     if(foot){
       var b=foot.querySelector('button');
+      /* V86.344 (2026-10-28): escribir solo cuando el valor cambia.
+         Escribir un atributo genera un registro de mutacion AUNQUE el valor nuevo sea
+         identico al viejo: classList.add/remove no comprueban el estado previo, y el
+         setter de hidden tampoco. Como observer8610 vigila todo el documento filtrando
+         por 'class', el classList.remove de abajo se despertaba a si mismo unas 41 veces
+         por segundo, para siempre. classList.toggle(nombre, booleano) si compara antes
+         de escribir, y por eso no realimenta. */
       if(frame){
-        foot.hidden=false;
-        if(b){b.textContent='← Volver';b.classList.add('v8610FooterBack');b.onclick=function(ev){ev.preventDefault();ev.stopPropagation();back8610();};}
+        if(foot.hidden)foot.hidden=false;
+        if(b){
+          if(b.textContent!=='← Volver')b.textContent='← Volver';
+          b.classList.toggle('v8610FooterBack',true);
+          b.onclick=function(ev){ev.preventDefault();ev.stopPropagation();back8610();};
+        }
       }else{
-        foot.hidden=true;
-        if(b)b.classList.remove('v8610FooterBack');
+        if(!foot.hidden)foot.hidden=true;
+        if(b)b.classList.toggle('v8610FooterBack',false);
       }
     }
   }
@@ -7589,6 +7600,9 @@ setTimeout(function(){mark80();enhance80();},80);
     clearTimeout(observer8610._t);
     observer8610._t=setTimeout(function(){finalize8610();sync8610();},20);
   });
+  /* OJO: este observador vigila el documento entero y su callback escribe en el DOM.
+     Antes de anadir un atributo a attributeFilter, comprobar que sync8610 no lo escriba:
+     si lo escribe, se reabre el bucle de realimentacion que se cerro en V86.344. */
   observer8610.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
 
   function resetOnMainNavigation8610(){
