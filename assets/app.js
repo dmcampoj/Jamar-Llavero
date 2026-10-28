@@ -10818,7 +10818,9 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     });
     /* el encabezado saluda al líder aunque quien esté sea el desarrollador */
     var t=document.getElementById('heroTitle');
-    if(t&&t.textContent.indexOf('Desarrollador')<0)t.textContent='Vista de desarrollador ⚙';
+    /* V86.345: comparaba con 'Desarrollador' pero escribe 'desarrollador', asi que la
+       condicion no se cumplia nunca y reescribia el titulo en cada ciclo. */
+    if(t&&t.textContent!=='Vista de desarrollador ⚙')t.textContent='Vista de desarrollador ⚙';
     var sub=document.getElementById('heroSub');
     if(sub&&sub.textContent.indexOf('Todos los permisos')<0)
       sub.innerHTML='Todos los permisos · alcance <b>'+esc(cur()==='__ALL__'?'todas las tiendas':cur())+'</b>';
@@ -11398,6 +11400,12 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
    de pelearse con él, y luego se corrige lo que falta. */
 (function(){
   var TODAS='__ALL__';
+  /* V86.345 (2026-10-28): el saludo del encabezado. Vive aqui, con el resto de
+     rotulos que esta capa corrige, porque el problema no es que el saludo lea mal
+     el rol: IS_LEADER es verdadero de verdad para un dev, y lo es a proposito (ver
+     el comentario de arriba). El saludo pregunta que permisos tienes cuando deberia
+     preguntar quien eres, y por eso se corrige aqui y no tocando la bandera. */
+  var SALUDO='Hola, desarrollador 👋';
   function s(v){return v==null?'':String(v).trim()}
   function auth(){try{return (typeof AUTH!=='undefined'&&AUTH)?AUTH:null}catch(_){return null}}
   function esDev(){var a=auth();return !!(a&&s(a.role)==='dev')}
@@ -11425,6 +11433,13 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       var side=document.getElementById('sideRoleText');
       var etq='Perfil: Desarrollador'+(IS_ADMIN?' · administrando '+cur():' · todas las tiendas');
       if(side&&side.textContent!==etq)side.textContent=etq;
+      /* El tercer rotulo, que faltaba. Se cede si el panel de desarrollador esta
+         abierto: alli manda su propio encabezado ('Vista de desarrollador'), y si
+         los dos escribieran se pelearian a cada ciclo. */
+      if(!document.querySelector('.v250Wrap')){
+        var ttl=document.getElementById('heroTitle');
+        if(ttl&&ttl.textContent!==SALUDO)ttl.textContent=SALUDO;
+      }
     }catch(e){console.error('V86.253 rol dev',e)}
   }
 
@@ -11441,14 +11456,40 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     try{applyRoleUI=w}catch(_){}
   }
 
+  /* El saludo se repinta en cada refresh, y un repintado no cambia ninguna bandera,
+     asi que el tick de 700 ms no se enteraria: el saludo volveria a estar mal hasta el
+     siguiente cambio de alcance. Por eso se envuelve tambien refresh (que index.html
+     publica como window.refresh) y se corrige en el acto, sin parpadeo. */
+  function envolverRefresh(){
+    var f=window.refresh;
+    if(typeof f!=='function'||f.__v345)return;
+    var w=function(){
+      var r=f.apply(this,arguments);
+      try{ajustar()}catch(_){}
+      return r;
+    };
+    w.__v345=true;
+    window.refresh=w;
+    try{refresh=w}catch(_){}
+  }
+
+  /* Red de seguridad por si algo repinta el encabezado sin pasar por refresh. */
+  function saludoDesfasado(){
+    if(document.querySelector('.v250Wrap'))return false;
+    var t=document.getElementById('heroTitle');
+    return !!t&&t.textContent!==SALUDO;
+  }
+
   function tick(){
     envolver();
+    envolverRefresh();
     /* IS_ADMIN depende del alcance, y el alcance cambia sin pasar por
        applyRoleUI (el selector de tienda, el filtro geográfico, V86.225). */
-    if(esDev()&&(IS_ADMIN!==unaTienda()||!IS_LEADER))ajustar();
+    if(esDev()&&(IS_ADMIN!==unaTienda()||!IS_LEADER||saludoDesfasado()))ajustar();
   }
   function install(){
     envolver();
+    envolverRefresh();
     /* Al recargar la página, AUTH viene de sessionStorage y las banderas se
        calculan antes de que exista este parche: hay que rehacerlas una vez. */
     if(esDev()){
