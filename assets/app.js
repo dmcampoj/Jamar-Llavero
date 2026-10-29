@@ -14369,8 +14369,8 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
      de Rotación y de Evacuación, y lo que decide qué productos pertenecen a
      cada tienda es el módulo del detalle, no la vista de fondo. */
   function norm(v){var t=s(v);try{t=t.normalize('NFD').replace(/[̀-ͯ]/g,'')}catch(_){}return t.toUpperCase()}
-  function modulo(modal){
-    var t=norm((modal.querySelector('#rangeModalTitle,#v80ModalTitle,h3,h4')||{}).textContent);
+  function modulo(raiz){
+    var t=norm((raiz.querySelector('#rangeModalTitle,#v80ModalTitle,h3,h4')||{}).textContent);
     if(t.indexOf('EVACUACION')>=0)return 'evac';
     if(t.indexOf('PROXIM')>=0)return 'prox';
     if(t.indexOf('ROTACION')>=0)return 'rot';
@@ -14404,11 +14404,11 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var m=s(c.textContent).match(/[A-Za-z0-9._-]+/);
     return m?m[0]:'';
   }
-  function codigosDelDetalle(modal){
-    var tbody=modal.querySelector('table tbody');
+  function codigosDelDetalle(raiz){
+    var tbody=raiz.querySelector('table tbody');
     if(!tbody)return null;
     var trs=Array.prototype.slice.call(tbody.querySelectorAll('tr'));
-    var crudas=Array.isArray(modal.__v296Filas)&&modal.__v296Filas.length===trs.length?modal.__v296Filas:null;
+    var crudas=Array.isArray(raiz.__v296Filas)&&raiz.__v296Filas.length===trs.length?raiz.__v296Filas:null;
     var out={};
     trs.forEach(function(tr,i){
       if(!visible(tr))return;
@@ -14444,10 +14444,10 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       return va!==vb?va-vb:String(a).localeCompare(String(b),'es');
     });
   }
-  function construir(modal){
+  function construir(raiz){
     var codes=alcance();
     if(!codes)return null;
-    var mod=modulo(modal),permitidos=codigosDelDetalle(modal);
+    var mod=modulo(raiz),permitidos=codigosDelDetalle(raiz);
     var filas=[],rangos={};
     codes.forEach(function(sc){
       var st=(typeof S!=='undefined'&&S)?S[sc]:null;
@@ -14526,24 +14526,46 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       document.head.appendChild(sc);
     });
   }
-  var ETIQUETA={rot:'Rotación',evac:'Evacuación',prox:'Próximos a rotar',inv:'Inventario'};
+  var ETIQUETA={rot:'Rotacion',evac:'Evacuacion',prox:'Proximos a rotar',inv:'Inventario'};
+  /* El nombre va SIN tildes ni ñ y solo con caracteres seguros. El exportador
+     anterior los dejaba pasar y el archivo llegaba a Windows sin reconocerse
+     como Excel; el contenido era correcto, el nombre no. Se transcriben los
+     acentos en vez de borrarlos para no partir palabras. */
+  function ascii(v){
+    var t=s(v);
+    try{t=t.normalize('NFD').replace(/[̀-ͯ]/g,'')}catch(_){}
+    return t.replace(/ñ/g,'n').replace(/Ñ/g,'N').replace(/[^A-Za-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  }
   function nombreArchivo(raiz){
-    var t=s((raiz.querySelector('#rangeModalTitle,#v80ModalTitle,h3,h4')||{}).textContent)
-      .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g,'').trim().slice(0,50).replace(/\s+/g,'_')
-      ||s(ETIQUETA[modulo(raiz)]).replace(/\s+/g,'_')||'Detalle';
+    var t=ascii((raiz.querySelector('#rangeModalTitle,#v80ModalTitle,h3,h4')||{}).textContent)
+      .slice(0,50).trim().replace(/\s+/g,'_')
+      ||ascii(ETIQUETA[modulo(raiz)]).replace(/\s+/g,'_')||'Detalle';
     var fecha='';
-    try{fecha=s((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'')}catch(_){}
+    try{fecha=ascii((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'').replace(/\s+/g,'-')}catch(_){}
     return 'Llavero_'+t+'_por_tienda'+(fecha?'_'+fecha:'')+'.xlsx';
   }
-  function exportar(modal){
+  /* No se usa XLSX.writeFile: entrega el blob como application/octet-stream,
+     que es lo que hace que Windows lo reciba como un archivo cualquiera en vez
+     de como un libro de Excel. Se escribe el mismo contenido declarando el
+     tipo MIME propio de .xlsx. */
+  var MIME_XLSX='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  function descargar(XLSX,wb,nombre){
+    var datos=XLSX.write(wb,{bookType:'xlsx',type:'array',compression:true});
+    var blob=new Blob([datos],{type:MIME_XLSX});
+    var url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=nombre;a.rel='noopener';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url)},1500);
+  }
+  function exportar(raiz){
     var hoja;
-    try{hoja=construir(modal)}catch(e){console.error('V86.346',e);hoja=null}
+    try{hoja=construir(raiz)}catch(e){console.error('V86.346',e);hoja=null}
     if(!hoja)return false;
     cargarXLSX().then(function(XLSX){
       var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(hoja.filas);
       ws['!cols']=hoja.anchos;
       XLSX.utils.book_append_sheet(wb,ws,'Por tienda');
-      XLSX.writeFile(wb,nombreArchivo(modal));
+      descargar(XLSX,wb,nombreArchivo(raiz));
       if(typeof toast==='function')toast(hoja.nFilas.toLocaleString('es-CO')+' filas de '+hoja.nTiendas+' tiendas exportadas','ok');
     }).catch(function(e){
       console.error('V86.346',e);
