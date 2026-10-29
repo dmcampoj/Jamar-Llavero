@@ -14418,6 +14418,21 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     return Object.keys(out).length?out:null;
   }
 
+  /* CORE / Complemento no viene en la fila de inventario: es un atributo del
+     producto (P[codigo].cc). Varias vistas ya lo traen resuelto en r.cc, y el
+     proyecto expone ademas un ayudante global cc(); se consultan en ese orden
+     y, si ninguno responde, se dice "SIN CLASIFICACIÓN" en vez de inventarlo. */
+  function coreComplemento(m,raw,p,cod){
+    var x='';
+    [m&&m.cc,raw&&raw.cc,p&&p.cc].some(function(v){if(v){x=v;return true}return false});
+    if(!x){try{if(typeof P!=='undefined'&&P&&P[cod])x=P[cod].cc||''}catch(_){}}
+    if(!x){try{if(typeof cc==='function')x=cc(cod)||''}catch(_){}}
+    x=norm(x);
+    if(x.indexOf('CORE')>=0)return 'CORE';
+    if(x.indexOf('COMPLEMENT')>=0)return 'COMPLEMENTO';
+    return 'SIN CLASIFICACIÓN';
+  }
+
   /* ---------- construcción del reporte ---------- */
   function rangosOrdenados(claves){
     /* Se ordena por el primer número de la etiqueta ("091 - 120" antes que
@@ -14448,6 +14463,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
         if(permitidos&&!permitidos[cod])return;
         var raw=porCodigo[cod]||m,p=m.p||raw.p||{};
         var d={};
+        var clasif=coreComplemento(m,raw,p,cod);
         try{if(typeof window.v297Discount==='function')d=window.v297Discount(sc,cod)||{}}catch(_){}
         var r=(raw.rangos&&typeof raw.rangos==='object')?raw.rangos:{};
         Object.keys(r).forEach(function(k){if(n(r[k])>0)rangos[k]=true});
@@ -14456,6 +14472,10 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
           nombreTienda:s(st.name||sc),
           codigo:cod,
           producto:s(p.n||raw.producto||cod),
+          categoria:s(p.cat||raw.categoria),
+          linea:s(p.lin||raw.linea),
+          sublinea:s(p.sub||raw.sublinea),
+          clasificacion:clasif,
           rangos:r,
           unidades:n(raw.stock!=null?raw.stock:m.stock),
           cendis:n(raw.dispCendis!=null?raw.dispCendis:m.cendis),
@@ -14472,17 +14492,17 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     });
     if(!filas.length)return null;
     var cols=rangosOrdenados(Object.keys(rangos));
-    var header=['Código tienda','Tienda','Código producto','Producto']
+    var header=['Código tienda','Tienda','Código producto','Producto','Categoría','Línea','Sublínea','CORE / Complemento']
       .concat(cols.map(function(k){return 'Uds. '+k;}))
       .concat(['Unidades totales','Disponibilidad CENDIS','Órdenes de compra','Unidades en OC','Fecha recibido OC',
                'Descuento oferta','Descuento muestra','Descuento sugerido','Precio lista','Precio oferta']);
     var aoa=[header].concat(filas.map(function(f){
-      return [f.tienda,f.nombreTienda,f.codigo,f.producto]
+      return [f.tienda,f.nombreTienda,f.codigo,f.producto,f.categoria,f.linea,f.sublinea,f.clasificacion]
         .concat(cols.map(function(k){return n(f.rangos[k])}))
         .concat([f.unidades,f.cendis,f.ordenes,f.unidadesOC,f.fechaOC,
                  f.oferta,f.muestra,f.sugerido,f.precioLista,f.precioOferta]);
     }));
-    var anchos=[{wch:12},{wch:22},{wch:14},{wch:44}]
+    var anchos=[{wch:12},{wch:22},{wch:14},{wch:44},{wch:20},{wch:20},{wch:20},{wch:18}]
       .concat(cols.map(function(){return {wch:11}}))
       .concat([{wch:14},{wch:18},{wch:16},{wch:13},{wch:16},{wch:15},{wch:16},{wch:16},{wch:14},{wch:14}]);
     return {filas:aoa,anchos:anchos,nTiendas:codes.length,nFilas:filas.length};
