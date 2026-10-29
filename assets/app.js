@@ -14433,6 +14433,62 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     return 'SIN CLASIFICACIÓN';
   }
 
+  /* ---------- el filtro con el que se abrio el detalle ----------
+     Al entrar por la grafica el titulo lleva el rango y, si se pidio, la
+     clasificacion: "Rotacion - +360 - CORE". El Excel tiene que respetarlo,
+     no exportar todos los rangos del producto.
+
+     Las etiquetas de la grafica NO coinciden literalmente con las claves del
+     cargue ("211-240" frente a "210 - 240", "+360" frente a "360 - Mas"), asi
+     que se emparejan por intervalo. Se usa un punto representativo de cada
+     clave -- su punto medio, o el limite inferior mas uno cuando es abierta --
+     para que "360 - Mas" caiga en "+360" y no tambien en "241-360", que
+     comparten el 360 como extremo. */
+  function limites(txt){
+    var t=norm(txt).replace(/[–—]/g,'-');
+    var m=t.match(/(\d+)\s*-\s*(\d+)/);
+    if(m)return [parseInt(m[1],10),parseInt(m[2],10)];
+    m=t.match(/(\d+)\s*-\s*M[AÁ]S/);
+    if(m)return [parseInt(m[1],10),Infinity];
+    m=t.match(/^\+\s*(\d+)$/);
+    if(m)return [parseInt(m[1],10),Infinity];
+    return null;
+  }
+  function representante(clave){
+    var l=limites(clave);
+    if(!l)return null;
+    return l[1]===Infinity?l[0]+1:(l[0]+l[1])/2;
+  }
+  function enRango(clave,lim){
+    if(!lim)return true;
+    var rep=representante(clave);
+    if(rep==null)return false;   /* "SIN DEFINIR" no pertenece a ningun rango */
+    return rep>=lim[0]&&rep<=lim[1];
+  }
+  function filtroDelDetalle(raiz){
+    var out={rango:null,cc:null};
+    var titulo=s((raiz.querySelector('#rangeModalTitle,#v80ModalTitle,h3,h4')||{}).textContent);
+    titulo.split('·').forEach(function(parte){
+      var t=norm(parte).trim();
+      if(t==='CORE'){out.cc='CORE';return}
+      if(t.indexOf('COMPLEMENT')===0){out.cc='COMPLEMENTO';return}
+      if(!out.rango){var l=limites(parte);if(l)out.rango=l}
+    });
+    /* Si el detalle trae su propia barra de filtros, manda lo que el usuario
+       tenga puesto ahi sobre lo que diga el titulo. */
+    var bar=raiz.querySelector('.v118UnifiedFilters');
+    if(bar){
+      var ea=bar.querySelector('[data-v118-df="age"]'),ec=bar.querySelector('[data-v118-df="cc"]');
+      if(ea&&ea.value){var l2=limites(ea.value);if(l2)out.rango=l2}
+      if(ec&&ec.value){
+        var c2=norm(ec.value);
+        if(c2.indexOf('CORE')>=0)out.cc='CORE';
+        else if(c2.indexOf('COMPLEMENT')>=0)out.cc='COMPLEMENTO';
+      }
+    }
+    return out;
+  }
+
   /* ---------- construcción del reporte ---------- */
   function rangosOrdenados(claves){
     /* Se ordena por el primer número de la etiqueta ("091 - 120" antes que
@@ -14447,7 +14503,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   function construir(raiz){
     var codes=alcance();
     if(!codes)return null;
-    var mod=modulo(raiz),permitidos=codigosDelDetalle(raiz);
+    var mod=modulo(raiz),permitidos=codigosDelDetalle(raiz),filtro=filtroDelDetalle(raiz);
     var filas=[],rangos={};
     codes.forEach(function(sc){
       var st=(typeof S!=='undefined'&&S)?S[sc]:null;
@@ -14465,8 +14521,16 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
         var d={};
         var clasif=coreComplemento(m,raw,p,cod);
         try{if(typeof window.v297Discount==='function')d=window.v297Discount(sc,cod)||{}}catch(_){}
+        if(filtro.cc&&clasif!==filtro.cc)return;
         var r=(raw.rangos&&typeof raw.rangos==='object')?raw.rangos:{};
-        Object.keys(r).forEach(function(k){if(n(r[k])>0)rangos[k]=true});
+        var enFiltro=0;
+        Object.keys(r).forEach(function(k){
+          if(n(r[k])<=0||!enRango(k,filtro.rango))return;
+          rangos[k]=true;enFiltro+=n(r[k]);
+        });
+        /* Con un rango elegido, la tienda que no tenga unidades en ese rango
+           no sale: el zonal pidio ver solo lo que cae dentro del filtro. */
+        if(filtro.rango&&enFiltro<=0)return;
         filas.push({
           tienda:sc,
           nombreTienda:s(st.name||sc),
@@ -14477,6 +14541,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
           sublinea:s(p.sub||raw.sublinea),
           clasificacion:clasif,
           rangos:r,
+          unidadesRango:enFiltro,
           unidades:n(raw.stock!=null?raw.stock:m.stock),
           cendis:n(raw.dispCendis!=null?raw.dispCendis:m.cendis),
           ordenes:n(raw.ordenesCompra),
@@ -14494,18 +14559,21 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var cols=rangosOrdenados(Object.keys(rangos));
     var header=['Código tienda','Tienda','Código producto','Producto','Categoría','Línea','Sublínea','CORE / Complemento']
       .concat(cols.map(function(k){return 'Uds. '+k;}))
+      .concat(filtro.rango?['Unidades en el rango']:[])
       .concat(['Unidades totales','Disponibilidad CENDIS','Órdenes de compra','Unidades en OC','Fecha recibido OC',
                'Descuento oferta','Descuento muestra','Descuento sugerido','Precio lista','Precio oferta']);
     var aoa=[header].concat(filas.map(function(f){
       return [f.tienda,f.nombreTienda,f.codigo,f.producto,f.categoria,f.linea,f.sublinea,f.clasificacion]
         .concat(cols.map(function(k){return n(f.rangos[k])}))
+        .concat(filtro.rango?[f.unidadesRango]:[])
         .concat([f.unidades,f.cendis,f.ordenes,f.unidadesOC,f.fechaOC,
                  f.oferta,f.muestra,f.sugerido,f.precioLista,f.precioOferta]);
     }));
     var anchos=[{wch:12},{wch:22},{wch:14},{wch:44},{wch:20},{wch:20},{wch:20},{wch:18}]
       .concat(cols.map(function(){return {wch:11}}))
+      .concat(filtro.rango?[{wch:18}]:[])
       .concat([{wch:14},{wch:18},{wch:16},{wch:13},{wch:16},{wch:15},{wch:16},{wch:16},{wch:14},{wch:14}]);
-    return {filas:aoa,anchos:anchos,nTiendas:codes.length,nFilas:filas.length};
+    return {filas:aoa,anchos:anchos,nTiendas:codes.length,nFilas:filas.length,filtro:filtro};
   }
 
   /* ---------- salida ---------- */
