@@ -14321,3 +14321,381 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
   else reintentar();
   window.addEventListener('llavero:bootstrapped',function(){setTimeout(pasada,0);setTimeout(pasada,900)});
 })();
+
+
+/* ===== V86.346 · Excel por tienda cuando el alcance es multitienda =====
+
+   Pedido (zonal): ver qué productos hay que rotar EN CADA TIENDA. Al elegir
+   "Todas las tiendas" -- o al filtrar por zona, departamento o ciudad -- el
+   Excel salia con los datos generales y sin decir de qué tienda era cada fila.
+
+   POR QUÉ PASABA. No es un fallo del exportador. En alcance multitienda la
+   aplicación trabaja sobre una tienda sintética (V86.224) y su normalizador
+   FUNDE cada producto en una sola fila nacional: medido sobre el corte
+   actual, 14.030 filas de inventario producto×tienda quedan en 2.329, una por
+   código, con el stock sumado de todas las tiendas. Eso es lo correcto para
+   los KPI -- si no, un producto contaría 22 veces -- pero descarta la tienda,
+   así que ningún ajuste del exportador podía recuperarla: para cuando el
+   Excel se genera, el dato ya no existe.
+
+   CÓMO SE RESUELVE. El Excel no se arma desde la tienda fundida: se recorren
+   las tiendas del alcance una por una y se usa la MISMA lógica por tienda que
+   ya es correcta (rotationDetailedRows / evacuationDetailedRows /
+   upcomingRotationRows / normalizeInventoryRows y v297Discount con el código
+   de esa tienda), emitiendo una fila por tienda×producto. La pantalla no se
+   toca: ahí la fusión sí es lo que se quiere ver.
+
+   Se respeta lo que hay delante: solo se exportan los productos que el
+   detalle abierto está mostrando, y solo las filas visibles, de modo que los
+   filtros del modal siguen mandando sobre el archivo. */
+(function(){
+  'use strict';
+  var ALL='__ALL__';
+  function s(v){return v==null?'':String(v).trim()}
+  function n(v){var x=Number(v);return isFinite(x)?x:0}
+
+  /* ---------- alcance ---------- */
+  function alcance(){
+    try{
+      if(typeof CUR==='undefined'||CUR!==ALL)return null;
+      var agg=(typeof S!=='undefined'&&S)?S[ALL]:null;
+      if(!agg||!Array.isArray(agg.__codes)||agg.__codes.length<2)return null;
+      return agg.__codes.slice();
+    }catch(_){return null}
+  }
+
+  /* ---------- qué módulo se está mirando ----------
+     El título del detalle manda sobre VIEW: desde Inventario se abren fichas
+     de Rotación y de Evacuación, y lo que decide qué productos pertenecen a
+     cada tienda es el módulo del detalle, no la vista de fondo. */
+  function norm(v){var t=s(v);try{t=t.normalize('NFD').replace(/[̀-ͯ]/g,'')}catch(_){}return t.toUpperCase()}
+  function modulo(raiz){
+    var t=norm((raiz.querySelector('#rangeModalTitle,#v80ModalTitle,h3,h4')||{}).textContent);
+    if(t.indexOf('EVACUACION')>=0)return 'evac';
+    if(t.indexOf('PROXIM')>=0)return 'prox';
+    if(t.indexOf('ROTACION')>=0)return 'rot';
+    var v=(typeof VIEW!=='undefined'?VIEW:'');
+    if(v==='rot'||v==='evac'||v==='prox')return v;
+    return 'inv';
+  }
+  function filasDe(mod,st){
+    try{
+      if(mod==='rot'&&typeof window.rotationDetailedRows==='function')return window.rotationDetailedRows(st)||[];
+      if(mod==='evac'&&typeof window.evacuationDetailedRows==='function')return window.evacuationDetailedRows(st)||[];
+      if(mod==='prox'&&typeof window.upcomingRotationRows==='function')return window.upcomingRotationRows(st)||[];
+      return (typeof window.normalizeInventoryRows==='function')?(window.normalizeInventoryRows(st)||[]):[];
+    }catch(_){return []}
+  }
+
+  /* ---------- qué productos muestra el detalle abierto ----------
+     Se prefieren los datos crudos que deja el que abrió el modal (V86.298);
+     si no coinciden con lo que hay en pantalla se leen los códigos del DOM,
+     quitando antes los distintivos que V86.272 inyecta dentro de la celda. */
+  function visible(tr){
+    if(tr.classList.contains('v118HiddenRow'))return false;
+    return !(tr.offsetWidth===0&&tr.offsetHeight===0);
+  }
+  function codigoDeFila(tr){
+    if(tr.dataset&&tr.dataset.code)return s(tr.dataset.code);
+    var sp=tr.querySelector('.code');
+    if(!sp)return '';
+    var c=sp.cloneNode(true);
+    c.querySelectorAll('.v272Wrap,[data-export-skip]').forEach(function(x){x.remove()});
+    var m=s(c.textContent).match(/[A-Za-z0-9._-]+/);
+    return m?m[0]:'';
+  }
+  function codigosDelDetalle(raiz){
+    var tbody=raiz.querySelector('table tbody');
+    if(!tbody)return null;
+    var trs=Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    var crudas=Array.isArray(raiz.__v296Filas)&&raiz.__v296Filas.length===trs.length?raiz.__v296Filas:null;
+    var out={};
+    trs.forEach(function(tr,i){
+      if(!visible(tr))return;
+      var c=crudas?s(crudas[i].c||crudas[i].codigo):codigoDeFila(tr);
+      if(c)out[c]=true;
+    });
+    return Object.keys(out).length?out:null;
+  }
+
+  /* CORE / Complemento no viene en la fila de inventario: es un atributo del
+     producto (P[codigo].cc). Varias vistas ya lo traen resuelto en r.cc, y el
+     proyecto expone ademas un ayudante global cc(); se consultan en ese orden
+     y, si ninguno responde, se dice "SIN CLASIFICACIÓN" en vez de inventarlo. */
+  function coreComplemento(m,raw,p,cod){
+    var x='';
+    [m&&m.cc,raw&&raw.cc,p&&p.cc].some(function(v){if(v){x=v;return true}return false});
+    if(!x){try{if(typeof P!=='undefined'&&P&&P[cod])x=P[cod].cc||''}catch(_){}}
+    if(!x){try{if(typeof cc==='function')x=cc(cod)||''}catch(_){}}
+    x=norm(x);
+    if(x.indexOf('CORE')>=0)return 'CORE';
+    if(x.indexOf('COMPLEMENT')>=0)return 'COMPLEMENTO';
+    return 'SIN CLASIFICACIÓN';
+  }
+
+  /* ---------- el filtro con el que se abrio el detalle ----------
+     Al entrar por la grafica el titulo lleva el rango y, si se pidio, la
+     clasificacion: "Rotacion - +360 - CORE". El Excel tiene que respetarlo,
+     no exportar todos los rangos del producto.
+
+     Las etiquetas de la grafica NO coinciden literalmente con las claves del
+     cargue ("211-240" frente a "210 - 240", "+360" frente a "360 - Mas"), asi
+     que se emparejan por intervalo. Se usa un punto representativo de cada
+     clave -- su punto medio, o el limite inferior mas uno cuando es abierta --
+     para que "360 - Mas" caiga en "+360" y no tambien en "241-360", que
+     comparten el 360 como extremo. */
+  function limites(txt){
+    var t=norm(txt).replace(/[–—]/g,'-');
+    var m=t.match(/(\d+)\s*-\s*(\d+)/);
+    if(m)return [parseInt(m[1],10),parseInt(m[2],10)];
+    m=t.match(/(\d+)\s*-\s*M[AÁ]S/);
+    if(m)return [parseInt(m[1],10),Infinity];
+    m=t.match(/^\+\s*(\d+)$/);
+    if(m)return [parseInt(m[1],10),Infinity];
+    return null;
+  }
+  function representante(clave){
+    var l=limites(clave);
+    if(!l)return null;
+    return l[1]===Infinity?l[0]+1:(l[0]+l[1])/2;
+  }
+  function enRango(clave,lim){
+    if(!lim)return true;
+    var rep=representante(clave);
+    if(rep==null)return false;   /* "SIN DEFINIR" no pertenece a ningun rango */
+    return rep>=lim[0]&&rep<=lim[1];
+  }
+  function filtroDelDetalle(raiz){
+    var out={rango:null,cc:null};
+    var titulo=s((raiz.querySelector('#rangeModalTitle,#v80ModalTitle,h3,h4')||{}).textContent);
+    titulo.split('·').forEach(function(parte){
+      var t=norm(parte).trim();
+      if(t==='CORE'){out.cc='CORE';return}
+      if(t.indexOf('COMPLEMENT')===0){out.cc='COMPLEMENTO';return}
+      if(!out.rango){var l=limites(parte);if(l)out.rango=l}
+    });
+    /* Si el detalle trae su propia barra de filtros, manda lo que el usuario
+       tenga puesto ahi sobre lo que diga el titulo. */
+    var bar=raiz.querySelector('.v118UnifiedFilters');
+    if(bar){
+      var ea=bar.querySelector('[data-v118-df="age"]'),ec=bar.querySelector('[data-v118-df="cc"]');
+      if(ea&&ea.value){var l2=limites(ea.value);if(l2)out.rango=l2}
+      if(ec&&ec.value){
+        var c2=norm(ec.value);
+        if(c2.indexOf('CORE')>=0)out.cc='CORE';
+        else if(c2.indexOf('COMPLEMENT')>=0)out.cc='COMPLEMENTO';
+      }
+    }
+    return out;
+  }
+
+  /* ---------- construcción del reporte ---------- */
+  function rangosOrdenados(claves){
+    /* Se ordena por el primer número de la etiqueta ("091 - 120" antes que
+       "241 - 360"); lo que no empieza por número ("SIN DEFINIR") va al final.
+       No se inventa ningún rango: salen los que trae el cargue. */
+    return claves.sort(function(a,b){
+      var na=parseInt(a,10),nb=parseInt(b,10);
+      var va=isNaN(na)?Infinity:na,vb=isNaN(nb)?Infinity:nb;
+      return va!==vb?va-vb:String(a).localeCompare(String(b),'es');
+    });
+  }
+  function construir(raiz){
+    var codes=alcance();
+    if(!codes)return null;
+    var mod=modulo(raiz),permitidos=codigosDelDetalle(raiz),filtro=filtroDelDetalle(raiz);
+    var filas=[],rangos={};
+    codes.forEach(function(sc){
+      var st=(typeof S!=='undefined'&&S)?S[sc]:null;
+      if(!st)return;
+      /* El módulo decide la PERTENENCIA (qué productos rotan en esta tienda);
+         los campos crudos salen del inventario de la misma tienda, que es la
+         única fuente que los trae todos. */
+      var miembros=filasDe(mod,st),inv=filasDe('inv',st),porCodigo={};
+      inv.forEach(function(r){porCodigo[s(r.c||r.codigo)]=r});
+      miembros.forEach(function(m){
+        var cod=s(m.c||m.codigo);
+        if(!cod)return;
+        if(permitidos&&!permitidos[cod])return;
+        var raw=porCodigo[cod]||m,p=m.p||raw.p||{};
+        var d={};
+        var clasif=coreComplemento(m,raw,p,cod);
+        try{if(typeof window.v297Discount==='function')d=window.v297Discount(sc,cod)||{}}catch(_){}
+        if(filtro.cc&&clasif!==filtro.cc)return;
+        var r=(raw.rangos&&typeof raw.rangos==='object')?raw.rangos:{};
+        var enFiltro=0;
+        Object.keys(r).forEach(function(k){
+          if(n(r[k])<=0||!enRango(k,filtro.rango))return;
+          rangos[k]=true;enFiltro+=n(r[k]);
+        });
+        /* Con un rango elegido, la tienda que no tenga unidades en ese rango
+           no sale: el zonal pidio ver solo lo que cae dentro del filtro. */
+        if(filtro.rango&&enFiltro<=0)return;
+        filas.push({
+          tienda:sc,
+          nombreTienda:s(st.name||sc),
+          codigo:cod,
+          producto:s(p.n||raw.producto||cod),
+          categoria:s(p.cat||raw.categoria),
+          linea:s(p.lin||raw.linea),
+          sublinea:s(p.sub||raw.sublinea),
+          clasificacion:clasif,
+          rangos:r,
+          unidadesRango:enFiltro,
+          unidades:n(raw.stock!=null?raw.stock:m.stock),
+          cendis:n(raw.dispCendis!=null?raw.dispCendis:m.cendis),
+          ordenes:n(raw.ordenesCompra),
+          unidadesOC:n(raw.unidadesOC),
+          fechaOC:s(raw.fechaRecibido),
+          oferta:d.offerDiscount==null?'':d.offerDiscount,
+          muestra:d.currentDiscount==null?'':d.currentDiscount,
+          sugerido:d.discount==null?'':d.discount,
+          precioLista:raw.precioLista==null?'':n(raw.precioLista),
+          precioOferta:raw.precioOferta==null?'':n(raw.precioOferta)
+        });
+      });
+    });
+    if(!filas.length)return null;
+    var cols=rangosOrdenados(Object.keys(rangos));
+    var header=['Código tienda','Tienda','Código producto','Producto','Categoría','Línea','Sublínea','CORE / Complemento']
+      .concat(cols.map(function(k){return 'Uds. '+k;}))
+      .concat(filtro.rango?['Unidades en el rango']:[])
+      .concat(['Unidades totales','Disponibilidad CENDIS','Órdenes de compra','Unidades en OC','Fecha recibido OC',
+               'Descuento oferta','Descuento muestra','Descuento sugerido','Precio lista','Precio oferta']);
+    var aoa=[header].concat(filas.map(function(f){
+      return [f.tienda,f.nombreTienda,f.codigo,f.producto,f.categoria,f.linea,f.sublinea,f.clasificacion]
+        .concat(cols.map(function(k){return n(f.rangos[k])}))
+        .concat(filtro.rango?[f.unidadesRango]:[])
+        .concat([f.unidades,f.cendis,f.ordenes,f.unidadesOC,f.fechaOC,
+                 f.oferta,f.muestra,f.sugerido,f.precioLista,f.precioOferta]);
+    }));
+    var anchos=[{wch:12},{wch:22},{wch:14},{wch:44},{wch:20},{wch:20},{wch:20},{wch:18}]
+      .concat(cols.map(function(){return {wch:11}}))
+      .concat(filtro.rango?[{wch:18}]:[])
+      .concat([{wch:14},{wch:18},{wch:16},{wch:13},{wch:16},{wch:15},{wch:16},{wch:16},{wch:14},{wch:14}]);
+    return {filas:aoa,anchos:anchos,nTiendas:codes.length,nFilas:filas.length,filtro:filtro};
+  }
+
+  /* ---------- salida ---------- */
+  function cargarXLSX(){
+    if(window.XLSX&&window.XLSX.utils&&window.XLSX.writeFile)return Promise.resolve(window.XLSX);
+    return new Promise(function(resolve,reject){
+      var ya=document.querySelector('script[data-v8623-xlsx]');
+      if(ya){
+        ya.addEventListener('load',function(){resolve(window.XLSX)},{once:true});
+        ya.addEventListener('error',function(){reject(new Error('No se pudo cargar el motor Excel.'))},{once:true});
+        return;
+      }
+      var sc=document.createElement('script');
+      sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      sc.async=true;sc.setAttribute('data-v8623-xlsx','1');
+      sc.onload=function(){window.XLSX?resolve(window.XLSX):reject(new Error('Motor Excel no disponible.'))};
+      sc.onerror=function(){reject(new Error('No se pudo cargar el motor Excel.'))};
+      document.head.appendChild(sc);
+    });
+  }
+  var ETIQUETA={rot:'Rotacion',evac:'Evacuacion',prox:'Proximos a rotar',inv:'Inventario'};
+  /* El nombre va SIN tildes ni ñ y solo con caracteres seguros. El exportador
+     anterior los dejaba pasar y el archivo llegaba a Windows sin reconocerse
+     como Excel; el contenido era correcto, el nombre no. Se transcriben los
+     acentos en vez de borrarlos para no partir palabras. */
+  function ascii(v){
+    var t=s(v);
+    try{t=t.normalize('NFD').replace(/[̀-ͯ]/g,'')}catch(_){}
+    return t.replace(/ñ/g,'n').replace(/Ñ/g,'N').replace(/[^A-Za-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  }
+  function nombreArchivo(raiz){
+    var t=ascii((raiz.querySelector('#rangeModalTitle,#v80ModalTitle,h3,h4')||{}).textContent)
+      .slice(0,50).trim().replace(/\s+/g,'_')
+      ||ascii(ETIQUETA[modulo(raiz)]).replace(/\s+/g,'_')||'Detalle';
+    var fecha='';
+    try{fecha=ascii((typeof DB!=='undefined'&&DB&&DB.meta&&DB.meta.fecha)||'').replace(/\s+/g,'-')}catch(_){}
+    return 'Llavero_'+t+'_por_tienda'+(fecha?'_'+fecha:'')+'.xlsx';
+  }
+  /* No se usa XLSX.writeFile: entrega el blob como application/octet-stream,
+     que es lo que hace que Windows lo reciba como un archivo cualquiera en vez
+     de como un libro de Excel. Se escribe el mismo contenido declarando el
+     tipo MIME propio de .xlsx. */
+  var MIME_XLSX='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  function descargar(XLSX,wb,nombre){
+    var datos=XLSX.write(wb,{bookType:'xlsx',type:'array',compression:true});
+    var blob=new Blob([datos],{type:MIME_XLSX});
+    var url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=nombre;a.rel='noopener';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url)},1500);
+  }
+  function exportar(raiz){
+    var hoja;
+    try{hoja=construir(raiz)}catch(e){console.error('V86.346',e);hoja=null}
+    if(!hoja)return false;
+    cargarXLSX().then(function(XLSX){
+      var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(hoja.filas);
+      ws['!cols']=hoja.anchos;
+      XLSX.utils.book_append_sheet(wb,ws,'Por tienda');
+      descargar(XLSX,wb,nombreArchivo(raiz));
+      if(typeof toast==='function')toast(hoja.nFilas.toLocaleString('es-CO')+' filas de '+hoja.nTiendas+' tiendas exportadas','ok');
+    }).catch(function(e){
+      console.error('V86.346',e);
+      if(typeof toast==='function')toast('No se pudo exportar: '+e.message,'err');
+    });
+    return true;
+  }
+  window.v346Construir=construir;   /* para comprobar el contenido sin descargar */
+
+  /* Hay DOS botones de exportar y los dos tienen que dar el detalle por
+     tienda: el flotante que V86.296 pone sobre cada detalle abierto
+     (.v296ExportBtn) y el de la barra de filtros del módulo, sobre la tabla
+     principal (.v127ExportBtn). Se envuelven una sola vez por botón: con una
+     tienda sola sigue mandando el exportador original, y si por lo que sea no
+     se puede armar el detalle por tienda, también.
+
+     En la tabla del módulo se comprobó que no hay paginación en alcance
+     multitienda (928 filas en pantalla, 928 productos), así que leer sus
+     códigos respeta los filtros sin recortar nada. */
+  function raizDe(btn){
+    if(btn.classList.contains('v296ExportBtn'))return btn.closest('.on');
+    var v=(typeof VIEW!=='undefined'?VIEW:'');
+    return document.getElementById(v+'-tbl')||btn.closest('.cbody')||btn.parentElement;
+  }
+  /* NO se envuelve btn.onclick. Se probó y no sirve: V86.127 reasigna el
+     onclick del botón del módulo en cada render y otra capa posterior hace lo
+     mismo, así que la envoltura se pierde y la descarga volvía a salir como
+     el CSV genérico. Un escuchador en fase de CAPTURA sobre el documento se
+     ejecuta antes que cualquier onclick y ninguna reasignación lo pisa. */
+  function alPulsar(e){
+    var t=e.target;
+    var btn=(t&&t.closest)?t.closest('.v127ExportBtn,.v296ExportBtn'):null;
+    if(!btn)return;
+    var raiz=raizDe(btn);
+    if(!raiz||!raiz.querySelector('table tbody tr')||!alcance())return;
+    if(exportar(raiz)){e.preventDefault();e.stopImmediatePropagation();}
+  }
+  /* Próximos a rotar se quedó sin botón de exportar: V86.127 solo lo pone en
+     Inventario, Rotación y Evacuación. Se añade aquí, con el mismo aspecto y,
+     con una sola tienda, el mismo exportador genérico del resto. */
+  function botonProx(){
+    if((typeof VIEW==='undefined'?'':VIEW)!=='prox')return;
+    var bar=document.querySelector('.v118ModuleFilters[data-module="prox"],.v127ContextFilters[data-module="prox"]');
+    var raiz=document.getElementById('prox-tbl');
+    if(!bar||!raiz||bar.querySelector('.v127ExportBtn'))return;
+    var btn=document.createElement('button');
+    btn.type='button';btn.className='v127ExportBtn';btn.textContent='⬇ Exportar Excel';
+    btn.onclick=function(){
+      var t=raiz.querySelector('table');
+      if(t&&typeof window.v298Export==='function')window.v298Export(t);
+    };
+    bar.appendChild(btn);
+  }
+  function instalar(){
+    if(!window.__v346Click){
+      window.__v346Click=true;
+      document.addEventListener('click',alPulsar,true);
+    }
+    botonProx();
+    if(!window.__v346Tick)window.__v346Tick=setInterval(botonProx,900);
+    console.info('LLAVERO V86.346 · Excel por tienda en alcance multitienda');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(instalar,2600)},{once:true});
+  else setTimeout(instalar,2600);
+})();
