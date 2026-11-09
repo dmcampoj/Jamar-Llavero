@@ -2354,7 +2354,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     var aLabel=document.createElement('div');aLabel.className='pv-section-label';aLabel.textContent='Acciones pendientes';
     var actions=document.createElement('div');actions.className='pv-guide-group actions';
     cards.slice(0,3).forEach(function(x){addTitleFromMeta(x);health.appendChild(x);});
-    cards.slice(3,6).forEach(function(x){addTitleFromMeta(x);actions.appendChild(x);});
+    cards.slice(3).forEach(function(x){addTitleFromMeta(x);actions.appendChild(x);});
     mk.appendChild(hLabel);mk.appendChild(health);mk.appendChild(aLabel);mk.appendChild(actions);
   }
   function patchAmbientes(){
@@ -4300,13 +4300,71 @@ function guideEffective(g){
 
 /* V86.152: auditoria temporal de equivalencias Piso 1 */
 window.LLAVERO_EQUIV_AUDIT_V86_150=true;
+/* ==== LLAVERO V86.380 · Una unidad fisica no puede cubrir dos guias ====
+   Hasta aqui la cobertura era un si/no por guia: hasStoreExist (index.html)
+   solo preguntaba "hay al menos una unidad de este codigo en la tienda?", y
+   esta capa marcaba el requisito cubierto si ALGUN miembro del grupo tenia
+   existencia. Ninguna de las dos descontaba la unidad que ya se habia usado
+   en otra guia, asi que un producto con 1 unidad presente en 3 guias dejaba
+   las 3 en verde cuando fisicamente solo alcanza para una.
+   Ahora el inventario se reparte: cada unidad se asigna a UNA sola guia,
+   empezando por las guias a las que menos les falta (criterio aprobado por el
+   usuario: maximiza guias realmente completas), y la guia que se queda sin
+   unidad ve el requisito como pendiente con el aviso de en que guia quedo
+   montada esa unidad. */
+function unidades148(p){return n(p&&p[7])?n(p&&p[2]):n(p&&p[11])}
+function allocateUnits148(list){
+  var pool={},duenos={};
+  list.forEach(function(it){it.e.requirements.forEach(function(r){r.members.forEach(function(p){var c=s(p[0]);p[13]=0;p[14]=null;if(!(c in pool))pool[c]=Math.max(0,unidades148(p))})})});
+  list.slice().sort(function(a,b){
+    var fa=a.e.total-a.e.current,fb=b.e.total-b.e.current;
+    if(fa!==fb)return fa-fb;
+    if(a.e.total!==b.e.total)return b.e.total-a.e.total;
+    return a.e.code<b.e.code?-1:(a.e.code>b.e.code?1:0);
+  }).forEach(function(it){
+    it.e.requirements.forEach(function(r){
+      if(!r.covered)return;
+      var tomado=null;
+      for(var i=0;i<r.members.length;i++){
+        var p=r.members[i],c=s(p[0]);
+        if(actualCovered(p)&&n(pool[c])>0){pool[c]=n(pool[c])-1;(duenos[c]||(duenos[c]=[])).push(it.e.code);tomado=c;break}
+      }
+      if(tomado){r.asignado=tomado;return}
+      /* Ningun codigo equivalente tiene unidad libre: la guia que lo pidio
+         antes se quedo con la unica unidad. */
+      r.covered=false;r.compartida=true;r.state='compartida';
+      r.members.forEach(function(p){if(!actualCovered(p))return;var c=s(p[0]);p[13]=1;p[14]=(duenos[c]||[]).slice()});
+    });
+  });
+}
+function recount148(e){
+  var p1=0,p1c=0,p2=0,p2c=0;
+  e.requirements.forEach(function(r){if(r.floor==='2'){p2++;if(r.covered)p2c++}else{p1++;if(r.covered)p1c++}});
+  e.p1Total=p1;e.p1Covered=p1c;e.p2Total=p2;e.p2Covered=p2c;e.total=p1+p2;e.current=p1c+p2c;
+  e.pp=[p1c,p1,p2c,p2,n(e.pp&&e.pp[4]),n(e.pp&&e.pp[5])];
+  e.requirements.forEach(function(r){r.members.forEach(function(p){
+    var code=s(p[0]),ci=e.codeInfo[code];if(!ci)return;
+    ci.effective=r.covered;ci.equivalent=r.covered&&!ci.actual;
+    ci.compartida=!!r.compartida&&!!ci.actual;
+    ci.state=r.covered?'covered':r.state;
+    ci.duenos=ci.compartida?(p[14]||[]).slice():null;
+  })});
+}
 function applyGuideRules(store){
   store=store||st();if(!store||!Array.isArray(store.guias))return;
-  var agg={nG:store.guias.length,gCompletas:0,gIncompletas:0,compTotalPct:0,reqTotal:0,haveTotal:0,faltTot:0,faltRequested:0,faltAvailable:0,faltSin:0,faltCamino:0,noRastr:0,invCover:0,p3Total:0,p3Have:0};
-  store.guias.forEach(function(g){
-    var e=guideEffective(g);if(!e)return;g.__v148=e;g[3]=e.total;g[4]=e.current;g[5]=e.pp;
+  var agg={nG:store.guias.length,gCompletas:0,gIncompletas:0,compTotalPct:0,reqTotal:0,haveTotal:0,faltTot:0,faltRequested:0,faltAvailable:0,faltSin:0,faltCamino:0,faltCompartida:0,noRastr:0,invCover:0,p3Total:0,p3Have:0};
+  var lista=[];
+  store.guias.forEach(function(g){var e=guideEffective(g);if(!e)return;g.__v148=e;lista.push({g:g,e:e})});
+  allocateUnits148(lista);
+  lista.forEach(function(it){
+    var g=it.g,e=it.e;recount148(e);
+    g[3]=e.total;g[4]=e.current;g[5]=e.pp;
     agg.reqTotal+=e.total;agg.haveTotal+=e.current;if(e.total&&e.current>=e.total)agg.gCompletas++;else if(e.total)agg.gIncompletas++;
-    e.requirements.forEach(function(r){if(r.covered){if(r.members.some(function(p){return s(p[5])==='ok_inv'}))agg.invCover++;return;}if(r.state==='camino')agg.faltCamino++;else if(r.state==='requested')agg.faltRequested++;else if(r.state==='available')agg.faltAvailable++;else{agg.faltSin++;if(r.state==='nd')agg.noRastr++;}});
+    e.requirements.forEach(function(r){
+      if(r.covered){if(r.members.some(function(p){return s(p[5])==='ok_inv'}))agg.invCover++;return}
+      if(r.compartida){agg.faltCompartida++;return}
+      if(r.state==='camino')agg.faltCamino++;else if(r.state==='requested')agg.faltRequested++;else if(r.state==='available')agg.faltAvailable++;else{agg.faltSin++;if(r.state==='nd')agg.noRastr++}
+    });
     agg.p3Total+=n(g[5]&&g[5][5]);agg.p3Have+=n(g[5]&&g[5][4]);
   });
   agg.faltTot=Math.max(0,agg.reqTotal-agg.haveTotal);agg.compTotalPct=agg.reqTotal?Math.round(1000*agg.haveTotal/agg.reqTotal)/10:0;
@@ -4316,7 +4374,7 @@ function applyGuideRules(store){
    guias (completas / con avance / sin avance y respaldo CENDIS) sin duplicar la
    logica de equivalencias de Piso 1 y Piso 2. Es la MISMA funcion que usa el
    modulo, no una copia. */
-window.LlaveroGuias148={efectiva:guideEffective,aplicar:applyGuideRules,cendisTiene:function(members){return statusPriority(members)==="available"}};
+window.LlaveroGuias148={efectiva:function(g){return (g&&g.__v148)||guideEffective(g)},_efectivaCruda:guideEffective,aplicar:applyGuideRules,cendisTiene:function(members){return statusPriority(members)==="available"}};
 function ensureGuideRules(){
   var store=st();if(!Array.isArray(store.guias)||!store.guias.length){try{if(typeof window.llaveroRebuildAllGuideData==='function')window.llaveroRebuildAllGuideData()}catch(_){}}
   applyGuideRules(st());
@@ -4572,12 +4630,13 @@ window.renderAmbientImpact155=patchAmbientImpact;
 
 /* Detalle de guía: un solo filtro + visualización explícita de equivalencia Piso 1. */
 function activeGuideMeta(){var g=(st().guias||[]).find(function(x){return s(x[0])===s(activeGuide)});return g&&(g.__v148||guideEffective(g))}
+function unidadEnV380(ci){var d=(ci&&ci.duenos)||[];if(!d.length)return'otra guía';if(d.length===1)return'la guía '+d[0];return'las guías '+d.slice(0,2).join(', ')+(d.length>2?' (+'+(d.length-2)+')':'')}
 function stateForRow(meta,code,floor){var ci=meta&&meta.codeInfo&&meta.codeInfo[code];if(ci)return ci.state;if(floor==='3')return'info';return'pending'}
 function patchGuideDetail(){
   var body=document.getElementById('guideDetailBodyV49'),back=document.getElementById('guideDetailModalBackV49');if(!body||!back||!back.classList.contains('on'))return;body.classList.add('v148GuideClean');var meta=activeGuideMeta();if(!meta)return;
   body.querySelectorAll('.guideModalToolbarV48,.v145GuideFilters,.v147CanonicalFilters:not(.v148GuideFilters),.v108HierarchyFilters,.ux104Filters,.v118UnifiedFilters,.guideFilterBarV48').forEach(function(x){x.remove()});
   /* Filas: marcar equivalencias de Piso 1 sin inventar existencia del código ausente. */
-  body.querySelectorAll('.guideProductOpenV50').forEach(function(tr){var code=s(tr.dataset.productCode),block=tr.closest('.guideFloorBlockV50'),title=norm(block&&block.querySelector('.guideFloorHeaderV50 .title')&&block.querySelector('.guideFloorHeaderV50 .title').textContent),floor=title.indexOf('PISO 1')>=0?'1':title.indexOf('PISO 2')>=0?'2':'3',ci=meta.codeInfo[code];tr.dataset.v148Floor=floor;tr.dataset.v148State=stateForRow(meta,code,floor);if(ci&&ci.equivalent){tr.classList.add('v148EquivalentCovered');var cell=tr.querySelector('.col-status');if(cell)cell.innerHTML='<span class="guideStatus gs-ok">Cubierto por equivalencia P1</span><small class="v148EquivNote">La tienda tiene otro código válido del mismo grupo dentro de esta guía.</small>'}});
+  body.querySelectorAll('.guideProductOpenV50').forEach(function(tr){var code=s(tr.dataset.productCode),block=tr.closest('.guideFloorBlockV50'),title=norm(block&&block.querySelector('.guideFloorHeaderV50 .title')&&block.querySelector('.guideFloorHeaderV50 .title').textContent),floor=title.indexOf('PISO 1')>=0?'1':title.indexOf('PISO 2')>=0?'2':'3',ci=meta.codeInfo[code];tr.dataset.v148Floor=floor;tr.dataset.v148State=stateForRow(meta,code,floor);if(ci&&ci.compartida){tr.classList.add('v148SharedUnit');var cs2=tr.querySelector('.col-status');if(cs2)cs2.innerHTML='<span class="guideStatus gs-compartida">Unidad compartida</span><small class="v148EquivNote">La tienda tiene existencia, pero esa unidad ya quedó asignada a '+esc(unidadEnV380(ci))+'. No alcanza para esta guía.</small>'}else if(ci&&ci.equivalent){tr.classList.add('v148EquivalentCovered');var cell=tr.querySelector('.col-status');if(cell)cell.innerHTML='<span class="guideStatus gs-ok">Cubierto por equivalencia P1</span><small class="v148EquivNote">La tienda tiene otro código válido del mismo grupo dentro de esta guía.</small>'}});
   var p1=Array.from(body.querySelectorAll('.guideFloorBlockV50')).find(function(b){return norm((b.querySelector('.guideFloorHeaderV50 .title')||{}).textContent).indexOf('PISO 1')>=0});if(p1){var m=p1.querySelector('.guideFloorHeaderV50 .meta');if(m)m.textContent=meta.groupsP1.reduce(function(a,g){return a+g.members.length},0)+' códigos de guía · '+meta.p1Total+' necesidades · '+meta.p1Covered+' cubiertas · '+Math.max(0,meta.p1Total-meta.p1Covered)+' pendientes'}
   var bar=body.querySelector('.v148GuideFilters');if(!bar){bar=document.createElement('div');bar.className='v148GuideFilters';bar.innerHTML='<div class="v148FilterField"><label>Búsqueda rápida</label><input type="search" data-v148-gf="q" placeholder="Producto, código o estado..."></div><div class="v148FilterField"><label>Piso</label><select data-v148-gf="floor"><option value="all">Todos</option><option value="1">Piso 1</option><option value="2">Piso 2</option><option value="3">Piso 3</option></select></div><div class="v148FilterField"><label>Estado / gestión</label><select data-v148-gf="status"><option value="all">Todos</option><option value="covered">Cubiertos</option><option value="pending">Pendientes</option><option value="camino">En traslado</option><option value="requested">Solicitud realizada</option><option value="available">Puedes solicitar</option></select></div><div class="v148FilterField"><label>Acción</label><button type="button" data-v148-gf-clear>Limpiar filtros</button></div><span class="v148FilterCount"></span>';
     var stats=body.querySelector('.guideModalStatsV48');if(stats)stats.insertAdjacentElement('afterend',bar);else body.insertBefore(bar,body.firstChild);
