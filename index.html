@@ -3606,7 +3606,6 @@ function downloadUpdatedHTML(){
       cardV48('all','a','Cobertura de productos en Piso 1 y Piso 2',toNum(a.compTotalPct).toLocaleString('es-CO',{maximumFractionDigits:1})+'%','<b>'+fInt(a.haveTotal)+' de '+fInt(a.reqTotal)+' posiciones cubiertas.</b> Porcentaje de los productos requeridos por las guías que ya tienen existencia en tienda.')+
       cardV48('completas','g','Guías completas',fInt(a.gCompletas)+' <small>/ '+fInt(a.nG)+'</small>','Ambientes que se pueden <b>exhibir completos</b> sin pedir productos adicionales.')+
       cardV48('avance','a','Ambientes parcialmente cubiertos',fInt(gAv)+' <small>/ '+fInt(a.nG)+'</small>','<b>'+gAvPct.toLocaleString('es-CO',{maximumFractionDigits:1})+'% de las guías.</b> Ambientes que ya tienen al menos un producto cubierto, pero todavía tienen productos pendientes.')+
-      cardV48('compartida','a','Unidad compartida',fInt(a.faltCompartida),'Posiciones pendientes porque <b>la única unidad que hay en la tienda ya está montada en otra guía</b>. Una unidad física cubre una sola guía.')+
       cardV48('camino','a','Productos en traslado',fInt(a.faltCamino),'Productos faltantes que <b>ya vienen en camino</b> hacia la tienda.')+
       cardV48('requested','a','Solicitud realizada',fInt(a.faltRequested),'Productos con <b>gestión realizada en CENDIS</b> para completar el ambiente.')+
       cardV48('available','b','Puedes solicitar',fInt(a.faltAvailable),'Faltantes con disponibilidad en CENDIS que la tienda puede solicitar.')+

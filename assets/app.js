@@ -2137,9 +2137,13 @@ function patchNovelModal(){var body=document.getElementById('rangeModalBody'),ta
 function historyDetails(){try{return JSON.parse((document.getElementById('embeddedHistory')||{}).textContent||'{}').details||[]}catch(_){return[]}}
 function mapRows(arr){var m={};(arr||[]).forEach(function(r){var c=s(r&&r[0]);if(!c)return;if(!m[c])m[c]={u:0};m[c].u+=n(r&&r[1])});return m}
 function patchTrackingProducts(){if((typeof VIEW!=='undefined'?VIEW:'')!=='resumen')return;var panel=document.getElementById('storeTrackingPanel');if(!panel)return;panel.querySelectorAll('.trackingNote').forEach(function(x){x.innerHTML=x.innerHTML.replace(/SKU/gi,'Producto')});var fs=panel.querySelector('[data-v8662-from]'),ts=panel.querySelector('[data-v8662-to]');if(!fs||!ts)return;var from=fs.value,to=ts.value,state='rot';var buttons=panel.querySelectorAll('.trackingControlGroup .trackBtn.on');buttons.forEach(function(b){if(/evac/i.test(b.textContent||''))state='evac'});var h=historyDetails(),a=h.find(function(x){return x.date===from}),b=h.find(function(x){return x.date===to});if(!a||!b)return;var am=mapRows(a.stores&&a.stores[CUR]&&a.stores[CUR][state]),bm=mapRows(b.stores&&b.stores[CUR]&&b.stores[CUR][state]),keys=Array.from(new Set(Object.keys(am).concat(Object.keys(bm))),function(x){return x}),initial=Object.keys(am).filter(function(c){return am[c].u>0}).length,final=Object.keys(bm).filter(function(c){return bm[c].u>0}).length,managed=keys.filter(function(c){return am[c]&&am[c].u>0&&(!bm[c]||bm[c].u<=0)}).length,partial=keys.filter(function(c){return am[c]&&bm[c]&&am[c].u>bm[c].u&&bm[c].u>0}).length,fresh=keys.filter(function(c){return(!am[c]||am[c].u<=0)&&bm[c]&&bm[c].u>0}).length,old=panel.querySelector('.v8680TrackProducts');if(old)old.remove();var anchor=panel.querySelector('.trackingDualSummary');if(anchor)anchor.insertAdjacentHTML('beforebegin','<div class="v8680TrackProducts"><div><label>Productos iniciales</label><b>'+fi(initial)+'</b><small>'+esc(fs.options[fs.selectedIndex]?fs.options[fs.selectedIndex].text:from)+'</small></div><div><label>Productos finales</label><b>'+fi(final)+'</b><small>'+esc(ts.options[ts.selectedIndex]?ts.options[ts.selectedIndex].text:to)+'</small></div><div><label>Productos gestionados</label><b>'+fi(managed)+'</b><small>Salieron completamente</small></div><div><label>Productos con reducción parcial</label><b>'+fi(partial)+'</b><small>Siguen con menos unidades</small></div><div><label>Productos nuevos</label><b>'+fi(fresh)+'</b><small>Ingresaron en el corte final</small></div></div>')}
-var guideStateMap=null;function buildGuideMap(){if(guideStateMap)return guideStateMap;guideStateMap={};try{(DB.G||[]).forEach(function(g){var gm=guideStateMap[s(g[0])]||(guideStateMap[s(g[0])]={});(g[3]||[]).forEach(function(p){if(Array.isArray(p))gm[s(p[2])]=s(p[3]||'')})})}catch(_){}return guideStateMap}
-function guideBadge(v){var t=s(v)||'Sin dato',c=norm(t).toLowerCase();return'<span class="v8680GuideState '+esc(c)+'">'+esc(t)+'</span>'}
-function patchGuideStates(){var body=document.getElementById('guideDetailBodyV49');if(!body)return;var sub=document.getElementById('guideDetailSubV49'),gcode=s(sub&&sub.textContent).split(' · ')[0].trim(),gm=buildGuideMap()[gcode]||{};body.querySelectorAll('.guideFloorTableV50').forEach(function(tbl){var hr=tbl.tHead&&tbl.tHead.rows&&tbl.tHead.rows[0];if(hr&&!hr.querySelector('[data-v8680-guide-state]')){var th=document.createElement('th');th.textContent='Estado guía';th.setAttribute('data-v8680-guide-state','1');hr.appendChild(th)}Array.from(tbl.tBodies&&tbl.tBodies[0]?tbl.tBodies[0].rows:[]).forEach(function(tr){if(tr.children.length===1)return;var c=s((tr.querySelector('.code')||{}).textContent).trim(),td=tr.querySelector('[data-v8680-guide-state]');if(!td){td=document.createElement('td');td.setAttribute('data-v8680-guide-state','1');tr.appendChild(td)}td.innerHTML=guideBadge(gm[c]||'Sin dato')})})}
+/* V86.382: "Estado guia" fuera del detalle de guia. Pintaba el cuarto campo
+   de cada posicion del maestro (DB.G[i][3][j][3]): un numero constante por
+   producto, 0 en el 70% de las posiciones, que no es un estado y que no
+   corresponde a nada que maneje Llavero (ni stock, ni disponibilidad CENDIS,
+   ni descuento). Se retira la columna y se limpia la que haya quedado en
+   pantalla de una pasada anterior. */
+function patchGuideStates(){var body=document.getElementById('guideDetailBodyV49');if(!body)return;body.querySelectorAll('[data-v8680-guide-state]').forEach(function(x){x.remove()})}
 function buildTransferRows(){var rows=[];document.querySelectorAll('#rangeModalBody .v8667Delivery').forEach(function(sec){var id=s((sec.querySelector('.v8667DeliveryHead b')||{}).textContent).replace(/^\s*Entrega\s+/i,'').trim();sec.querySelectorAll('.v8667DecisionRow').forEach(function(row){var cb=row.querySelector('input[type=checkbox]'),c=s((row.querySelector('.code')||{}).textContent).trim(),name=s((row.querySelector('.name')||{}).textContent).trim();rows.push([id,c,name,cb&&cb.checked?'ENVIAR':'ELIMINAR'])})});return rows}
 function b64(buf){var bytes=new Uint8Array(buf),bin='',chunk=0x8000;for(var i=0;i<bytes.length;i+=chunk)bin+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+chunk,bytes.length)));return btoa(bin).replace(/(.{76})/g,'$1\r\n')}
 function emailJair(){var rows=buildTransferRows();if(!rows.length){if(typeof toast==='function')toast('No hay entregas pendientes para preparar.','err');return}var name=store(CUR).name||CUR,subject='Gestión de entregas pendientes – '+name,to='pilotocmo@jamar.com',file='Gestion_Entregas_Pendientes_'+name.replace(/[^A-Za-z0-9_-]+/g,'_')+'.xlsx';if(!window.XLSX){window.location.href='mailto:'+to+'?subject='+encodeURIComponent(subject);return}var data=[['ORDEN_ENTREGA','CODIGO_PRODUCTO','NOMBRE_PRODUCTO','ACCION']].concat(rows),wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(data);XLSX.utils.book_append_sheet(wb,ws,'Gestion traslados');var arr=XLSX.write(wb,{bookType:'xlsx',type:'array'}),boundary='----=_LLAVERO_'+Date.now(),sub='=?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=',body='Adjunto gestión de entregas pendientes de '+name+'.\r\n',eml='To: '+to+'\r\nSubject: '+sub+'\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary="'+boundary+'"\r\n\r\n--'+boundary+'\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n'+body+'\r\n--'+boundary+'\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; name="'+file+'"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename="'+file+'"\r\n\r\n'+b64(arr)+'\r\n--'+boundary+'--\r\n',blob=new Blob([eml],{type:'message/rfc822'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Correo_Gestion_Entregas_'+name.replace(/[^A-Za-z0-9_-]+/g,'_')+'.eml';a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},800)}
@@ -4630,13 +4634,91 @@ window.renderAmbientImpact155=patchAmbientImpact;
 
 /* Detalle de guía: un solo filtro + visualización explícita de equivalencia Piso 1. */
 function activeGuideMeta(){var g=(st().guias||[]).find(function(x){return s(x[0])===s(activeGuide)});return g&&(g.__v148||guideEffective(g))}
+/* ==== V86.381 · Detalle de guia: estado real, Dispo CENDIS intacta y (inv) ====
+   Tres problemas que venian del mismo sitio. La regla que reparte clases a las
+   columnas (reorderProductTable, index.html) marca con 'col-status' TODO
+   encabezado que contenga ESTADO o DISPO, asi que en esta tabla quedan con esa
+   clase tanto "Dispo CENDIS" como "Estado". Al escribir el aviso de
+   equivalencia con querySelector('.col-status') caia en la PRIMERA, o sea
+   encima de la disponibilidad de CENDIS, que se perdia; y la columna Estado se
+   quedaba mostrando el estado crudo, que contradecia el aviso.
+   Ahora las columnas se localizan por su encabezado:
+     Estado        dice que pasa con la posicion en la guia (Cubierto, Cubierto
+                   por equivalencia, Unidad compartida, En traslado, ...), sin
+                   nombrar el sistema de origen.
+     Dispo CENDIS  no se toca nunca.
+     Existencia    cuando el codigo no cruza en SEUS mostraba "Sin dato"
+                   teniendo el numero del inventario de la tienda; ahora muestra
+                   ese numero marcado con (inv). Presencia queda en guion.
+   Idempotente: se recalcula de los datos, no del texto que haya en pantalla. */
+function colsV381(tabla){
+  if(!tabla||!tabla.tHead||!tabla.tHead.rows[0])return null;
+  var idx={};
+  Array.prototype.forEach.call(tabla.tHead.rows[0].children,function(th,i){
+    var k=norm(th.textContent);
+    if(k==='ESTADO')idx.estado=i;
+    else if(k.indexOf('DISPO')>=0&&idx.cendis==null)idx.cendis=i;
+    else if(k.indexOf('EXISTENCIA')>=0&&idx.existencia==null)idx.existencia=i;
+    else if(k.indexOf('PRESENCIA')>=0&&idx.presencia==null)idx.presencia=i;
+  });
+  return idx;
+}
+function productoV381(meta,code,floor){
+  var ps=(meta&&meta.products)||[],suelto=null;
+  for(var i=0;i<ps.length;i++){
+    if(s(ps[i][0])!==s(code))continue;
+    if(s(ps[i][1])===s(floor))return ps[i];
+    if(!suelto)suelto=ps[i];
+  }
+  return suelto;
+}
+function estadoCrudoV381(st){
+  if(st==='ok'||st==='ok_requested')return['Con existencia en tienda','gs-ok'];
+  if(st==='ok_inv')return['Con existencia en inventario','gs-ok'];
+  if(st==='camino')return['En traslado','gs-camino'];
+  if(st==='requested'||st==='requested_nostock')return['Solicitud realizada','gs-requested'];
+  if(st==='available')return['Puedes solicitar en CENDIS','gs-available'];
+  if(st==='nd')return['Sin registro de presencia','gs-nd'];
+  return['Sin disponibilidad','gs-sin'];
+}
+function pintarEstadoV381(tr,col,ci,floor,p){
+  if(!col||col.estado==null)return;
+  var td=tr.children[col.estado];if(!td)return;
+  var txt,cls,nota='';
+  if(floor!=='3'&&ci&&ci.compartida){txt='Unidad compartida';cls='gs-compartida';nota='La unidad que hay en la tienda ya quedó asignada a '+unidadEnV380(ci)+'.';}
+  else if(floor!=='3'&&ci&&ci.equivalent){txt='Cubierto por equivalencia';cls='gs-ok';nota='La tienda tiene otro código válido del mismo grupo dentro de esta guía.';}
+  else if(floor!=='3'&&ci&&ci.effective){txt='Cubierto';cls='gs-ok';}
+  else{var par=estadoCrudoV381(floor!=='3'&&ci?s(ci.state):s(p&&p[5]));txt=par[0];cls=par[1];}
+  td.innerHTML='<span class="guideStatus '+cls+'">'+esc(txt)+'</span>'+(nota?'<small class="v148EquivNote">'+esc(nota)+'</small>':'');
+}
+function pintarExistenciaV381(tr,col,p){
+  if(!col||!p)return;
+  var record=!!p[7];
+  if(col.existencia!=null&&tr.children[col.existencia]){
+    var td=tr.children[col.existencia];
+    if(record){td.innerHTML=fi(n(p[2]));td.title='Unidades según presencia SEUS en esta bodega';}
+    else if(n(p[11])>0){td.innerHTML=fi(n(p[11]))+' <small class="v381Inv">(inv)</small>';td.title='Unidades según el inventario actual de la tienda. Este código no cruza en SEUS para esta bodega.';}
+    else{td.innerHTML='0';td.title='Este código no aparece ni en la presencia SEUS ni en el inventario de la tienda.';}
+  }
+  if(!record&&col.presencia!=null&&tr.children[col.presencia]){
+    var td2=tr.children[col.presencia];
+    td2.innerHTML='0';td2.title='Sin registro de presencia en SEUS para esta bodega';
+  }
+}
 function unidadEnV380(ci){var d=(ci&&ci.duenos)||[];if(!d.length)return'otra guía';if(d.length===1)return'la guía '+d[0];return'las guías '+d.slice(0,2).join(', ')+(d.length>2?' (+'+(d.length-2)+')':'')}
 function stateForRow(meta,code,floor){var ci=meta&&meta.codeInfo&&meta.codeInfo[code];if(ci)return ci.state;if(floor==='3')return'info';return'pending'}
 function patchGuideDetail(){
   var body=document.getElementById('guideDetailBodyV49'),back=document.getElementById('guideDetailModalBackV49');if(!body||!back||!back.classList.contains('on'))return;body.classList.add('v148GuideClean');var meta=activeGuideMeta();if(!meta)return;
   body.querySelectorAll('.guideModalToolbarV48,.v145GuideFilters,.v147CanonicalFilters:not(.v148GuideFilters),.v108HierarchyFilters,.ux104Filters,.v118UnifiedFilters,.guideFilterBarV48').forEach(function(x){x.remove()});
   /* Filas: marcar equivalencias de Piso 1 sin inventar existencia del código ausente. */
-  body.querySelectorAll('.guideProductOpenV50').forEach(function(tr){var code=s(tr.dataset.productCode),block=tr.closest('.guideFloorBlockV50'),title=norm(block&&block.querySelector('.guideFloorHeaderV50 .title')&&block.querySelector('.guideFloorHeaderV50 .title').textContent),floor=title.indexOf('PISO 1')>=0?'1':title.indexOf('PISO 2')>=0?'2':'3',ci=meta.codeInfo[code];tr.dataset.v148Floor=floor;tr.dataset.v148State=stateForRow(meta,code,floor);if(ci&&ci.compartida){tr.classList.add('v148SharedUnit');var cs2=tr.querySelector('.col-status');if(cs2)cs2.innerHTML='<span class="guideStatus gs-compartida">Unidad compartida</span><small class="v148EquivNote">La tienda tiene existencia, pero esa unidad ya quedó asignada a '+esc(unidadEnV380(ci))+'. No alcanza para esta guía.</small>'}else if(ci&&ci.equivalent){tr.classList.add('v148EquivalentCovered');var cell=tr.querySelector('.col-status');if(cell)cell.innerHTML='<span class="guideStatus gs-ok">Cubierto por equivalencia P1</span><small class="v148EquivNote">La tienda tiene otro código válido del mismo grupo dentro de esta guía.</small>'}});
+  body.querySelectorAll('.guideProductOpenV50').forEach(function(tr){
+    var code=s(tr.dataset.productCode),block=tr.closest('.guideFloorBlockV50'),title=norm(block&&block.querySelector('.guideFloorHeaderV50 .title')&&block.querySelector('.guideFloorHeaderV50 .title').textContent),floor=title.indexOf('PISO 1')>=0?'1':title.indexOf('PISO 2')>=0?'2':'3',ci=meta.codeInfo[code];
+    tr.dataset.v148Floor=floor;tr.dataset.v148State=stateForRow(meta,code,floor);
+    if(ci&&ci.compartida)tr.classList.add('v148SharedUnit');else tr.classList.remove('v148SharedUnit');
+    if(ci&&ci.equivalent)tr.classList.add('v148EquivalentCovered');else tr.classList.remove('v148EquivalentCovered');
+    var col=colsV381(tr.closest('table')),p=productoV381(meta,code,floor);
+    pintarEstadoV381(tr,col,ci,floor,p);pintarExistenciaV381(tr,col,p);
+  });
   var p1=Array.from(body.querySelectorAll('.guideFloorBlockV50')).find(function(b){return norm((b.querySelector('.guideFloorHeaderV50 .title')||{}).textContent).indexOf('PISO 1')>=0});if(p1){var m=p1.querySelector('.guideFloorHeaderV50 .meta');if(m)m.textContent=meta.groupsP1.reduce(function(a,g){return a+g.members.length},0)+' códigos de guía · '+meta.p1Total+' necesidades · '+meta.p1Covered+' cubiertas · '+Math.max(0,meta.p1Total-meta.p1Covered)+' pendientes'}
   var bar=body.querySelector('.v148GuideFilters');if(!bar){bar=document.createElement('div');bar.className='v148GuideFilters';bar.innerHTML='<div class="v148FilterField"><label>Búsqueda rápida</label><input type="search" data-v148-gf="q" placeholder="Producto, código o estado..."></div><div class="v148FilterField"><label>Piso</label><select data-v148-gf="floor"><option value="all">Todos</option><option value="1">Piso 1</option><option value="2">Piso 2</option><option value="3">Piso 3</option></select></div><div class="v148FilterField"><label>Estado / gestión</label><select data-v148-gf="status"><option value="all">Todos</option><option value="covered">Cubiertos</option><option value="pending">Pendientes</option><option value="camino">En traslado</option><option value="requested">Solicitud realizada</option><option value="available">Puedes solicitar</option></select></div><div class="v148FilterField"><label>Acción</label><button type="button" data-v148-gf-clear>Limpiar filtros</button></div><span class="v148FilterCount"></span>';
     var stats=body.querySelector('.guideModalStatsV48');if(stats)stats.insertAdjacentElement('afterend',bar);else body.insertBefore(bar,body.firstChild);

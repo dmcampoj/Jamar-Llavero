@@ -7544,3 +7544,6 @@ body[data-v8620-view="dashboard"] .v8657TrendSvg{
 /* V86.380 · Unidad compartida: hay existencia en tienda pero la unidad ya quedo asignada a otra guia. */
 .gs-compartida{background:var(--ambBg);color:var(--amb);border:1px dashed var(--amb)}
 .v148SharedUnit{background:rgba(245,166,35,.06)!important}
+
+/* V86.381 · unidades que vienen del inventario y no de SEUS. */
+.v381Inv{color:var(--mut);font-weight:700;font-size:9.5px;margin-left:2px}
