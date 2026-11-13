@@ -5588,6 +5588,8 @@ body[data-v8620-view="traslados"] .v8692TransferKeepTitle{margin-top:12px!import
 .v8695MdCount{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:7px 0 8px;color:var(--mut);font-size:9px;font-weight:800}
 .v8695MdWrap{overflow:auto;max-height:61vh;border:1px solid var(--line);border-radius:12px;background:var(--card)}
 .v8695MdTable{width:100%;min-width:1500px;border-collapse:separate;border-spacing:0;table-layout:fixed}
+/* V86.383: columna Tienda del detalle de Markdown, solo con alcance multitienda. */
+.v8695MdTable col.store{width:124px}
 .v8695MdTable col.img{width:68px}.v8695MdTable col.code{width:88px}.v8695MdTable col.prod{width:300px}.v8695MdTable col.cls{width:108px}.v8695MdTable col.stock{width:66px}.v8695MdTable col.age{width:96px}.v8695MdTable col.policy{width:195px}.v8695MdTable col.disc{width:82px}.v8695MdTable col.state{width:182px}.v8695MdTable col.owner{width:128px}
 .v8695MdTable th,.v8695MdTable td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;font-size:9.5px;line-height:1.3;background:var(--card);overflow:hidden;text-overflow:ellipsis}
 .v8695MdTable th{position:sticky;top:0;z-index:7;background:#f4f7fc;color:var(--mut);font-size:8.3px;text-transform:uppercase;letter-spacing:.02em;text-align:left;white-space:normal}

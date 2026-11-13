@@ -2523,20 +2523,30 @@ function unique(arr){return Array.from(new Set(arr.filter(Boolean))).sort(functi
 function field(id,label,options,allLabel){if(options.length<=1)return'';return '<div class="v8695MdField"><label>'+esc(label)+'</label><select id="'+id+'"><option value="all">'+esc(allLabel||'Todos')+'</option>'+options.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join('')+'</select></div>'}
 function openDetail(titleText,data){
  data=(data||[]).slice();var modal=document.getElementById('rangeModal'),body=document.getElementById('rangeModalBody'),tt=document.getElementById('rangeModalTitle'),ss=document.getElementById('rangeModalSubtitle');if(!modal||!body)return;
+ /* V86.383: con alcance multitienda (CUR='__ALL__') estas filas vienen de
+    varias tiendas y la tabla no decia de cual. Un mismo codigo puede estar en
+    8 tiendas con descuentos distintos, asi que sin la tienda la fila no se
+    puede verificar. __scopeCol solo existe cuando el alcance abarca mas de
+    una tienda (V86.225): con una sola, la tabla queda exactamente igual. */
+ var multi383=(typeof window.__scopeCol==='function');
+ function tcod383(r){return s(r&&(r.storeCode||r.__st))}
+ function tnom383(r){var c=tcod383(r),nm=s(r&&r.storeName);if(nm&&nm!==c)return nm;
+  try{if(window.LlaveroScope&&window.LlaveroScope.storeName)return s(window.LlaveroScope.storeName(c))||c}catch(_){}
+  try{return s((typeof S!=='undefined'&&S&&S[c]&&S[c].name))||c}catch(_){return c}}
  modal.classList.add('v8664Wide');if(tt)tt.textContent='Markdown · '+titleText;if(ss)ss.textContent=((S&&S[CUR]&&S[CUR].name)||CUR)+' · '+fi(data.length)+' productos';
  var units=data.reduce(function(a,r){return a+n(r.stock)},0),core=data.filter(function(r){return cc(r)==='CORE'}).length,comp=data.filter(function(r){return cc(r)==='COMPLEMENTO'}).length;
- var classes=unique(data.map(cc)),categories=unique(data.map(function(r){return r.category||''})),policies=unique(data.map(function(r){return r.policyApplied||''})),ages=unique(data.map(function(r){return r.ageLabel||''}));
- var trs=data.map(function(r){var c=cc(r),o=owner(r),state=r.statusLabel||'—',pol=r.policyApplied||'—',cat=r.category||'',q=norm([r.code,r.name,r.category,r.line,r.subline,c,pol,r.ruleApplied,state,o,r.ageLabel].join(' '));return '<tr data-code="'+esc(r.code)+'" data-q="'+esc(q)+'" data-class="'+esc(c)+'" data-category="'+esc(cat)+'" data-policy="'+esc(pol)+'" data-age="'+esc(r.ageLabel||'')+'"><td>'+img(r.code)+'</td><td><span class="code">'+esc(r.code)+'</span></td><td class="prod"><b>'+esc(r.name)+'</b><small>'+esc([r.category,r.line,r.subline].filter(Boolean).join(' · '))+'</small></td><td><span class="classPill">'+esc(c)+'</span></td><td class="num"><b>'+fi(r.stock)+'</b></td><td>'+esc(r.ageLabel||'—')+'</td><td><b>'+esc(pol)+'</b><br><small>'+esc(r.ruleApplied||'')+'</small></td><td class="num">'+pct(r.systemOfferDiscount)+'</td><td class="num">'+pct(r.currentDiscount)+'</td><td class="num"><b>'+pct(r.discount)+'</b></td><td><span class="statePill">'+esc(state)+'</span></td><td class="owner">'+esc(o)+'</td></tr>'}).join('');
- var filters='<div class="v8695MdFilters"><div class="v8695MdField"><label>Buscar</label><input id="v8695MdQ" placeholder="Código, producto, categoría, política…"></div>'+field('v8695MdCategory','Categoría',categories,'Todas')+field('v8695MdClass','Clasificación',classes,'Todas')+field('v8695MdPolicy','Política',policies,'Todas')+field('v8695MdAge','Antigüedad',ages,'Todas')+'</div>';
- body.innerHTML='<div class="v8684DetailSummary"><div class="v8684DetailKpi"><label>Productos</label><b>'+fi(data.length)+'</b></div><div class="v8684DetailKpi"><label>Unidades</label><b>'+fi(units)+'</b></div><div class="v8684DetailKpi"><label>CORE</label><b>'+fi(core)+'</b></div><div class="v8684DetailKpi"><label>COMPLEMENTO</label><b>'+fi(comp)+'</b></div></div>'+filters+'<div class="v8695MdCount"><span id="v8695MdCount">'+fi(data.length)+' productos</span><span>Selecciona una fila para abrir la ficha del producto.</span></div><div class="v8695MdWrap"><table class="v8695MdTable"><colgroup><col class="img"><col class="code"><col class="prod"><col class="cls"><col class="stock"><col class="age"><col class="policy"><col class="disc"><col class="disc"><col class="disc"><col class="state"><col class="owner"></colgroup><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th><th>Clasificación</th><th class="num">Stock</th><th>Antigüedad</th><th>Política / regla</th><th class="num">Oferta</th><th class="num">Muestra</th><th class="num">Sugerido</th><th>Estado</th><th>Responsable</th></tr></thead><tbody>'+trs+'</tbody></table></div>';
- function filter(){var q=norm((document.getElementById('v8695MdQ')||{}).value||''),cat=(document.getElementById('v8695MdCategory')||{}).value||'all',cl=(document.getElementById('v8695MdClass')||{}).value||'all',po=(document.getElementById('v8695MdPolicy')||{}).value||'all',ag=(document.getElementById('v8695MdAge')||{}).value||'all',shown=0;body.querySelectorAll('.v8695MdTable tbody tr').forEach(function(tr){var ok=(!q||s(tr.dataset.q).indexOf(q)>=0)&&(cat==='all'||tr.dataset.category===cat)&&(cl==='all'||tr.dataset.class===cl)&&(po==='all'||tr.dataset.policy===po)&&(ag==='all'||tr.dataset.age===ag);tr.style.display=ok?'':'none';if(ok)shown++});var c=document.getElementById('v8695MdCount');if(c)c.textContent=fi(shown)+' productos'}
- ['v8695MdQ','v8695MdCategory','v8695MdClass','v8695MdPolicy','v8695MdAge'].forEach(function(id){var x=document.getElementById(id);if(x)x.addEventListener(id==='v8695MdQ'?'input':'change',filter)});body.querySelectorAll('tbody tr[data-code]').forEach(function(tr){tr.onclick=function(){if(typeof openMdProduct8664==='function')openMdProduct8664(tr.dataset.code)}});
+ var classes=unique(data.map(cc)),categories=unique(data.map(function(r){return r.category||''})),policies=unique(data.map(function(r){return r.policyApplied||''})),ages=unique(data.map(function(r){return r.ageLabel||''})),tiendas=multi383?unique(data.map(tnom383)):[];
+ var trs=data.map(function(r){var c=cc(r),o=owner(r),state=r.statusLabel||'—',pol=r.policyApplied||'—',cat=r.category||'',q=norm([tnom383(r),tcod383(r),r.code,r.name,r.category,r.line,r.subline,c,pol,r.ruleApplied,state,o,r.ageLabel].join(' '));return '<tr data-code="'+esc(r.code)+'" data-store="'+esc(tnom383(r))+'" data-q="'+esc(q)+'" data-class="'+esc(c)+'" data-category="'+esc(cat)+'" data-policy="'+esc(pol)+'" data-age="'+esc(r.ageLabel||'')+'"><td>'+img(r.code)+'</td><td><span class="code">'+esc(r.code)+'</span></td><td class="prod"><b>'+esc(r.name)+'</b><small>'+esc([r.category,r.line,r.subline].filter(Boolean).join(' · '))+'</small></td>'+(multi383?'<td><span class="v225StoreCell"><b>'+esc(tnom383(r))+'</b><small>'+esc(tcod383(r))+'</small></span></td>':'')+'<td><span class="classPill">'+esc(c)+'</span></td><td class="num"><b>'+fi(r.stock)+'</b></td><td>'+esc(r.ageLabel||'—')+'</td><td><b>'+esc(pol)+'</b><br><small>'+esc(r.ruleApplied||'')+'</small></td><td class="num">'+pct(r.systemOfferDiscount)+'</td><td class="num">'+pct(r.currentDiscount)+'</td><td class="num"><b>'+pct(r.discount)+'</b></td><td><span class="statePill">'+esc(state)+'</span></td><td class="owner">'+esc(o)+'</td></tr>'}).join('');
+ var filters='<div class="v8695MdFilters"><div class="v8695MdField"><label>Buscar</label><input id="v8695MdQ" placeholder="Código, producto, categoría, política…"></div>'+field('v8695MdCategory','Categoría',categories,'Todas')+field('v8695MdClass','Clasificación',classes,'Todas')+field('v8695MdPolicy','Política',policies,'Todas')+field('v8695MdAge','Antigüedad',ages,'Todas')+(multi383?field('v383MdStore','Tienda',tiendas,'Todas'):'')+'</div>';
+ body.innerHTML='<div class="v8684DetailSummary"><div class="v8684DetailKpi"><label>Productos</label><b>'+fi(data.length)+'</b></div><div class="v8684DetailKpi"><label>Unidades</label><b>'+fi(units)+'</b></div><div class="v8684DetailKpi"><label>CORE</label><b>'+fi(core)+'</b></div><div class="v8684DetailKpi"><label>COMPLEMENTO</label><b>'+fi(comp)+'</b></div></div>'+filters+'<div class="v8695MdCount"><span id="v8695MdCount">'+fi(data.length)+' productos</span><span>Selecciona una fila para abrir la ficha del producto.</span></div><div class="v8695MdWrap"><table class="v8695MdTable"><colgroup><col class="img"><col class="code"><col class="prod">'+(multi383?'<col class="store">':'')+'<col class="cls"><col class="stock"><col class="age"><col class="policy"><col class="disc"><col class="disc"><col class="disc"><col class="state"><col class="owner"></colgroup><thead><tr><th>Imagen</th><th>Código</th><th>Producto</th>'+(multi383?'<th>Tienda</th>':'')+'<th>Clasificación</th><th class="num">Stock</th><th>Antigüedad</th><th>Política / regla</th><th class="num">Oferta</th><th class="num">Muestra</th><th class="num">Sugerido</th><th>Estado</th><th>Responsable</th></tr></thead><tbody>'+trs+'</tbody></table></div>';
+ function filter(){var q=norm((document.getElementById('v8695MdQ')||{}).value||''),cat=(document.getElementById('v8695MdCategory')||{}).value||'all',cl=(document.getElementById('v8695MdClass')||{}).value||'all',po=(document.getElementById('v8695MdPolicy')||{}).value||'all',ag=(document.getElementById('v8695MdAge')||{}).value||'all',ti=(document.getElementById('v383MdStore')||{}).value||'all',shown=0;body.querySelectorAll('.v8695MdTable tbody tr').forEach(function(tr){var ok=(!q||s(tr.dataset.q).indexOf(q)>=0)&&(cat==='all'||tr.dataset.category===cat)&&(cl==='all'||tr.dataset.class===cl)&&(po==='all'||tr.dataset.policy===po)&&(ag==='all'||tr.dataset.age===ag)&&(ti==='all'||tr.dataset.store===ti);tr.style.display=ok?'':'none';if(ok)shown++});var c=document.getElementById('v8695MdCount');if(c)c.textContent=fi(shown)+' productos'}
+ ['v8695MdQ','v8695MdCategory','v8695MdClass','v8695MdPolicy','v8695MdAge','v383MdStore'].forEach(function(id){var x=document.getElementById(id);if(x)x.addEventListener(id==='v8695MdQ'?'input':'change',filter)});body.querySelectorAll('tbody tr[data-code]').forEach(function(tr){tr.onclick=function(){if(typeof openMdProduct8664==='function')openMdProduct8664(tr.dataset.code)}});
  /* V86.301: la celda "Producto" de esta tabla pega el nombre y la categoría
     sin separador (<b>nombre</b><small>cat · lín · sub</small>, sin espacio
     entre los dos), por eso salía "...NAT/GRISSOCIAL..." en el Excel. Se
     exporta desde estos mismos datos (r.name/r.category/r.line/r.subline)
     en vez de leer esa celda. */
- modal.__v296Filas=data.map(function(r){return {c:r.code,p:{n:r.name,cat:r.category,lin:r.line,sub:r.subline},cc:cc(r),stock:r.stock,ageLabel:r.ageLabel,row:r};});
+ modal.__v296Filas=data.map(function(r){return {c:r.code,storeCode:tcod383(r),storeName:tnom383(r),p:{n:r.name,cat:r.category,lin:r.line,sub:r.subline},cc:cc(r),stock:r.stock,ageLabel:r.ageLabel,row:r};});
  modal.classList.add('on');
 }
 function statusTitle(key){return key==='manage'?'Productos a gestionar':key==='offer_covered'?'Oferta cubre':key==='comply'?'Cumple política':key==='exceed'?'Supera política':key==='review'?'Revisar dato':key==='no_policy'?'Sin política':'Detalle Markdown'}
@@ -13617,6 +13627,7 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
      datos que ya usa cada tabla para pintarse (r.c, r.p.cat/lin/sub, r.surtido,
      etc.), con una columna fija por campo, tal como lo pidió negocio. */
   function n296(v){var x=Number(v);return isFinite(x)?x:0;}
+  function prim296(){for(var i=0;i<arguments.length;i++)if(arguments[i]!=null)return arguments[i];return null;}
   function up296(v){return s(v).toUpperCase()}
   function v296TipoSurtido(raw){
     var surt=up296(raw.surtido),ciclo=up296(raw.cicloVida),ab=up296(raw.estadoAbastecimiento);
@@ -13659,17 +13670,30 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
     var unidadesOC=n296(r.unidadesOC!=null?r.unidadesOC:raw.unidadesOC);
     var ordenesCompra=n296(r.ordenesCompra!=null?r.ordenesCompra:raw.ordenesCompra);
     var fechaOC=s(r.ocFecha||r.fechaRecibido||raw.fechaRecibido||'');
-    var discActual=(r.discountActual!=null)?r.discountActual:null;
-    var discSug=(r.discountSugerido!=null)?r.discountSugerido:(r.discount!=null?r.discount:null);
-    var discOferta=(r.discountOferta!=null)?r.discountOferta:null;
-    var precioLista=(r.priceList!=null)?r.priceList:null;
+    /* V86.383: estas cuatro cifras se leen primero de la PROPIA fila. Antes se
+       dejaban en null y se volvian a consultar con v297Discount(CUR, codigo),
+       que indexa por codigo: con alcance multitienda (CUR='__ALL__') ese indice
+       mezcla las 8 tiendas y gana la ultima, asi que el Excel de "Descuento
+       actual supera politica" salia con el descuento de OTRA tienda y
+       aparecian productos donde el actual era menor que el sugerido. */
+    var tiendaCod=s(r.storeCode||raw.storeCode||r.__st||raw.__st||'');
+    var tiendaNom=s(r.storeName||raw.storeName||'');
+    if(!tiendaNom&&tiendaCod){try{tiendaNom=s((typeof S!=='undefined'&&S&&S[tiendaCod]&&S[tiendaCod].name)||'')}catch(_){}}
+    if(!tiendaNom)tiendaNom=tiendaCod;
+    var discActual=prim296(r.discountActual,r.currentDiscount,raw.currentDiscount);
+    var discSug=prim296(r.discountSugerido,r.discount,raw.discount);
+    var discOferta=prim296(r.discountOferta,r.systemOfferDiscount,raw.systemOfferDiscount);
+    var precioLista=prim296(r.priceList,raw.priceList);
     if(discActual==null&&discSug==null&&discOferta==null&&precioLista==null&&typeof window.v297Discount==='function'){
-      var d296=window.v297Discount(typeof CUR!=='undefined'?CUR:'',codigo);
+      var d296=window.v297Discount(tiendaCod||(typeof CUR!=='undefined'?CUR:''),codigo);
       discActual=d296.currentDiscount;discSug=d296.discount;discOferta=d296.offerDiscount;precioLista=d296.priceList;
     }
     var estadoLetra=(typeof window.v297EstadoLetter==='function')?(window.v297EstadoLetter(r)||window.v297EstadoLetter(raw)):'';
     var estadoLabel=estadoLetra?((typeof window.v297EstadoText==='function')?window.v297EstadoText(estadoLetra):estadoLetra):'';
-    return {
+    var reg296={};
+    if(tiendaNom)reg296['Tienda']=tiendaNom;
+    if(tiendaCod&&tiendaCod!==tiendaNom)reg296['Código tienda']=tiendaCod;
+    var out296=Object.assign(reg296,{
       'Código':codigo,
       'Nombre':s(p.n||raw.producto||codigo),
       'CORE / Complemento':v296CoreComplemento(r,raw,p),
@@ -13689,8 +13713,11 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       'Descuento sugerido':discSug==null?'':discSug,
       'Precio lista':precioLista==null?'':precioLista,
       'Estado CENDIS':estadoLabel,
+      'Estado markdown':s(r.statusLabel||raw.statusLabel||''),
       'Valor inventario':n296(valor)
-    };
+    });
+    if(!out296['Estado markdown'])delete out296['Estado markdown'];
+    return out296;
   }
   /* V86.300: si mañana se agrega una columna nueva a alguna de estas tablas
      (visible en pantalla) no debe hacer falta tocar este archivo para que
@@ -13722,8 +13749,12 @@ try{ if(window.LlaveroLog && window.LLAVERO_LOG_URL) window.LlaveroLog.configura
       return r;
     }).filter(function(x){return x['Código']});
     if(!registrosConVisibles.length)return null;
-    var header=Object.keys(registrosConVisibles[0]);
-    var aoa=[header].concat(registrosConVisibles.map(function(r){return header.map(function(h){return r[h]})}));
+    /* V86.383: no todas las filas traen las mismas claves ('Tienda' solo
+       existe con alcance multitienda). Con las claves de la primera fila se
+       perdian columnas de las demas. */
+    var header=[],vistas296={};
+    registrosConVisibles.forEach(function(r){Object.keys(r).forEach(function(k){if(!vistas296[k]){vistas296[k]=1;header.push(k)}})});
+    var aoa=[header].concat(registrosConVisibles.map(function(r){return header.map(function(h){return r[h]==null?'':r[h]})}));
     var anchosFijos=[{wch:12},{wch:34},{wch:16},{wch:16},{wch:20},{wch:18},{wch:18},{wch:18},{wch:14},{wch:11},{wch:14},{wch:14},{wch:10},{wch:14},{wch:12},{wch:12},{wch:12},{wch:12},{wch:16},{wch:14}];
     var anchos=header.map(function(h,i){return anchosFijos[i]||{wch:18}});
     return {nombre:'Detalle',filas:aoa,anchos:anchos};
